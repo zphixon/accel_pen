@@ -1,0 +1,22 @@
+name: accel_pen
+
+secrets:
+  db_root_password:
+    file: ${ACCEL_PEN_DB_ROOT_PASSWORD_FILE}
+
+volumes:
+  database:
+
+services:
+  database:
+    build:
+      context: ./backend
+      dockerfile: database.Dockerfile
+    restart: always
+    volumes:
+      - database:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: accel_pen
+    secrets:
+      - db_root_password

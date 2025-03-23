@@ -1,0 +1,8 @@
+[net]
+root = "/api/v1"
+bind = "0.0.0.0:2460"
+user_agent = "Accel Pen - xdd.farm - zack@grape.surgery"
+
+[db]
+url = "mysql://database:3306/accel_pen"
+password_path = "/run/secrets/db_root_password"

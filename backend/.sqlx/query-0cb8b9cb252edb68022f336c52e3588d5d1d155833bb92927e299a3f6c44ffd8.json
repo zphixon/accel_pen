@@ -1,0 +1,44 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT * FROM maps",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ap_id",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "max_size": 262140
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "gbx_mapuid",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | NO_DEFAULT_VALUE",
+          "max_size": 262140
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "mapname",
+        "type_info": {
+          "type": "Blob",
+          "flags": "BLOB",
+          "max_size": 262140
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "0cb8b9cb252edb68022f336c52e3588d5d1d155833bb92927e299a3f6c44ffd8"
+}

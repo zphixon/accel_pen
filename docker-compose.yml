@@ -1,0 +1,21 @@
+name: accel_pen
+
+include:
+  - database.docker-compose.yml
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: backend.Dockerfile
+      secrets:
+        - db_root_password
+    restart: always
+    depends_on:
+      - database
+    environment:
+      RUST_BACKTRACE: 1
+    ports:
+      - "2460:2460"
+    secrets:
+      - db_root_password
