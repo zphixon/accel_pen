@@ -7,3 +7,8 @@ edition = "2021"
 bytemuck = "1.22.0"
 lzokay-native = "0.1.0"
 tokio.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

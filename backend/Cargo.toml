@@ -13,6 +13,7 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["tracing"] }
 url = { version = "2.5.4", features = ["serde"] }
 uuid = { version = "1.16.0", features = ["v4"] }
+thiserror = "2.0.12"
 
 [package]
 name = "accel_pen"
@@ -33,3 +34,4 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 url.workspace = true
 uuid.workspace = true
+thiserror.workspace = true
