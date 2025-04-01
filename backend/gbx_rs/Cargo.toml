@@ -1,0 +1,9 @@
+[package]
+name = "gbx_rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = "1.22.0"
+lzokay-native = "0.1.0"
+tokio.workspace = true

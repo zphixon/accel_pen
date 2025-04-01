@@ -1,9 +1,6 @@
-[package]
-name = "accel_pen"
-version = "0.1.0"
-edition = "2021"
+[workspace]
 
-[dependencies]
+[workspace.dependencies]
 anyhow = { version = "1.0.97", features = ["backtrace"] }
 axum = "0.8.1"
 image = { version = "0.25.5", features = ["serde"] }
@@ -15,3 +12,24 @@ toml = "0.8.20"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["tracing"] }
 url = { version = "2.5.4", features = ["serde"] }
+uuid = { version = "1.16.0", features = ["v4"] }
+
+[package]
+name = "accel_pen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gbx_rs = { path = "gbx_rs" }
+anyhow.workspace = true
+axum.workspace = true
+image.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+toml.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+uuid.workspace = true

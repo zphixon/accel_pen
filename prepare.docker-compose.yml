@@ -4,7 +4,4 @@ services:
   database:
     ports:
       - "3306:3306"
-
-  backend:
-    environment:
-      RUST_LOG: trace
+  

@@ -80,17 +80,13 @@ async fn fallback() -> (StatusCode, String) {
 }
 
 async fn hello(State(state): State<AppState>) -> Result<String, (StatusCode, String)> {
-    let row = sqlx::query!("SELECT * FROM maps")
+    let row = sqlx::query!("SELECT * FROM map")
         .fetch_optional(&state.pool)
         .await
         .map_err(ErrorBacktrace::internal_server)?;
 
     if let Some(row) = row {
-        if let Some(mapname) = row.mapname {
-            Ok(format!("got a row: {}\n", mapname))
-        } else {
-            Ok(String::from("null xdd\n"))
-        }
+        Ok(format!("got a row: {}\n", row.mapname))
     } else {
         Ok(String::from("Hello!\n"))
     }
