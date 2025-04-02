@@ -1,23 +1,27 @@
-use tokio::io::BufReader;
+use std::io::Read;
 
-#[tokio::main]
-async fn main() -> Result<(), ()> {
+use gbx_rs::CGameCtnChallenge;
+
+fn main() -> Result<(), &'static str> {
     tracing_subscriber::fmt::init();
     tracing::info!("chugnus");
 
     let args = std::env::args().collect::<Vec<_>>();
     let [_, filename] = &args[..] else {
-        tracing::error!("expected one arg, map filename");
-        return Err(());
+        return Err("expected one arg, map filename");
     };
 
-    let file = tokio::fs::File::open(filename).await.map_err(|_| {})?;
-    let reader = BufReader::new(file);
-
-    let header = gbx_rs::parse_headers(reader).await.map_err(|err| {
+    let mut file = std::fs::File::open(filename).map_err(|_| "couldn't open file")?;
+    let mut data = Vec::new();
+    file.read_to_end(&mut data)
+        .map_err(|_| "couldn't read file")?;
+    let mut node = gbx_rs::Node::read_from(std::io::Cursor::new(data)).map_err(|err| {
         println!("{:?}", err);
+        "couldn't parse file"
     })?;
-    println!("{:#?}", header);
+    println!("{:#?}", node);
+
+    println!("{:?}", node.to::<CGameCtnChallenge<_>>().unwrap().map_name());
 
     Ok(())
 }

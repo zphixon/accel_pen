@@ -638,10 +638,10 @@ dependencies = [
 name = "gbx_rs"
 version = "0.1.0"
 dependencies = [
- "bytemuck",
+ "byteorder",
+ "bytes",
  "lzokay-native",
  "thiserror 2.0.12",
- "tokio",
  "tracing",
  "tracing-subscriber",
 ]
