@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use gbx_rs::CGameCtnChallenge;
+use gbx_rs::{CGameCtnChallenge, FromNode};
 
 fn main() -> Result<(), &'static str> {
     tracing_subscriber::fmt::init();
@@ -15,13 +15,31 @@ fn main() -> Result<(), &'static str> {
     let mut data = Vec::new();
     file.read_to_end(&mut data)
         .map_err(|_| "couldn't read file")?;
-    let mut node = gbx_rs::Node::read_from(std::io::Cursor::new(data)).map_err(|err| {
-        println!("{:?}", err);
-        "couldn't parse file"
-    })?;
-    println!("{:#?}", node);
 
-    println!("{:?}", node.to::<CGameCtnChallenge<_>>().unwrap().map_name());
+    match gbx_rs::Node::read_from(&data) {
+        Ok(node) => {
+            println!("{:#?}", node);
+            match node.to::<CGameCtnChallenge>() {
+                Ok(mut map) => match map.read_full() {
+                    Ok(()) => {
+                        println!("{:?}", map.map_name.unwrap());
+                        println!(
+                            "{:?}",
+                            map.challenge_parameters.unwrap().author_time.unwrap()
+                        );
+                    }
+                    Err(err) => {
+                        println!("couldn't read map in full:\n{}", err);
+                    }
+                },
+                Err(err) => {
+                    println!("couldn't read as a map:\n{}", err);
+                }
+            }
+        }
+
+        Err(err) => println!("{}", err),
+    }
 
     Ok(())
 }
