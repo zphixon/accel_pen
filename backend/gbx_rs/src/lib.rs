@@ -318,7 +318,7 @@ impl Debug for Node {
 }
 
 impl Node {
-    pub fn read_from<B: AsRef<[u8]>>(data: B) -> Result<Node, GbxError> {
+    pub fn read_from<B: AsRef<[u8]> + std::panic::UnwindSafe>(data: B) -> Result<Node, GbxError> {
         let mut cursor = Cursor::new(data);
         let header = parse_header(&mut cursor).context("Parsing header")?;
         if header.body_compression != Compression::Compressed {
@@ -332,10 +332,23 @@ impl Node {
         let compressed_size = cursor.read_u32::<LE>().context("Reading compressed size")?;
         tracing::debug!("compressed size {}", compressed_size);
 
-        Ok(Node {
-            header,
-            body: lzokay_native::decompress(&mut cursor, None).context("Decompressing body")?,
-        })
+        let Ok(body) = std::panic::catch_unwind(move || {
+            let mut cursor = cursor;
+
+            #[allow(unexpected_cfgs)]
+            if cfg!(fuzzing) {
+                let position = cursor.position() as usize;
+                let inner: B = cursor.into_inner();
+                Ok(Vec::from(&inner.as_ref()[position..]))
+            } else {
+                lzokay_native::decompress(&mut cursor, None).context("Decompressing body")
+            }
+        }) else {
+            return Err(GbxErrorInner::Lzo(lzokay_native::Error::Unknown).into());
+        };
+
+        let body = body?;
+        Ok(Node { header, body })
     }
 
     pub fn parse(&self) -> Result<parse::CGame, GbxError> {
