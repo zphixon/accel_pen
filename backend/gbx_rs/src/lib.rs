@@ -132,14 +132,14 @@ pub enum GbxErrorInner {
     #[error("Invalid lookback string, file may be corrupted")]
     InvalidLookbackString,
 
-    #[error("TODO: {0}")]
-    TODO(&'static str),
-
     #[error("Invalid chunk {chunk_id:08x} for class {class_id:08x}")]
     InvalidChunkForClass { chunk_id: u32, class_id: u32 },
 
     #[error("Invalid string from {start:08x} to {end:08x}")]
     InvalidString { start: usize, end: usize },
+
+    #[error("Invalid node reference")]
+    InvalidNodeRef,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

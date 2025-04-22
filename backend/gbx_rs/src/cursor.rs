@@ -169,7 +169,7 @@ impl<'node> BodyCursor<'node> {
 
             Ok(Some(node))
         } else {
-            unreachable!("index < 0: {index}");
+            Err(GbxErrorInner::InvalidNodeRef.into())
         }
     }
 
