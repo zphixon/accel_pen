@@ -178,6 +178,7 @@ impl TryFrom<u8> for Compression {
     }
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 struct Header {
     version: u16,
@@ -189,6 +190,7 @@ struct Header {
     num_external_nodes: u32,
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 struct HeaderChunk {
     id: u32,
