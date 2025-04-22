@@ -6,7 +6,7 @@ axum = "0.8.1"
 image = { version = "0.25.5", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-sqlx = { version = "0.8.3", features = ["runtime-tokio", "mysql"] }
+sqlx = { version = "0.8.3", features = ["runtime-tokio", "mysql", "time"] }
 tokio = { version = "1.44.1", features = ["full"] }
 toml = "0.8.20"
 tracing = "0.1.41"

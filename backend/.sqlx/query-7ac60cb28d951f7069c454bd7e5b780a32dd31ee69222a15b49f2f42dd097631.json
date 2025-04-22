@@ -56,12 +56,32 @@
           "flags": "NOT_NULL",
           "max_size": 11
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "uploaded",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 19
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created",
+        "type_info": {
+          "type": "Timestamp",
+          "flags": "NOT_NULL | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 19
+        }
       }
     ],
     "parameters": {
       "Right": 0
     },
     "nullable": [
+      false,
+      false,
       false,
       false,
       false,

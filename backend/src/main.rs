@@ -44,7 +44,7 @@ static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     config
         .db
         .url
-        .set_password(Some(&password))
+        .set_password(Some(password.trim()))
         .expect("Couldn't set password on DB URL");
 
     config
