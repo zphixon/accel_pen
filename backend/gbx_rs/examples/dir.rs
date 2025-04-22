@@ -1,7 +1,5 @@
 use std::io::Read;
 
-use gbx_rs::{CGameCtnChallenge, FromNode};
-
 fn main() -> Result<(), &'static str> {
     tracing_subscriber::fmt::init();
     tracing::info!("chugnus");
@@ -26,8 +24,10 @@ fn main() -> Result<(), &'static str> {
                 .map_err(|_| "couldn't read file")?;
 
             if let Ok(node) = gbx_rs::Node::read_from(&data) {
-                let mut map = node.to::<CGameCtnChallenge>().unwrap();
-                map.read_full().unwrap();
+                let Ok(gbx_rs::parse::CGame::CtnChallenge(map)) = node.parse() else {
+                    println!("    not a map");
+                    continue;
+                };
                 println!(
                     "    {} by {}",
                     map.map_name.unwrap(),

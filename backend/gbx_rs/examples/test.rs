@@ -1,7 +1,5 @@
 use std::io::Read;
 
-use gbx_rs::{CGameCtnChallenge, FromNode};
-
 fn main() -> Result<(), &'static str> {
     tracing_subscriber::fmt::init();
     tracing::info!("chugnus");
@@ -19,21 +17,33 @@ fn main() -> Result<(), &'static str> {
     match gbx_rs::Node::read_from(&data) {
         Ok(node) => {
             println!("{:#?}", node);
-            match node.to::<CGameCtnChallenge>() {
-                Ok(mut map) => match map.read_full() {
-                    Ok(()) => {
-                        println!("{:?}", map.map_name.unwrap());
-                        println!(
-                            "{:?}",
-                            map.challenge_parameters.unwrap().author_time.unwrap()
-                        );
-                    }
-                    Err(err) => {
-                        println!("couldn't read map in full:\n{}", err);
-                    }
-                },
+            //match node.to::<CGameCtnChallenge>() {
+            //    Ok(mut map) => match map.read_full() {
+            //        Ok(()) => {
+            //            println!("{:?}", map.map_name.unwrap());
+            //            println!(
+            //                "{:?}",
+            //                map.challenge_parameters.unwrap().author_time.unwrap()
+            //            );
+            //        }
+            //        Err(err) => {
+            //            println!("couldn't read map in full:\n{}", err);
+            //        }
+            //    },
+            //    Err(err) => {
+            //        println!("couldn't read as a map:\n{}", err);
+            //    }
+            //}
+
+            match node.parse() {
+                Ok(gbx_rs::parse::CGame::CtnChallenge(map)) => {
+                    println!("got a map: {:#?}", map);
+                }
+                Ok(_) => {
+                    println!("didn't get a map??");
+                }
                 Err(err) => {
-                    println!("couldn't read as a map:\n{}", err);
+                    println!("{}", err);
                 }
             }
         }
