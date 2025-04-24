@@ -1,8 +1,7 @@
 import { useParams } from "react-router";
-import { Suspense, use, useEffect, useState } from "react";
+import { Suspense, use } from "react";
 
 import * as api from "../../api";
-import toast from "react-hot-toast";
 
 interface MapViewInnerProps {
   mapDataPromise: ReturnType<typeof api.mapData>,

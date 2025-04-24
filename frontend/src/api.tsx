@@ -1,5 +1,3 @@
-import toast from "react-hot-toast";
-
 export function url(): string {
   if (import.meta.env.DEV) {
     return "http://localhost:2460/api/v1";
