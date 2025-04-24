@@ -23,7 +23,6 @@ from_env::config!(
     db {
         url: Url,
         password_path: PathBuf,
-        test_migrations: Option<bool>,
     }
 );
 
@@ -74,11 +73,14 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     tracing::info!("Bind on {}", CONFIG.net.bind);
 
-    let pool = MySqlPool::connect(CONFIG.db.url.as_str()).await?;
-    sqlx::migrate!().run(&pool).await?;
-    if CONFIG.db.test_migrations.unwrap_or(false) {
-        sqlx::migrate!("./migrations_test").run(&pool).await?;
-    }
+    let pool = MySqlPool::connect(CONFIG.db.url.as_str())
+        .await
+        .context("Connecting to database")?;
+
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .context("Running migrations")?;
 
     let app = Router::new()
         .route(&CONFIG.route("map_data/{map_id}"), get(map_data))
@@ -129,6 +131,9 @@ pub enum ApiErrorInner {
     #[error("Database error")]
     Database(#[from] sqlx::Error),
 
+    #[error("Migration error")]
+    Migration(#[from] sqlx::migrate::MigrateError),
+
     #[error("Invalid map ID")]
     InvalidMapId(#[from] std::num::ParseIntError),
 
@@ -152,7 +157,9 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let error: &'static str = (&*self).into();
         let status_code = match &*self {
-            ApiErrorInner::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorInner::Database(_) | ApiErrorInner::Migration(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
             ApiErrorInner::InvalidMapId(_) => StatusCode::BAD_REQUEST,
             ApiErrorInner::MapNotFound(_) | ApiErrorInner::NotFound(_) => StatusCode::NOT_FOUND,
         };
@@ -172,6 +179,13 @@ impl IntoResponse for ApiError {
             }),
         )
             .into_response()
+    }
+}
+
+impl std::error::Error for ApiError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        let inner: &ApiErrorInner = &*self;
+        Some(inner)
     }
 }
 

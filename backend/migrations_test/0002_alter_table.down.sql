@@ -1,2 +1,0 @@
-ALTER TABLE user
-DROP COLUMN gregory;
