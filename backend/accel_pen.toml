@@ -2,6 +2,7 @@
 root = "/api/v1"
 bind = "0.0.0.0:2460"
 user_agent = "Accel Pen - xdd.farm - zack@grape.surgery"
+cors_host = "https://xdd.farm"
 
 [db]
 url = "mysql://database:3306/accel_pen"

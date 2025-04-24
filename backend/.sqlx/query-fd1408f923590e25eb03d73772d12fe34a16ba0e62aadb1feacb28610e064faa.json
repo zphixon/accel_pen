@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "SELECT * FROM map",
+  "query": "SELECT * FROM map WHERE ap_id = ?",
   "describe": {
     "columns": [
       {
@@ -77,7 +77,7 @@
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
@@ -90,5 +90,5 @@
       false
     ]
   },
-  "hash": "7ac60cb28d951f7069c454bd7e5b780a32dd31ee69222a15b49f2f42dd097631"
+  "hash": "fd1408f923590e25eb03d73772d12fe34a16ba0e62aadb1feacb28610e064faa"
 }

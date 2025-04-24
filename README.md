@@ -25,19 +25,12 @@ the trackmania map corral
 - ubi login
 
 
-## building/deploying
+## deploying
 
 https://stackoverflow.com/a/68916787/18270160
 
-- docker
-  - https://github.com/LukeMathWalker/cargo-chef
-- mysql
-  - https://dev.mysql.com/doc/refman/8.4/en/data-directory.html
-- rust backend
-- react frontend
-- static content served with axum
-- api served with axum
-
+Set the environment variable ACCEL_PEN_DB_ROOT_PASSWORD_FILE to the path of a file containing the root
+password for MySQL. Run `docker compose -f docker-compose.yml up` and that should be it.
 
 ## developing
 

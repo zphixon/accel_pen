@@ -1,19 +1,24 @@
 [workspace]
 
 [workspace.dependencies]
+from_env = { git = "https://github.com/zphixon/from_env" }
+
 anyhow = { version = "1.0.97", features = ["backtrace"] }
 axum = "0.8.1"
 image = { version = "0.25.5", features = ["serde"] }
+random = "0.9.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 sqlx = { version = "0.8.3", features = ["runtime-tokio", "mysql", "time"] }
+strum = { version = "0.27.1", features = ["derive"] }
+thiserror = "2.0.12"
 tokio = { version = "1.44.1", features = ["full"] }
 toml = "0.8.20"
+tower-http = { version = "0.6.2", features = ["cors"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["tracing"] }
 url = { version = "2.5.4", features = ["serde"] }
 uuid = { version = "1.16.0", features = ["v4"] }
-thiserror = "2.0.12"
 
 [package]
 name = "accel_pen"
@@ -22,16 +27,20 @@ edition = "2021"
 
 [dependencies]
 gbx_rs = { path = "gbx_rs" }
+
 anyhow.workspace = true
 axum.workspace = true
+from_env.workspace = true
 image.workspace = true
-serde.workspace = true
 serde_json.workspace = true
+serde.workspace = true
 sqlx.workspace = true
+strum.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 toml.workspace = true
-tracing.workspace = true
+tower-http.workspace = true
 tracing-subscriber.workspace = true
+tracing.workspace = true
 url.workspace = true
 uuid.workspace = true
-thiserror.workspace = true

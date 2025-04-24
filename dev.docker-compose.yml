@@ -8,3 +8,16 @@ services:
   backend:
     environment:
       RUST_LOG: trace
+      ACCEL_PEN_NET_CORS_HOST: http://localhost:5173
+    develop:
+      watch:
+        - action: rebuild
+          path: ./backend/src
+          target: /app/accel_pen
+        - action: rebuild
+          path: ./backend/gbx_rs
+          target: /app/accel_pen
+        - action: sync+restart
+          path: ./backend/accel_pen.toml
+          target: /app/accel_pen.toml
+

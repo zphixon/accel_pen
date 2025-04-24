@@ -12,4 +12,4 @@ tracing.workspace = true
 
 [dev-dependencies]
 tracing-subscriber.workspace = true
-random = "0.9.1"
+random.workspace = true
