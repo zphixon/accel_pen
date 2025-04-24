@@ -1,7 +1,0 @@
-name: accel_pen
-
-services:
-  database:
-    ports:
-      - "3306:3306"
-  

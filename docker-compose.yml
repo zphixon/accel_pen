@@ -1,21 +1,32 @@
 name: accel_pen
 
-include:
-  - database.docker-compose.yml
+secrets:
+  db_root_password:
+    file: ${ACCEL_PEN_DB_PASSWORD_PATH}
+
+volumes:
+  database:
 
 services:
   backend:
     build:
       context: ./backend
-      dockerfile: backend.Dockerfile
-      secrets:
-        - db_root_password
     restart: always
     depends_on:
       - database
-    environment:
-      RUST_BACKTRACE: 1
     ports:
       - "2460:2460"
     secrets:
       - db_root_password
+  
+  database:
+    build:
+      context: ./database
+    restart: always
+    volumes:
+      - database:/var/lib/mysql
+    secrets:
+      - db_root_password
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: accel_pen
