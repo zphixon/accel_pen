@@ -1,0 +1,1 @@
+DELETE FROM user WHERE display_name = 'cheezgi';

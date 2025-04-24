@@ -23,6 +23,7 @@ from_env::config!(
     db {
         url: Url,
         password_path: PathBuf,
+        test_migrations: Option<bool>,
     }
 );
 
@@ -74,6 +75,10 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Bind on {}", CONFIG.net.bind);
 
     let pool = MySqlPool::connect(CONFIG.db.url.as_str()).await?;
+    sqlx::migrate!().run(&pool).await?;
+    if CONFIG.db.test_migrations.unwrap_or(false) {
+        sqlx::migrate!("./migrations_test").run(&pool).await?;
+    }
 
     let app = Router::new()
         .route(&CONFIG.route("map_data/{map_id}"), get(map_data))
@@ -82,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(
             CorsLayer::new()
                 .allow_methods(cors::Any)
-                .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>().unwrap()),
+                .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?),
         );
 
     let listener = TcpListener::bind(CONFIG.net.bind).await?;

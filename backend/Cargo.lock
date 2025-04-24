@@ -577,10 +577,11 @@ dependencies = [
 [[package]]
 name = "from_env"
 version = "0.1.0"
-source = "git+https://github.com/zphixon/from_env#e9c3a98ee994b68a0240e9160d459f3b4721ba73"
+source = "git+https://github.com/zphixon/from_env#463f5f88004cdca6e8325ed36670a141fbfee716"
 dependencies = [
  "macros",
  "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -1195,7 +1196,7 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.1.0"
-source = "git+https://github.com/zphixon/from_env#e9c3a98ee994b68a0240e9160d459f3b4721ba73"
+source = "git+https://github.com/zphixon/from_env#463f5f88004cdca6e8325ed36670a141fbfee716"
 dependencies = [
  "proc-macro2",
  "quote",

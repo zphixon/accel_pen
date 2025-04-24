@@ -35,20 +35,18 @@ password for MySQL. Run `docker compose -f docker-compose.yml up` and that shoul
 ## developing
 
 1. Create a MySQL database root password by creating a file `secret_root_pw.txt` in the repo root.
-2. If you've changed any queries in the project:
-    1. Close any running containers.
-    2. Run `docker compose -f database.docker-compose.yml -f prepare.docker-compose.yml up` to run the
-       database container in dev mode.
-    3. Set the DATABASE_URL environment variable to point to the database container. Add the `root`
-       user and password from the password file to the URL. For example:
-       `mysql://root:$(cat ../secret_root_pw.txt)@localhost:3306/accel_pen`
-       If you're using WSL, get the IP from `wsl hostname -I`. 
-    3. Run `cargo sqlx prepare` in the `backend` directory to update the `.sqlx` directory.
-    4. Commit changes to the `.sqlx` directory.
-3. Otherwise, run `docker compose -f docker-compose.yml -f dev.docker-compose.yml up --build` to build
-   and run in dev mode. This takes a million years though, so you will definitely want to write a
-   custom backend config file (which would let you just run the database container on its own).
-4. If you've changed the database schema, IDK
+2. Run `docker compose -f docker-compose.yml -f dev.docker-compose.yml up --build` to run the project in dev mode.
+3. If you're planning on changing any queries in the backend:
+  1. Run the project in a clean working tree. The database should be online while you make these changes.
+  2. Set the DATABASE_URL environment variable to point to the database container. Add the `root`
+     user and password from the password file to the URL. For example:
+     `mysql://root:$(cat ../secret_root_pw.txt)@localhost:3306/accel_pen`
+     If you're using WSL, get the IP from `wsl hostname -I`. 
+  3. Once you're happy with the new queries, run `cargo sqlx prepare` in the `backend` directory to
+     update the `.sqlx` directory.
+  4. Commit changes to the `.sqlx` directory.
+4. If you're planning on changing the database schema:
+  1. For now, delete the database volume and re-build the compose project. Kind of annoying :/
 
 
 # React + TypeScript + Vite

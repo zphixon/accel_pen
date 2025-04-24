@@ -9,6 +9,7 @@ services:
     environment:
       RUST_LOG: trace
       ACCEL_PEN_NET_CORS_HOST: http://localhost:5173
+      ACCEL_PEN_DB_TEST_MIGRATIONS: true
     develop:
       watch:
         - action: rebuild
