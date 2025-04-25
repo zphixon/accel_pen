@@ -9,6 +9,11 @@ CREATE TABLE user (
     PRIMARY KEY (user_id)
 );
 
+CREATE TABLE session (
+    user_id INTEGER UNSIGNED,
+
+);
+
 CREATE TABLE map (
     ap_id INTEGER UNSIGNED AUTO_INCREMENT,
     gbx_mapuid VARCHAR(128) NOT NULL,

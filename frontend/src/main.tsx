@@ -1,33 +1,37 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Route, Routes } from 'react-router'
 import { Toaster } from 'react-hot-toast'
+import { Route, Switch } from 'wouter'
 
 import Home from './elements/Home.tsx'
 import MapView from './elements/map/MapView.tsx'
 import NotFound from './elements/NotFound.tsx'
 import MapUpload from './elements/map/MapUpload.tsx'
-import LoginPage from './elements/LoginPage.tsx'
+import Login from './elements/Login.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route index element={<Home />} />
+    <Switch>
+      <Route path="/"><Home /></Route>
 
-        <Route path="map">
-          <Route path=":mapId" element={<MapView />} />
-          <Route path="upload" element={<MapUpload />} />
-        </Route>
+      <Route nest path="/map">
+        <Switch>
+          <Route path="/upload"><MapUpload /></Route>
+          <Route path="/:mapId">{params => <MapView mapId={params.mapId}/>}</Route>
+          <Route><NotFound /></Route>
+        </Switch>
+      </Route>
 
-        <Route path="login">
-          <Route path="" element={<LoginPage oauthRedirect={false} />} />
-          <Route path="oauth" element={<LoginPage oauthRedirect={true} />}/>
-        </Route>
+      <Route nest path="/login">
+        <Switch>
+          <Route path="/"><Login finish={false} /></Route>
+          <Route path="/finish"><Login finish={true} /></Route>
+          <Route><NotFound /></Route>
+        </Switch>
+      </Route>
 
-        <Route path="*" element={<NotFound />}/>
-      </Routes>
-    </BrowserRouter>
+      <Route><NotFound /></Route>
+    </Switch>
     <Toaster />
   </StrictMode>,
 )

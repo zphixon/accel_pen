@@ -13,7 +13,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",
-    "react-router": "^7.5.1"
+    "react-use": "^17.6.0",
+    "uuid": "^11.1.0",
+    "wouter": "^3.7.0"
   },
   "homepage": "tm.grape.surgery",
   "devDependencies": {

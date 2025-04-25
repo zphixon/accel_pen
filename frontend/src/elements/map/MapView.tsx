@@ -1,4 +1,3 @@
-import { useParams } from "react-router";
 import { Suspense, use } from "react";
 
 import * as api from "../../api";
@@ -18,19 +17,18 @@ function MapViewInner({ mapDataPromise }: MapViewInnerProps) {
   </>
 }
 
-function MapView() {
-  let params = useParams();
-  if (params.mapId == undefined) {
-    return <>Missing map ID</>;
-  }
+interface MapViewProps {
+  mapId: string,
+}
+function MapView({ mapId }: MapViewProps) {
   try {
-    var mapId = Number.parseInt(params.mapId);
+    var mapIdNumber = Number.parseInt(mapId);
   } catch (ex) {
     return <>Invalid map ID</>;
   }
 
   return <Suspense>
-    <MapViewInner mapDataPromise={api.mapData(mapId)} />
+    <MapViewInner mapDataPromise={api.mapData(mapIdNumber)} />
   </Suspense>;
 }
 

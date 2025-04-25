@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "wouter";
 
 function Home() {
   let mode;
@@ -9,9 +9,8 @@ function Home() {
   }
 
   return <>
-    <p>Fungus</p>
-    <p><Link to="/map/32">Map view</Link></p>
-    <p>{mode}</p>
+    <p>{mode} <Link href="/map/32">Some test map view</Link></p>
+    <p><Link href="/login">Log in</Link></p>
   </>;
 }
 

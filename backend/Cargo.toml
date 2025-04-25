@@ -4,9 +4,10 @@
 from_env = { git = "https://github.com/zphixon/from_env" }
 
 anyhow = { version = "1.0.97", features = ["backtrace"] }
-axum = "0.8.1"
+axum = { version = "0.8.1", features = ["query"] }
 image = { version = "0.25.5", features = ["serde"] }
 random = "0.9.1"
+reqwest = { version = "0.12.15", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 sqlx = { version = "0.8.3", features = ["runtime-tokio", "mysql", "time"] }
@@ -15,10 +16,11 @@ thiserror = "2.0.12"
 tokio = { version = "1.44.1", features = ["full"] }
 toml = "0.8.20"
 tower-http = { version = "0.6.2", features = ["cors"] }
+tower-sessions = "0.14.0"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["tracing"] }
 url = { version = "2.5.4", features = ["serde"] }
-uuid = { version = "1.16.0", features = ["v4"] }
+uuid = { version = "1.16.0", features = ["v4", "serde"] }
 
 [package]
 name = "accel_pen"
@@ -32,6 +34,7 @@ anyhow.workspace = true
 axum.workspace = true
 from_env.workspace = true
 image.workspace = true
+reqwest.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 sqlx.workspace = true
@@ -40,6 +43,7 @@ thiserror.workspace = true
 tokio.workspace = true
 toml.workspace = true
 tower-http.workspace = true
+tower-sessions.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
 url.workspace = true

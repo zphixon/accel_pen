@@ -18,7 +18,7 @@ services:
       - "2460:2460"
     secrets:
       - db_root_password
-  
+
   database:
     build:
       context: ./backend

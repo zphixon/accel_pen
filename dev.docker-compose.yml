@@ -1,22 +1,24 @@
-name: accel_pen
+name: dev_accel_pen
+
+secrets:
+  db_root_password:
+    file: ${ACCEL_PEN_DB_PASSWORD_PATH}
+
+volumes:
+  database:
 
 services:
   database:
+    build:
+      context: ./backend
+      dockerfile: database.Dockerfile
+    restart: always
+    volumes:
+      - database:/var/lib/mysql
+    secrets:
+      - db_root_password
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: accel_pen
     ports:
       - "3306:3306"
-
-  backend:
-    environment:
-      RUST_LOG: trace
-      ACCEL_PEN_NET_CORS_HOST: http://localhost:5173
-    develop:
-      watch:
-        - action: rebuild
-          path: ./backend/src
-          target: /app/accel_pen
-        - action: rebuild
-          path: ./backend/gbx_rs
-          target: /app/accel_pen
-        - action: sync+restart
-          path: ./backend/accel_pen.toml
-          target: /app/accel_pen.toml

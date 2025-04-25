@@ -1,11 +1,11 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path,  State},
     http::{HeaderValue, StatusCode, Uri},
-    response::{IntoResponse, Response},
-    routing::get,
+    response::{IntoResponse,  Response},
+    routing::{get, post},
     Json, Router,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 use std::{fmt::Display, net::SocketAddr, ops::Deref, path::PathBuf, sync::LazyLock};
 use tokio::net::TcpListener;
@@ -15,16 +15,35 @@ use url::Url;
 from_env::config!(
     "ACCEL_PEN",
     net {
+        #[serde(default)]
         root: String,
         bind: SocketAddr,
         user_agent: String,
+        #[serde(default = "default_cors_host")]
         cors_host: String,
+        frontend_url: Url,
     },
     db {
         url: Url,
         password_path: PathBuf,
+    },
+    nadeo {
+        identifier: String,
+        secret_path: PathBuf,
+        redirect_url: Url,
     }
 );
+
+fn default_cors_host() -> String {
+    String::from("*")
+}
+
+static CLIENT_SECRET: LazyLock<String> = LazyLock::new(|| {
+    let Ok(secret) = std::fs::read_to_string(&CONFIG.nadeo.secret_path) else {
+        panic!("Couldn't read nadeo client secret file");
+    };
+    secret
+});
 
 static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     let arg = std::env::args().nth(1).expect("need config filename arg");
@@ -58,8 +77,8 @@ static CONFIG: LazyLock<Config> = LazyLock::new(|| {
 });
 
 impl Config {
-    fn route(&self, path: &str) -> String {
-        format!("{}/{}", self.net.root, path)
+    fn route_v1(&self, path: &str) -> String {
+        format!("{}/v1/{}", self.net.root, path)
     }
 }
 
@@ -82,14 +101,18 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Running migrations")?;
 
+    drop(CLIENT_SECRET.clone());
+
     let app = Router::new()
-        .route(&CONFIG.route("map_data/{map_id}"), get(map_data))
+        .route(&CONFIG.route_v1("map_data/{map_id}"), get(map_data))
+        .route(&CONFIG.route_v1("oauth"), post(oauth))
         .fallback(fallback)
         .with_state(AppState { pool })
         .layer(
             CorsLayer::new()
                 .allow_methods(cors::Any)
-                .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?),
+                .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?)
+                .allow_headers(cors::Any),
         );
 
     let listener = TcpListener::bind(CONFIG.net.bind).await?;
@@ -102,8 +125,68 @@ async fn fallback(uri: Uri) -> ApiError {
     ApiErrorInner::NotFound(uri).into()
 }
 
+#[derive(Deserialize)]
+struct OauthCode {
+    code: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct NadeoOauthResponse {
+    token_type: String,
+    expires_in: u64,
+    access_token: String,
+    refresh_token: String,
+}
+
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
+struct OauthResponse {
+    access_token: String,
+    refresh_token: String,
+}
+
+async fn oauth(Json(OauthCode { code }): Json<OauthCode>) -> Result<Json<OauthResponse>, ApiError> {
+    let body_url_because_url_crate_doesnt_expose_params_parser_fuck = Url::parse_with_params(
+        "h://a",
+        &[
+            ("grant_type", "authorization_code"),
+            ("client_id", &CONFIG.nadeo.identifier),
+            ("client_secret", &CLIENT_SECRET),
+            ("code", &code),
+            ("redirect_uri", CONFIG.nadeo.redirect_url.as_str()),
+        ],
+    )
+    .context("Parsing URL for access token request")?;
+
+    let response = reqwest::Client::builder()
+        .user_agent(&CONFIG.net.user_agent)
+        .build()?
+        .post(Url::parse("https://api.trackmania.com/api/access_token").unwrap())
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(
+            body_url_because_url_crate_doesnt_expose_params_parser_fuck
+                .query()
+                .unwrap()
+                .to_owned(),
+        )
+        .send()
+        .await
+        .context("Sending request for access token")?;
+
+    if response.status().is_success() {
+        let response: NadeoOauthResponse = response.json().await?;
+        Ok(Json(OauthResponse {
+            access_token: response.access_token,
+            refresh_token: response.refresh_token,
+        }))
+    } else {
+        let json_error: serde_json::Value = response.json().await?;
+        Err(ApiErrorInner::OauthFailed(format!("{}", json_error)).into())
+    }
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
 struct MapDataResponse {
     name: String,
 }
@@ -128,14 +211,26 @@ async fn map_data(
 
 #[derive(Debug, thiserror::Error, strum::IntoStaticStr)]
 pub enum ApiErrorInner {
-    #[error("Database error")]
+    #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 
-    #[error("Migration error")]
+    #[error("Migration error: {0}")]
     Migration(#[from] sqlx::migrate::MigrateError),
 
-    #[error("Invalid map ID")]
+    #[error("Invalid map ID: {0}")]
     InvalidMapId(#[from] std::num::ParseIntError),
+
+    #[error("URL parse error: {0}")]
+    UrlParseError(#[from] url::ParseError),
+
+    #[error("Session error: {0}")]
+    SessionError(#[from] tower_sessions::session::Error),
+
+    #[error("Request to Nadeo API failed")]
+    NadeoApiFailed(#[from] reqwest::Error),
+
+    #[error("Oauth failed: {0}")]
+    OauthFailed(String),
 
     #[error("Map not found: {0}")]
     MapNotFound(u64),
@@ -155,17 +250,23 @@ pub enum ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        tracing::error!("{}", self);
+
         let error: &'static str = (&*self).into();
         let status_code = match &*self {
-            ApiErrorInner::Database(_) | ApiErrorInner::Migration(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
+            ApiErrorInner::Database(_)
+            | ApiErrorInner::Migration(_)
+            | ApiErrorInner::UrlParseError(_)
+            | ApiErrorInner::SessionError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorInner::NadeoApiFailed(_) => StatusCode::BAD_GATEWAY,
+            ApiErrorInner::InvalidMapId(_) | ApiErrorInner::OauthFailed(_) => {
+                StatusCode::BAD_REQUEST
             }
-            ApiErrorInner::InvalidMapId(_) => StatusCode::BAD_REQUEST,
             ApiErrorInner::MapNotFound(_) | ApiErrorInner::NotFound(_) => StatusCode::NOT_FOUND,
         };
 
         #[derive(Serialize)]
-        #[serde(tag = "type", rename_all = "camelCase")]
+        #[serde(tag = "type")]
         struct ApiError {
             error: String,
             message: String,
