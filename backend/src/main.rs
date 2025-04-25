@@ -1,15 +1,17 @@
 use axum::{
-    extract::{Path,  State},
+    extract::{Path, State},
     http::{HeaderValue, StatusCode, Uri},
-    response::{IntoResponse,  Response},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 use std::{fmt::Display, net::SocketAddr, ops::Deref, path::PathBuf, sync::LazyLock};
+use strum::VariantNames;
 use tokio::net::TcpListener;
 use tower_http::cors::{self, CorsLayer};
+use ts_rs::TS;
 use url::Url;
 
 from_env::config!(
@@ -122,7 +124,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn fallback(uri: Uri) -> ApiError {
-    ApiErrorInner::NotFound(uri).into()
+    ApiErrorInner::NotFound(uri.to_string()).into()
 }
 
 #[derive(Deserialize)]
@@ -138,7 +140,8 @@ struct NadeoOauthResponse {
     refresh_token: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export)]
 #[serde(tag = "type")]
 struct OauthResponse {
     access_token: String,
@@ -185,7 +188,8 @@ async fn oauth(Json(OauthCode { code }): Json<OauthCode>) -> Result<Json<OauthRe
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export)]
 #[serde(tag = "type")]
 struct MapDataResponse {
     name: String,
@@ -209,34 +213,59 @@ async fn map_data(
     }
 }
 
-#[derive(Debug, thiserror::Error, strum::IntoStaticStr)]
+#[derive(Debug, thiserror::Error, strum::IntoStaticStr, strum::VariantNames, TS)]
+#[ts(export)]
 pub enum ApiErrorInner {
     #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(
+        #[from]
+        #[ts(skip)]
+        sqlx::Error,
+    ),
 
     #[error("Migration error: {0}")]
-    Migration(#[from] sqlx::migrate::MigrateError),
+    Migration(
+        #[from]
+        #[ts(skip)]
+        sqlx::migrate::MigrateError,
+    ),
 
     #[error("Invalid map ID: {0}")]
-    InvalidMapId(#[from] std::num::ParseIntError),
+    InvalidMapId(
+        #[from]
+        #[ts(skip)]
+        std::num::ParseIntError,
+    ),
 
     #[error("URL parse error: {0}")]
-    UrlParseError(#[from] url::ParseError),
+    UrlParseError(
+        #[from]
+        #[ts(skip)]
+        url::ParseError,
+    ),
 
     #[error("Session error: {0}")]
-    SessionError(#[from] tower_sessions::session::Error),
+    SessionError(
+        #[from]
+        #[ts(skip)]
+        tower_sessions::session::Error,
+    ),
 
     #[error("Request to Nadeo API failed")]
-    NadeoApiFailed(#[from] reqwest::Error),
+    NadeoApiFailed(
+        #[from]
+        #[ts(skip)]
+        reqwest::Error,
+    ),
 
     #[error("Oauth failed: {0}")]
-    OauthFailed(String),
+    OauthFailed(#[ts(skip)] String),
 
     #[error("Map not found: {0}")]
-    MapNotFound(u64),
+    MapNotFound(#[ts(skip)] u64),
 
-    #[error("No such API: {0:?}")]
-    NotFound(Uri),
+    #[error("No such API: {0}")]
+    NotFound(#[ts(skip)] String),
 }
 
 #[derive(Debug)]
@@ -246,6 +275,15 @@ pub enum ApiError {
         context: String,
         inner: Box<ApiError>,
     },
+}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct TsApiError {
+    #[ts(as = "ApiErrorInner")]
+    error: String,
+    message: String,
 }
 
 impl IntoResponse for ApiError {
@@ -265,16 +303,9 @@ impl IntoResponse for ApiError {
             ApiErrorInner::MapNotFound(_) | ApiErrorInner::NotFound(_) => StatusCode::NOT_FOUND,
         };
 
-        #[derive(Serialize)]
-        #[serde(tag = "type")]
-        struct ApiError {
-            error: String,
-            message: String,
-        }
-
         (
             status_code,
-            Json(ApiError {
+            Json(TsApiError {
                 error: error.to_owned(),
                 message: self.to_string(),
             }),

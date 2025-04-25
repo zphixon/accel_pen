@@ -1,3 +1,5 @@
+import * as types from '../../backend/bindings/index.ts';
+
 const CLIENT_ID = "e9cfcb43163263a46845";
 
 const API_URL_DEV = new URL("http://localhost:2460/v1");
@@ -32,37 +34,18 @@ export function nadeoOauthUrl(state: string): URL {
   return url;
 }
 
-export type ApiErrorType = 'Database' | 'InvalidMapId' | 'MapNotFound' | 'NotFound';
-
-export interface ApiError {
-  type: 'ApiError',
-  error: ApiErrorType,
-  message: string,
-}
-
-export interface MapData {
-  type: 'MapData',
-  name: string,
-}
-
 export const MAP_DATA_URL = new URL(apiUrl() + "/map_data/")
 
-export async function mapData(mapId: number): Promise<MapData | ApiError> {
+export async function mapData(mapId: number): Promise<types.MapDataResponse | types.TsApiError> {
   let response = await fetch(MAP_DATA_URL + mapId.toString(), { mode: 'cors' });
-  let json: MapData | ApiError = await response.json();
-  if (json.type == 'ApiError') {
+  let json: types.MapDataResponse | types.TsApiError = await response.json();
+  if (json.type == 'TsApiError') {
     console.error(json);
   }
   return json;
 }
 
-export interface OauthResponse {
-  type: 'OauthResponse',
-  access_token: string,
-  refresh_token: string,
-}
-
-export async function finishOauth(code: string): Promise<OauthResponse | ApiError> {
+export async function finishOauth(code: string): Promise<types.OauthResponse | types.TsApiError> {
   let response = await fetch(
     apiUrl() + "/oauth",
     {
@@ -72,8 +55,8 @@ export async function finishOauth(code: string): Promise<OauthResponse | ApiErro
       headers: new Headers({ 'Content-Type': 'application/json' })
     }
   );
-  let json: OauthResponse | ApiError = await response.json();
-  if (json.type == 'ApiError') {
+  let json: types.OauthResponse | types.TsApiError = await response.json();
+  if (json.type == 'TsApiError') {
     console.error(json);
   }
   return json;

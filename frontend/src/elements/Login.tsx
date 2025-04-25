@@ -3,6 +3,7 @@ import { Suspense, use } from 'react';
 import { v4 as uuidv4 } from 'uuid'
 
 import * as api from '../api.tsx';
+import * as types from '../../../backend/bindings/index.ts';
 import { useLocalStorage } from 'react-use';
 
 interface LoginInnerProps {
@@ -10,11 +11,11 @@ interface LoginInnerProps {
 }
 function LoginInner({ finishedOauthPromise }: LoginInnerProps) {
   let finishedOauth = use(finishedOauthPromise);
-  let [_tokens, setTokens] = useLocalStorage<api.OauthResponse>("accessTokens", undefined);
+  let [_tokens, setTokens] = useLocalStorage<types.OauthResponse>("accessTokens", undefined);
   let [_oauthState, setOauthState] = useLocalStorage<string>("oauthState", uuidv4());
   let [_location, setLocation] = useLocation();
 
-  if (finishedOauth?.type == "ApiError") {
+  if (finishedOauth?.type == "TsApiError") {
     return <>Login failed: {finishedOauth.message}</>;
   } else if (finishedOauth?.type == "OauthResponse") {
     setTokens(finishedOauth);
