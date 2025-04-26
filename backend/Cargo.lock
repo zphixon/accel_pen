@@ -9,6 +9,7 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-extra",
+ "form_urlencoded",
  "from_env",
  "gbx_rs",
  "image",

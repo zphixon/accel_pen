@@ -33,6 +33,10 @@ impl AuthenticatedSession {
         Self::update_session(&self.session, &self.tokens).await
     }
 
+    pub fn session(&self) -> &Session {
+        &self.session
+    }
+
     pub async fn update_session(session: &Session, tokens: &NadeoOauth) -> Result<(), ApiError> {
         session
             .insert(Self::KEY, tokens.clone())

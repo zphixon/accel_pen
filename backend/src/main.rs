@@ -120,29 +120,20 @@ async fn oauth_finish(
         .into());
     }
 
-    let url_crate_doesnt_expose_params_parser = Url::parse_with_params(
-        "h://a",
-        &[
-            ("grant_type", "authorization_code"),
-            ("client_id", &CONFIG.nadeo.identifier),
-            ("client_secret", &CLIENT_SECRET),
-            ("code", &request.code),
-            ("redirect_uri", CONFIG.nadeo.redirect_url.as_str()),
-        ],
-    )
-    .context("Parsing URL for access token request")?;
+    let params = form_urlencoded::Serializer::new(String::new())
+        .append_pair("grant_type", "authorization_code")
+        .append_pair("client_id", &CONFIG.nadeo.identifier)
+        .append_pair("client_secret", &CLIENT_SECRET)
+        .append_pair("code", &request.code)
+        .append_pair("redirect_uri", CONFIG.nadeo.redirect_url.as_str())
+        .finish();
 
     let response = reqwest::Client::builder()
         .user_agent(&CONFIG.net.user_agent)
         .build()?
         .post(Url::parse("https://api.trackmania.com/api/access_token").unwrap())
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-        .body(
-            url_crate_doesnt_expose_params_parser
-                .query()
-                .unwrap()
-                .to_owned(),
-        )
+        .body(params)
         .send()
         .await
         .context("Sending request for access token")?;
