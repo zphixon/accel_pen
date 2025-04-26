@@ -49,6 +49,32 @@ password for MySQL. Run `docker compose -f docker-compose.yml up` and that shoul
   1. For now, delete the database volume and re-build the compose project. Kind of annoying :/
 
 
+## auth dings
+
+- frontend
+  - set window.location to backend `oauth_start` endpoint
+- backend
+  - set httpOnly cookie to a session ID
+  - redirect to third party
+- third party
+  - user authenticates and authorizes the app
+  - redirects to backend `oauth_finish` endpoint
+- backend
+  - check session ID cookie exists
+  - get access+refresh token
+  - create CSRF token
+  - redirect to frontend with CSRF token in params
+- frontend
+  - receive CSRF token
+
+
+then
+- frontend
+  - send session ID cookie and CSRF token
+- backend
+  - check session ID cookie corresponds with CSRF token
+
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

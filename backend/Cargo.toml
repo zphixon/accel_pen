@@ -4,7 +4,8 @@
 from_env = { git = "https://github.com/zphixon/from_env" }
 
 anyhow = { version = "1.0.97", features = ["backtrace"] }
-axum = { version = "0.8.1", features = ["query"] }
+axum = { version = "0.8.1", features = ["query", "macros"] }
+axum-extra = { version = "0.10.1", features = ["cookie", "typed-header"] }
 image = { version = "0.25.5", features = ["serde"] }
 random = "0.9.1"
 reqwest = { version = "0.12.15", features = ["json"] }
@@ -16,7 +17,7 @@ thiserror = "2.0.12"
 tokio = { version = "1.44.1", features = ["full"] }
 toml = "0.8.20"
 tower-http = { version = "0.6.2", features = ["cors"] }
-tower-sessions = "0.14.0"
+tower-sessions = { version = "0.14.0", features = ["signed", "private"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["tracing"] }
 ts-rs = { version = "10.1.0", features = ["url-impl"] }
@@ -33,6 +34,7 @@ gbx_rs = { path = "gbx_rs" }
 
 anyhow.workspace = true
 axum.workspace = true
+axum-extra.workspace = true
 from_env.workspace = true
 image.workspace = true
 reqwest.workspace = true

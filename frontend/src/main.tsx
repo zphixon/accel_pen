@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
-import { Route, Switch } from 'wouter'
+import { Route, Switch, useSearchParams } from 'wouter'
 
 import Home from './elements/Home.tsx'
 import MapView from './elements/map/MapView.tsx'
@@ -22,13 +22,11 @@ createRoot(document.getElementById('root')!).render(
         </Switch>
       </Route>
 
-      <Route nest path="/login">
-        <Switch>
-          <Route path="/"><Login finish={false} /></Route>
-          <Route path="/finish"><Login finish={true} /></Route>
-          <Route><NotFound /></Route>
-        </Switch>
-      </Route>
+      <Route path="/login" component={() => {
+        let [params, _] = useSearchParams();
+        let csrfToken = params.get("csrfToken");
+        return null;
+      }} />
 
       <Route><NotFound /></Route>
     </Switch>

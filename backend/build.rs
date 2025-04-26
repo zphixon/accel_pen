@@ -5,8 +5,9 @@ use std::{
 };
 
 fn main() {
+    let _ = fs::create_dir("bindings");
     let exports: Vec<_> = fs::read_dir("./bindings")
-        .unwrap()
+        .expect("read dir")
         .filter_map(Result::ok)
         .filter_map(|p| {
             p.path()
