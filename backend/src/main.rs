@@ -15,12 +15,14 @@ use tower_sessions::{
     cookie::{time::Duration, Key, SameSite},
     Expiry, MemoryStore, Session, SessionManagerLayer,
 };
+use tracing_subscriber::{util::SubscriberInitExt, EnvFilter};
 use ts_rs::TS;
 use url::Url;
 use uuid::Uuid;
 
 mod config;
 mod error;
+mod nadeo;
 mod session;
 
 use config::{CLIENT_SECRET, CONFIG};
@@ -34,7 +36,12 @@ struct AppState {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_file(true)
+        .with_line_number(true)
+        .init();
+
     tracing::info!("Bind on {}", CONFIG.net.bind);
 
     let pool = MySqlPool::connect(CONFIG.db.url.as_str())
@@ -89,7 +96,7 @@ async fn oauth_start(session: Session) -> Result<Redirect, ApiError> {
 
     Ok(Redirect::to(
         Url::parse_with_params(
-            "https://api.trackmania.com/oauth/authorize",
+            nadeo::OAUTH_AUTHORIZE_URL,
             &[
                 ("response_type", "code"),
                 ("client_id", &CONFIG.nadeo.identifier),
@@ -128,10 +135,9 @@ async fn oauth_finish(
         .append_pair("redirect_uri", CONFIG.nadeo.redirect_url.as_str())
         .finish();
 
-    let response = reqwest::Client::builder()
-        .user_agent(&CONFIG.net.user_agent)
-        .build()?
-        .post(Url::parse("https://api.trackmania.com/api/access_token").unwrap())
+    let response = nadeo::CLIENT
+        .clone()
+        .post(Url::parse(nadeo::OAUTH_GET_ACCESS_TOKEN_URL).unwrap())
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(params)
         .send()
@@ -163,9 +169,10 @@ struct SelfResponse {
     display_name: String,
 }
 
-async fn self_handler(_auth_session: AuthenticatedSession) -> Result<Json<SelfResponse>, ApiError> {
+async fn self_handler(auth_session: AuthenticatedSession) -> Result<Json<SelfResponse>, ApiError> {
+    let user = nadeo::User::get(auth_session.tokens()).await?;
     Ok(Json(SelfResponse {
-        display_name: String::from("nice"),
+        display_name: user.display_name,
     }))
 }
 

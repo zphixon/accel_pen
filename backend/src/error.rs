@@ -52,7 +52,7 @@ pub enum ApiErrorInner {
         axum::http::Error,
     ),
 
-    #[error("Request to Nadeo API failed")]
+    #[error("Request to Nadeo API failed: {0}")]
     NadeoApiFailed(
         #[ts(skip)]
         #[from]
@@ -114,7 +114,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::UrlParseError(_)
             | ApiErrorInner::SessionError(_)
             | ApiErrorInner::AxumError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ApiErrorInner::NadeoApiFailed(_) => StatusCode::BAD_GATEWAY,
+            ApiErrorInner::NadeoApiFailed(err) => err.status().unwrap_or(StatusCode::BAD_GATEWAY),
             ApiErrorInner::InvalidMapDataRequest(_)
             | ApiErrorInner::OauthFailed(_)
             | ApiErrorInner::InvalidOauth(_) => StatusCode::BAD_REQUEST,
