@@ -7,6 +7,7 @@ use axum::{
 };
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
+use session::{AuthenticatedSession, RandomState};
 use sqlx::MySqlPool;
 use tokio::net::TcpListener;
 use tower_http::cors::{self, CorsLayer};
@@ -24,14 +25,7 @@ mod session;
 
 use config::{CLIENT_SECRET, CONFIG};
 use error::{ApiError, ApiErrorInner, Context};
-
-#[derive(Debug, Serialize, Deserialize)]
-struct NadeoOauth {
-    token_type: String,
-    expires_in: u64,
-    access_token: String,
-    refresh_token: String,
-}
+use session::NadeoOauth;
 
 #[derive(Clone)]
 struct AppState {
@@ -64,6 +58,7 @@ async fn main() -> anyhow::Result<()> {
         .route(&CONFIG.route_v1("map_data"), get(map_data))
         .route(&CONFIG.route_v1("oauth/start"), get(oauth_start))
         .route(&CONFIG.route_v1("oauth/finish"), get(oauth_finish))
+        .route(&CONFIG.route_v1("self"), get(self_handler))
         .with_state(AppState { pool })
         .fallback(fallback)
         .layer(
@@ -84,17 +79,13 @@ async fn fallback(uri: Uri) -> ApiError {
     ApiErrorInner::NotFound(uri.to_string()).into()
 }
 
-const RANDOM_STATE_KEY: &str = "randomState";
-const NADEO_TOKENS_KEY: &str = "nadeoTokens";
-
 async fn oauth_start(session: Session) -> Result<Redirect, ApiError> {
     session.clear().await;
 
     let state = Uuid::new_v4();
-    session
-        .insert(RANDOM_STATE_KEY, state)
+    RandomState::update_session(&session, state)
         .await
-        .context("Setting random state on session")?;
+        .context("Updating session with random state")?;
 
     Ok(Redirect::to(
         Url::parse_with_params(
@@ -119,19 +110,10 @@ struct OauthFinishRequest {
 }
 
 async fn oauth_finish(
-    session: Session,
+    random_state: RandomState,
     WithRejection(Query(request), _): WithRejection<Query<OauthFinishRequest>, ApiError>,
 ) -> Result<Html<&'static str>, ApiError> {
-    let Some(session_state) = session
-        .get::<Uuid>(RANDOM_STATE_KEY)
-        .await
-        .context("Reading random state from session")?
-    else {
-        return Err(
-            ApiErrorInner::OauthFailed(String::from("Missing random state in session")).into(),
-        );
-    };
-    if session_state.hyphenated().to_string() != request.state {
+    if random_state.state().hyphenated().to_string() != request.state {
         return Err(ApiErrorInner::OauthFailed(String::from(
             "Invalid random state returned from Nadeo API",
         ))
@@ -171,10 +153,9 @@ async fn oauth_finish(
             .await
             .context("Parsing oauth tokens from Nadeo")?;
 
-        session
-            .insert(NADEO_TOKENS_KEY, nadeo_oauth)
+        AuthenticatedSession::update_session(random_state.session(), &nadeo_oauth)
             .await
-            .context("Writing oauth tokens to session")?;
+            .context("Finishing oauth")?;
 
         //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
         Ok(Html(config::CLIENT_REDIRECT.as_str()))
@@ -182,6 +163,19 @@ async fn oauth_finish(
         let json_error: serde_json::Value = response.json().await?;
         Err(ApiErrorInner::OauthFailed(format!("{}", json_error)).into())
     }
+}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct SelfResponse {
+    display_name: String,
+}
+
+async fn self_handler(_auth_session: AuthenticatedSession) -> Result<Json<SelfResponse>, ApiError> {
+    Ok(Json(SelfResponse {
+        display_name: String::from("nice"),
+    }))
 }
 
 #[derive(Deserialize, TS)]

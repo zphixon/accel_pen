@@ -69,11 +69,20 @@ pub enum ApiErrorInner {
         axum::extract::rejection::JsonRejection,
     ),
 
+    #[error("Rejected: {}", .0.1)]
+    Rejected(#[ts(skip)] (axum::http::StatusCode, &'static str)),
+
     #[error("Map not found: {0}")]
     MapNotFound(#[ts(skip)] u32),
 
     #[error("No such API: {0}")]
     NotFound(#[ts(skip)] String),
+}
+
+impl From<(axum::http::StatusCode, &'static str)> for ApiErrorInner {
+    fn from(value: (axum::http::StatusCode, &'static str)) -> Self {
+        ApiErrorInner::Rejected(value)
+    }
 }
 
 #[derive(Debug)]
@@ -110,6 +119,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::OauthFailed(_)
             | ApiErrorInner::InvalidOauth(_) => StatusCode::BAD_REQUEST,
             ApiErrorInner::MapNotFound(_) | ApiErrorInner::NotFound(_) => StatusCode::NOT_FOUND,
+            ApiErrorInner::Rejected((code, _)) => *code,
         };
 
         (
