@@ -28,7 +28,10 @@ function MapView({ mapId }: MapViewProps) {
   }
 
   return <Suspense>
-    <MapViewInner mapDataPromise={api.mapData(mapIdNumber)} />
+    <MapViewInner mapDataPromise={api.mapData({
+      type: "MapDataRequest",
+      map_id: mapIdNumber,
+    })} />
   </Suspense>;
 }
 

@@ -26,3 +26,20 @@ export function selfUrl(): URL {
   }
 }
 
+async function get<T>(path: string, data: any): Promise<T | types.TsApiError> {
+  let response = await fetch(
+    apiUrl() + path + "?" + new URLSearchParams(data).toString(),
+    { mode: 'cors' },
+  );
+  let value: T | types.TsApiError = await response.json();
+  if (response.ok) {
+    return value as T;
+  } else {
+    console.error("API call failed:", value);
+    return value as types.TsApiError;
+  }
+}
+
+export async function mapData(request: types.MapDataRequest): Promise<types.MapDataResponse | types.TsApiError> {
+  return await get<types.MapDataResponse>("/map_data", request);
+}

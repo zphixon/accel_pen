@@ -34,6 +34,18 @@ impl Config {
     }
 }
 
+pub static CLIENT_REDIRECT: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        r#"<!DOCTYPE html>
+<html>
+<head><meta http-equiv="refresh" content="0; url='{}'"></head>
+<body></body>
+</html>
+"#,
+        CONFIG.net.frontend_url.as_str()
+    )
+});
+
 pub static CLIENT_SECRET: LazyLock<String> = LazyLock::new(|| {
     let Ok(secret) = std::fs::read_to_string(&CONFIG.nadeo.secret_path) else {
         panic!("Couldn't read nadeo client secret file");

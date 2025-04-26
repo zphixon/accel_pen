@@ -70,7 +70,7 @@ pub enum ApiErrorInner {
     ),
 
     #[error("Map not found: {0}")]
-    MapNotFound(#[ts(skip)] u64),
+    MapNotFound(#[ts(skip)] u32),
 
     #[error("No such API: {0}")]
     NotFound(#[ts(skip)] String),

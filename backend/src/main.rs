@@ -1,7 +1,7 @@
 use axum::{
     extract::{Query, State},
-    http::{header, HeaderValue, Uri},
-    response::Redirect,
+    http::{header, HeaderValue, Method, Uri},
+    response::{Html, Redirect},
     routing::get,
     Json, Router,
 };
@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 mod config;
 mod error;
+mod session;
 
 use config::{CLIENT_SECRET, CONFIG};
 use error::{ApiError, ApiErrorInner, Context};
@@ -51,12 +52,10 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Running migrations")?;
 
-    drop(CLIENT_SECRET.clone());
-
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_same_site(SameSite::Strict)
+        .with_same_site(SameSite::Lax)
         .with_expiry(Expiry::OnInactivity(Duration::days(1)))
         .with_http_only(true)
         .with_private(Key::generate());
@@ -70,8 +69,8 @@ async fn main() -> anyhow::Result<()> {
         .layer(
             CorsLayer::new()
                 .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?)
-                .allow_methods(cors::Any)
-                .allow_headers(cors::Any),
+                .allow_methods(cors::AllowMethods::list([Method::GET, Method::POST]))
+                .allow_credentials(true),
         )
         .layer(session_layer);
 
@@ -89,6 +88,8 @@ const RANDOM_STATE_KEY: &str = "randomState";
 const NADEO_TOKENS_KEY: &str = "nadeoTokens";
 
 async fn oauth_start(session: Session) -> Result<Redirect, ApiError> {
+    session.clear().await;
+
     let state = Uuid::new_v4();
     session
         .insert(RANDOM_STATE_KEY, state)
@@ -120,7 +121,7 @@ struct OauthFinishRequest {
 async fn oauth_finish(
     session: Session,
     WithRejection(Query(request), _): WithRejection<Query<OauthFinishRequest>, ApiError>,
-) -> Result<Redirect, ApiError> {
+) -> Result<Html<&'static str>, ApiError> {
     let Some(session_state) = session
         .get::<Uuid>(RANDOM_STATE_KEY)
         .await
@@ -175,7 +176,8 @@ async fn oauth_finish(
             .await
             .context("Writing oauth tokens to session")?;
 
-        Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
+        //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
+        Ok(Html(config::CLIENT_REDIRECT.as_str()))
     } else {
         let json_error: serde_json::Value = response.json().await?;
         Err(ApiErrorInner::OauthFailed(format!("{}", json_error)).into())
@@ -186,7 +188,7 @@ async fn oauth_finish(
 #[ts(export)]
 #[serde(tag = "type")]
 struct MapDataRequest {
-    id: u64,
+    map_id: u32,
 }
 
 #[derive(Serialize, TS)]
@@ -198,18 +200,16 @@ struct MapDataResponse {
 
 async fn map_data(
     State(state): State<AppState>,
-    WithRejection(Query(map_id), _): WithRejection<Query<MapDataRequest>, ApiError>,
+    WithRejection(Query(request), _): WithRejection<Query<MapDataRequest>, ApiError>,
 ) -> Result<Json<MapDataResponse>, ApiError> {
-    let map_id: u64 = map_id.id;
-
-    let row = sqlx::query!("SELECT * FROM map WHERE ap_id = ?", map_id)
+    let row = sqlx::query!("SELECT * FROM map WHERE ap_id = ?", request.map_id)
         .fetch_optional(&state.pool)
         .await
-        .with_context(|| format!("Fetching map {map_id} from database"))?;
+        .with_context(|| format!("Fetching map {} from database", request.map_id))?;
 
     if let Some(row) = row {
         Ok(Json(MapDataResponse { name: row.mapname }))
     } else {
-        Err(ApiErrorInner::MapNotFound(map_id).into())
+        Err(ApiErrorInner::MapNotFound(request.map_id).into())
     }
 }

@@ -1,13 +1,14 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
-import { Route, Switch, useSearchParams } from 'wouter'
+import { Route, Switch } from 'wouter'
 
 import Home from './elements/Home.tsx'
 import MapView from './elements/map/MapView.tsx'
 import NotFound from './elements/NotFound.tsx'
 import MapUpload from './elements/map/MapUpload.tsx'
-import Login from './elements/Login.tsx'
+
+import * as api from './api.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -23,8 +24,7 @@ createRoot(document.getElementById('root')!).render(
       </Route>
 
       <Route path="/login" component={() => {
-        let [params, _] = useSearchParams();
-        let csrfToken = params.get("csrfToken");
+        window.location.href = api.oauthStartUrl().href;
         return null;
       }} />
 
