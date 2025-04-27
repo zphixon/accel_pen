@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use axum::{
     extract::{Query, State},
     http::{header, HeaderValue, Method, Uri},
@@ -8,7 +10,7 @@ use axum::{
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
 use session::{AuthenticatedSession, RandomState, TokenPair};
-use sqlx::MySqlPool;
+use sqlx::{ConnectOptions, MySqlPool};
 use tokio::net::TcpListener;
 use tower_http::cors::{self, CorsLayer};
 use tower_sessions::{
@@ -44,40 +46,59 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Bind on {}", CONFIG.net.bind);
 
-    let pool = MySqlPool::connect(CONFIG.db.url.as_str())
-        .await
-        .context("Connecting to database")?;
+    let ubi_auth_task = tokio::spawn(nadeo::ubi_auth_task());
 
-    sqlx::migrate!()
-        .run(&pool)
-        .await
-        .context("Running migrations")?;
+    let server_task = tokio::spawn(async {
+        while nadeo::UBI_TOKENS.read().await.is_none() {
+            tokio::task::yield_now().await;
+        }
 
-    let session_store = MemoryStore::default();
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
-        .with_same_site(SameSite::Lax)
-        .with_expiry(Expiry::OnInactivity(Duration::days(1)))
-        .with_http_only(true)
-        .with_private(Key::generate());
+        let pool = MySqlPool::connect(CONFIG.db.url.as_str())
+            .await
+            .context("Connecting to database")?;
 
-    let app = Router::new()
-        .route(&CONFIG.route_v1("map_data"), get(map_data))
-        .route(&CONFIG.route_v1("oauth/start"), get(oauth_start))
-        .route(&CONFIG.route_v1("oauth/finish"), get(oauth_finish))
-        .route(&CONFIG.route_v1("self"), get(self_handler))
-        .with_state(AppState { pool })
-        .fallback(fallback)
-        .layer(
-            CorsLayer::new()
-                .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?)
-                .allow_methods(cors::AllowMethods::list([Method::GET, Method::POST]))
-                .allow_credentials(true),
-        )
-        .layer(session_layer);
+        sqlx::migrate!()
+            .run(&pool)
+            .await
+            .context("Running migrations")?;
 
-    let listener = TcpListener::bind(CONFIG.net.bind).await?;
-    axum::serve(listener, app).await?;
+        let session_store = MemoryStore::default();
+        let session_layer = SessionManagerLayer::new(session_store)
+            .with_secure(false)
+            .with_same_site(SameSite::Lax)
+            .with_expiry(Expiry::OnInactivity(Duration::days(1)))
+            .with_http_only(true)
+            .with_private(Key::generate());
+
+        let app = Router::new()
+            .route(&CONFIG.route_v1("map_data"), get(map_data))
+            .route(&CONFIG.route_v1("oauth/start"), get(oauth_start))
+            .route(&CONFIG.route_v1("oauth/finish"), get(oauth_finish))
+            .route(&CONFIG.route_v1("self"), get(self_handler))
+            .with_state(AppState { pool })
+            .fallback(fallback)
+            .layer(
+                CorsLayer::new()
+                    .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?)
+                    .allow_methods(cors::AllowMethods::list([Method::GET, Method::POST]))
+                    .allow_credentials(true),
+            )
+            .layer(session_layer);
+
+        let listener = TcpListener::bind(CONFIG.net.bind).await?;
+        axum::serve(listener, app).await?;
+
+        Ok::<_, anyhow::Error>(())
+    });
+
+    tokio::select! {
+        serve_result = server_task => {
+            serve_result??;
+        },
+        ubi_auth_task_result = ubi_auth_task => {
+            ubi_auth_task_result??;
+        },
+    }
 
     Ok(())
 }
@@ -157,8 +178,20 @@ async fn oauth_finish(
         .await
         .context("Finishing oauth")?;
 
+        static CLIENT_REDIRECT: LazyLock<String> = LazyLock::new(|| {
+            format!(
+                r#"<!DOCTYPE html>
+<html>
+<head><meta http-equiv="refresh" content="0; url='{}'"></head>
+<body></body>
+</html>
+"#,
+                CONFIG.net.frontend_url.as_str()
+            )
+        });
+
         //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
-        Ok(Html(config::CLIENT_REDIRECT.as_str()))
+        Ok(Html(CLIENT_REDIRECT.as_str()))
     } else {
         let json_error: serde_json::Value = response.json().await?;
         Err(ApiErrorInner::OauthFailed(format!("{}", json_error)).into())
@@ -170,12 +203,55 @@ async fn oauth_finish(
 #[serde(tag = "type")]
 struct SelfResponse {
     display_name: String,
+    account_id: String,
+    club_tag: String,
 }
 
 async fn self_handler(auth_session: AuthenticatedSession) -> Result<Json<SelfResponse>, ApiError> {
     let user = nadeo::User::get(auth_session.tokens()).await?;
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ClubTagResponse {
+        club_tag: String,
+    }
+
+    let response = nadeo::CLIENT
+        .clone()
+        .get(
+            Url::parse_with_params(
+                "https://prod.trackmania.core.nadeo.online/accounts/clubTags/",
+                &[("accountIdList", user.account_id.as_str())],
+            )
+            .context("Forming URL for request to get club tag")?,
+        )
+        .header(
+            "Authorization",
+            format!(
+                "nadeo_v1 t={}",
+                nadeo::UBI_TOKENS
+                    .read()
+                    .await
+                    .as_ref()
+                    .unwrap()
+                    .nadeo_services
+                    .access_token
+                    .as_str()
+            ),
+        )
+        .send()
+        .await
+        .context("Sending request for club tag")?
+        .json::<Vec<ClubTagResponse>>()
+        .await
+        .context("Reading JSON for club tag response")?
+        .pop()
+        .unwrap();
+
     Ok(Json(SelfResponse {
         display_name: user.display_name,
+        account_id: user.account_id,
+        club_tag: response.club_tag,
     }))
 }
 

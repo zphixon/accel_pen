@@ -1,9 +1,17 @@
 [net]
-root = "/api/v1"
 bind = "0.0.0.0:2460"
 user_agent = "Accel Pen - xdd.farm - zack@grape.surgery"
 cors_host = "https://xdd.farm"
+frontend_url = "https://xdd.farm"
 
 [db]
 url = "mysql://database:3306/accel_pen"
 password_path = "/run/secrets/db_root_password"
+
+[nadeo.oauth]
+identifier = "e9cfcb43163263a46845"
+secret_path = "../nadeo_client_secret.txt"
+redirect_url = "http://api.xdd.farm/v1/oauth/finish"
+
+[nadeo.ubi]
+basic_path = "../ubi_secret.txt"

@@ -15,4 +15,5 @@ secret_path = "../nadeo_client_secret.txt"
 redirect_url = "http://localhost:2460/v1/oauth/finish"
 
 [nadeo.ubi]
-basic_path = "../ubi_secret.txt"
+username = "zack@grape.surgery"
+password_path = "../ubi_secret.txt"

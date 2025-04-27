@@ -25,7 +25,8 @@ from_env::config!(
             redirect_url: Url,
         },
         ubi {
-            basic_path: PathBuf,
+            username: String,
+            password_path: PathBuf,
         },
     },
 );
@@ -40,30 +41,18 @@ impl Config {
     }
 }
 
-pub static CLIENT_REDIRECT: LazyLock<String> = LazyLock::new(|| {
-    format!(
-        r#"<!DOCTYPE html>
-<html>
-<head><meta http-equiv="refresh" content="0; url='{}'"></head>
-<body></body>
-</html>
-"#,
-        CONFIG.net.frontend_url.as_str()
-    )
-});
-
 pub static OAUTH_CLIENT_SECRET: LazyLock<String> = LazyLock::new(|| {
     let Ok(secret) = std::fs::read_to_string(&CONFIG.nadeo.oauth.secret_path) else {
         panic!("Couldn't read nadeo client secret file");
     };
-    secret
+    secret.trim().to_owned()
 });
 
-pub static UBI_BASIC_AUTH: LazyLock<String> = LazyLock::new(|| {
-    let Ok(basic) = std::fs::read_to_string(&CONFIG.nadeo.ubi.basic_path) else {
-        panic!("Couldn't read ubisoft basic file");
+pub static UBI_PASSWORD: LazyLock<String> = LazyLock::new(|| {
+    let Ok(password) = std::fs::read_to_string(&CONFIG.nadeo.ubi.password_path) else {
+        panic!("Couldn't read Ubisoft password file");
     };
-    base64::engine::general_purpose::STANDARD.encode(basic)
+    password.trim().to_owned()
 });
 
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
