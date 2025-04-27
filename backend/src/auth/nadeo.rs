@@ -174,6 +174,7 @@ impl NadeoTokens {
 }
 
 pub struct NadeoAuthenticatedSession {
+    session: RandomStateSession,
     tokens: Arc<NadeoTokens>,
 }
 
@@ -197,6 +198,10 @@ impl NadeoAuthenticatedSession {
             .await
             .context("Writing tokens to session")?;
         Ok(())
+    }
+
+    pub fn session(&self) -> &Session {
+        &self.session.session
     }
 }
 
@@ -242,6 +247,7 @@ where
         };
 
         Ok(Self {
+            session,
             tokens: Arc::new(tokens),
         })
     }

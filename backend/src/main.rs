@@ -71,6 +71,7 @@ async fn main() -> anyhow::Result<()> {
             .route(&CONFIG.route_v1("map_data"), get(map_data))
             .route(&CONFIG.route_v1("oauth/start"), get(oauth_start))
             .route(&CONFIG.route_v1("oauth/finish"), get(oauth_finish))
+            .route(&CONFIG.route_v1("oauth/logout"), get(oauth_logout))
             .route(&CONFIG.route_v1("self"), get(self_handler))
             .route(&CONFIG.route_v1("self/favorite_maps"), get(favorite_maps))
             .with_state(AppState { pool })
@@ -146,6 +147,13 @@ async fn oauth_finish(
 
     //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
     Ok(Html(CLIENT_REDIRECT.as_str()))
+}
+
+async fn oauth_logout(
+    auth_session: NadeoAuthenticatedSession,
+) -> Result<Redirect, ApiError> {
+    auth_session.session().clear().await;
+    Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
 }
 
 #[derive(Serialize, TS)]

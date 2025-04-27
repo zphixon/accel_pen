@@ -7,7 +7,7 @@ interface MapViewInnerProps {
 }
 function MapViewInner({ mapDataPromise }: MapViewInnerProps) {
   let mapData = use(mapDataPromise);
-  if (mapData == undefined || mapData.type == 'TsApiError') {
+  if (mapData.type == 'TsApiError') {
     let message = `Could not load map - ${mapData.message}`
     return <>{message}</>;
   }

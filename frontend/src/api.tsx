@@ -18,6 +18,10 @@ export function oauthStartUrl(): URL {
   return new URL(apiUrl() + "/oauth/start");
 }
 
+export function oauthLogoutUrl(): URL {
+  return new URL(apiUrl() + "/oauth/logout");
+}
+
 export function selfUrl(): URL {
   if (import.meta.env.DEV) {
     return SELF_URL_DEV;
@@ -29,7 +33,10 @@ export function selfUrl(): URL {
 async function get<T>(path: string, data: any): Promise<T | types.TsApiError> {
   let response = await fetch(
     apiUrl() + path + "?" + new URLSearchParams(data).toString(),
-    { mode: 'cors' },
+    {
+      mode: 'cors',
+      credentials: 'include',
+    },
   );
   let value: T | types.TsApiError = await response.json();
   if (response.ok) {
@@ -38,6 +45,10 @@ async function get<T>(path: string, data: any): Promise<T | types.TsApiError> {
     console.error("API call failed:", value);
     return value as types.TsApiError;
   }
+}
+
+export async function self(): Promise<types.UserResponse | types.TsApiError> {
+  return await get<types.UserResponse>("/self", undefined);
 }
 
 export async function mapData(request: types.MapDataRequest): Promise<types.MapDataResponse | types.TsApiError> {

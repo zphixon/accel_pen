@@ -106,6 +106,7 @@ pub enum ApiError {
 struct TsApiError {
     #[ts(as = "ApiErrorInner")]
     error: String,
+    status: u16,
     message: String,
 }
 
@@ -135,6 +136,7 @@ impl IntoResponse for ApiError {
             status_code,
             Json(TsApiError {
                 error: error.to_owned(),
+                status: status_code.as_u16(),
                 message: self.to_string(),
             }),
         )
