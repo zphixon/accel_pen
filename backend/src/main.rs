@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use session::{NadeoAuthenticatedSession, RandomState};
 use sqlx::MySqlPool;
 use tokio::net::TcpListener;
-use tower_http::cors::{self, AllowMethods, CorsLayer};
+use tower_http::cors::{AllowMethods, CorsLayer};
 use tower_sessions::{
     cookie::{time::Duration, Key, SameSite},
     Expiry, MemoryStore, Session, SessionManagerLayer,

@@ -1,10 +1,8 @@
 use crate::{
-    api::CLIENT, config::{CONFIG, UBI_PASSWORD}, error::{ApiError, ApiErrorInner, Context}
+    api::CLIENT, error::{ApiError, Context}
 };
 use nadeo::NadeoTokenPair;
 use serde::Deserialize;
-use std::sync::LazyLock;
-use tokio::sync::RwLock;
 use ts_rs::TS;
 
 pub mod nadeo;
