@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use api::CLIENT;
+use api::{ClubTag, User, CLIENT};
 use axum::{
     extract::{Query, State},
     http::{header, HeaderValue, Method, Uri},
@@ -10,7 +10,6 @@ use axum::{
 };
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
-use session::{NadeoAuthenticatedSession, RandomState};
 use sqlx::MySqlPool;
 use tokio::net::TcpListener;
 use tower_http::cors::{AllowMethods, CorsLayer};
@@ -27,10 +26,12 @@ mod api;
 mod auth;
 mod config;
 mod error;
-mod session;
 
-use auth::{nadeo::{NadeoTokenPair, NadeoTokenPairInner, OAUTH_AUTHORIZE_URL, OAUTH_GET_ACCESS_TOKEN_URL}, ubi::UbiTokens, User};
-use config::{CONFIG, OAUTH_CLIENT_SECRET};
+use auth::{
+    nadeo::{NadeoAuthenticatedSession, NadeoTokenPair, RandomStateSession},
+    ubi::UbiTokens,
+};
+use config::CONFIG;
 use error::{ApiError, ApiErrorInner, Context};
 
 #[derive(Clone)]
@@ -109,24 +110,11 @@ async fn oauth_start(session: Session) -> Result<Redirect, ApiError> {
     session.clear().await;
 
     let state = Uuid::new_v4();
-    RandomState::update_session(&session, state)
+    RandomStateSession::update_session(&session, state)
         .await
         .context("Updating session with random state")?;
 
-    Ok(Redirect::to(
-        Url::parse_with_params(
-            OAUTH_AUTHORIZE_URL,
-            &[
-                ("response_type", "code"),
-                ("client_id", &CONFIG.nadeo.oauth.identifier),
-                ("scope", "read_favorite write_favorite"),
-                ("redirect_uri", CONFIG.nadeo.oauth.redirect_url.as_str()),
-                ("state", state.as_hyphenated().to_string().as_str()),
-            ],
-        )
-        .context("Creating redirect URL to Nadeo")?
-        .as_str(),
-    ))
+    Ok(Redirect::to(auth::nadeo::oauth_start_url(state)?.as_str()))
 }
 
 #[derive(Deserialize)]
@@ -136,64 +124,29 @@ struct OauthFinishRequest {
 }
 
 async fn oauth_finish(
-    random_state: RandomState,
+    random_state: RandomStateSession,
     WithRejection(Query(request), _): WithRejection<Query<OauthFinishRequest>, ApiError>,
 ) -> Result<Html<&'static str>, ApiError> {
-    if random_state.state().hyphenated().to_string() != request.state {
-        return Err(ApiErrorInner::OauthFailed(String::from(
-            "Invalid random state returned from Nadeo API",
-        ))
-        .into());
-    }
+    let token_pair = NadeoTokenPair::from_random_state(&random_state, request).await?;
 
-    let params = form_urlencoded::Serializer::new(String::new())
-        .append_pair("grant_type", "authorization_code")
-        .append_pair("client_id", &CONFIG.nadeo.oauth.identifier)
-        .append_pair("client_secret", &OAUTH_CLIENT_SECRET)
-        .append_pair("code", &request.code)
-        .append_pair("redirect_uri", CONFIG.nadeo.oauth.redirect_url.as_str())
-        .finish();
-
-    let response = CLIENT
-        .clone()
-        .post(Url::parse(OAUTH_GET_ACCESS_TOKEN_URL).unwrap())
-        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-        .body(params)
-        .send()
-        .await
-        .context("Sending request for access token")?;
-
-    if response.status().is_success() {
-        let nadeo_oauth: NadeoTokenPairInner = response
-            .json()
-            .await
-            .context("Parsing oauth tokens from Nadeo")?;
-
-        NadeoAuthenticatedSession::update_session(
-            random_state.session(),
-            NadeoTokenPair::from_nadeo(nadeo_oauth),
-        )
+    NadeoAuthenticatedSession::upgrade(&random_state, token_pair)
         .await
         .context("Finishing oauth")?;
 
-        static CLIENT_REDIRECT: LazyLock<String> = LazyLock::new(|| {
-            format!(
-                r#"<!DOCTYPE html>
+    static CLIENT_REDIRECT: LazyLock<String> = LazyLock::new(|| {
+        format!(
+            r#"<!DOCTYPE html>
 <html>
 <head><meta http-equiv="refresh" content="0; url='{}'"></head>
 <body></body>
 </html>
 "#,
-                CONFIG.net.frontend_url.as_str()
-            )
-        });
+            CONFIG.net.frontend_url.as_str()
+        )
+    });
 
-        //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
-        Ok(Html(CLIENT_REDIRECT.as_str()))
-    } else {
-        let json_error: serde_json::Value = response.json().await?;
-        Err(ApiErrorInner::OauthFailed(format!("{}", json_error)).into())
-    }
+    //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
+    Ok(Html(CLIENT_REDIRECT.as_str()))
 }
 
 #[derive(Serialize, TS)]
@@ -208,43 +161,11 @@ struct SelfResponse {
 async fn self_handler(
     auth_session: NadeoAuthenticatedSession,
 ) -> Result<Json<SelfResponse>, ApiError> {
-    let user = User::get(auth_session.tokens()).await?;
-
-    #[derive(Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    struct ClubTagResponse {
-        club_tag: String,
-    }
-
-    let response = CLIENT
-        .clone()
-        .get(
-            Url::parse_with_params(
-                "https://prod.trackmania.core.nadeo.online/accounts/clubTags/",
-                &[("accountIdList", user.account_id.as_str())],
-            )
-            .context("Forming URL for request to get club tag")?,
-        )
-        .header(
-            "Authorization",
-            format!(
-                "nadeo_v1 t={}",
-                UbiTokens::nadeo_services().await
-            ),
-        )
-        .send()
-        .await
-        .context("Sending request for club tag")?
-        .json::<Vec<ClubTagResponse>>()
-        .await
-        .context("Reading JSON for club tag response")?
-        .pop()
-        .unwrap();
-
+    let club_tag = ClubTag::get(&*auth_session).await?;
     Ok(Json(SelfResponse {
-        display_name: user.display_name,
-        account_id: user.account_id,
-        club_tag: response.club_tag,
+        display_name: auth_session.display_name().to_owned(),
+        account_id: auth_session.account_id().to_owned(),
+        club_tag: club_tag.club_tag,
     }))
 }
 

@@ -35,20 +35,6 @@ impl Config {
     }
 }
 
-pub static OAUTH_CLIENT_SECRET: LazyLock<String> = LazyLock::new(|| {
-    let Ok(secret) = std::fs::read_to_string(&CONFIG.nadeo.oauth.secret_path) else {
-        panic!("Couldn't read nadeo client secret file");
-    };
-    secret.trim().to_owned()
-});
-
-pub static UBI_PASSWORD: LazyLock<String> = LazyLock::new(|| {
-    let Ok(password) = std::fs::read_to_string(&CONFIG.nadeo.ubi.password_path) else {
-        panic!("Couldn't read Ubisoft password file");
-    };
-    password.trim().to_owned()
-});
-
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     let arg = std::env::args().nth(1).expect("need config filename arg");
     let content = std::fs::read_to_string(arg).expect("could not read config file");

@@ -3,8 +3,18 @@ use std::sync::LazyLock;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 
-use crate::{api::CLIENT, config::{CONFIG, UBI_PASSWORD}, error::{ApiError, ApiErrorInner, Context}};
+use crate::{
+    api::CLIENT,
+    config::CONFIG,
+    error::{ApiError, ApiErrorInner, Context},
+};
 
+static UBI_PASSWORD: LazyLock<String> = LazyLock::new(|| {
+    let Ok(password) = std::fs::read_to_string(&CONFIG.nadeo.ubi.password_path) else {
+        panic!("Couldn't read Ubisoft password file");
+    };
+    password.trim().to_owned()
+});
 
 const TICKET_URL: &str = "https://public-ubiservices.ubi.com/v3/profiles/sessions";
 const TOKEN_URL: &str =

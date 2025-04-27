@@ -1,5 +1,0 @@
-export * from "./ApiErrorInner"
-export * from "./MapDataRequest"
-export * from "./SelfResponse"
-export * from "./MapDataResponse"
-export * from "./TsApiError"
