@@ -24,8 +24,8 @@ pub enum ApiErrorInner {
         sqlx::migrate::MigrateError,
     ),
 
-    #[error("Invalid map data request: {0}")]
-    InvalidMapDataRequest(
+    #[error("Invalid query: {0}")]
+    InvalidQuery(
         #[ts(skip)]
         #[from]
         axum::extract::rejection::QueryRejection,
@@ -52,22 +52,28 @@ pub enum ApiErrorInner {
         axum::http::Error,
     ),
 
-    #[error("Request to Nadeo API failed: {0}")]
-    NadeoApiFailed(
+    #[error("Request to API failed: {0}")]
+    ApiFailed(
         #[ts(skip)]
         #[from]
         reqwest::Error,
     ),
 
-    #[error("Oauth failed: {0}")]
-    OauthFailed(#[ts(skip)] String),
+    #[error("Request to API failed: {0}")]
+    ApiReturnedError(#[ts(skip)] serde_json::Value),
 
-    #[error("Invalid OAuth request: {0}")]
-    InvalidOauth(
+    #[error("Invalid JSON: {0}")]
+    InvalidJson(
         #[ts(skip)]
         #[from]
         axum::extract::rejection::JsonRejection,
     ),
+
+    #[error("Invalid oauth: {0}")]
+    InvalidOauth(#[ts(skip)] &'static str),
+
+    #[error("Unexpected response from Nadeo API: {0}")]
+    UnexpectedResponse(#[ts(skip)] &'static str),
 
     #[error("Rejected: {}", .0.1)]
     Rejected(#[ts(skip)] (axum::http::StatusCode, &'static str)),
@@ -113,11 +119,14 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::Migration(_)
             | ApiErrorInner::UrlParseError(_)
             | ApiErrorInner::SessionError(_)
-            | ApiErrorInner::AxumError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ApiErrorInner::NadeoApiFailed(err) => err.status().unwrap_or(StatusCode::BAD_GATEWAY),
-            ApiErrorInner::InvalidMapDataRequest(_)
-            | ApiErrorInner::OauthFailed(_)
-            | ApiErrorInner::InvalidOauth(_) => StatusCode::BAD_REQUEST,
+            | ApiErrorInner::AxumError(_)
+            | ApiErrorInner::ApiReturnedError(_)
+            | ApiErrorInner::UnexpectedResponse(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorInner::ApiFailed(err) => err.status().unwrap_or(StatusCode::BAD_GATEWAY),
+            ApiErrorInner::InvalidQuery(_) | ApiErrorInner::InvalidJson(_) => {
+                StatusCode::BAD_REQUEST
+            }
+            ApiErrorInner::InvalidOauth(_) => StatusCode::UNAUTHORIZED,
             ApiErrorInner::MapNotFound(_) | ApiErrorInner::NotFound(_) => StatusCode::NOT_FOUND,
             ApiErrorInner::Rejected((code, _)) => *code,
         };

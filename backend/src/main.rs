@@ -1,6 +1,4 @@
-use std::sync::LazyLock;
-
-use api::ClubTag;
+use api::{ClubTag, FavoriteMaps, User};
 use axum::{
     extract::{Query, State},
     http::{HeaderValue, Method, Uri},
@@ -11,6 +9,7 @@ use axum::{
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
+use std::sync::LazyLock;
 use tokio::net::TcpListener;
 use tower_http::cors::{AllowMethods, CorsLayer};
 use tower_sessions::{
@@ -27,7 +26,7 @@ mod config;
 mod error;
 
 use auth::{
-    nadeo::{NadeoAuthenticatedSession, NadeoTokenPair, RandomStateSession},
+    nadeo::{NadeoAuthenticatedSession, NadeoTokens, RandomStateSession},
     ubi::UbiTokens,
 };
 use config::CONFIG;
@@ -73,6 +72,7 @@ async fn main() -> anyhow::Result<()> {
             .route(&CONFIG.route_v1("oauth/start"), get(oauth_start))
             .route(&CONFIG.route_v1("oauth/finish"), get(oauth_finish))
             .route(&CONFIG.route_v1("self"), get(self_handler))
+            .route(&CONFIG.route_v1("self/favorite_maps"), get(favorite_maps))
             .with_state(AppState { pool })
             .fallback(fallback)
             .layer(
@@ -126,7 +126,7 @@ async fn oauth_finish(
     random_state: RandomStateSession,
     WithRejection(Query(request), _): WithRejection<Query<OauthFinishRequest>, ApiError>,
 ) -> Result<Html<&'static str>, ApiError> {
-    let token_pair = NadeoTokenPair::from_random_state(&random_state, request).await?;
+    let token_pair = NadeoTokens::from_random_state_session(&random_state, request).await?;
 
     NadeoAuthenticatedSession::upgrade(&random_state, token_pair)
         .await
@@ -151,7 +151,7 @@ async fn oauth_finish(
 #[derive(Serialize, TS)]
 #[ts(export)]
 #[serde(tag = "type")]
-struct SelfResponse {
+struct UserResponse {
     display_name: String,
     account_id: String,
     club_tag: String,
@@ -159,13 +159,45 @@ struct SelfResponse {
 
 async fn self_handler(
     auth_session: NadeoAuthenticatedSession,
-) -> Result<Json<SelfResponse>, ApiError> {
-    let club_tag = ClubTag::get(&*auth_session).await?;
-    Ok(Json(SelfResponse {
+) -> Result<Json<UserResponse>, ApiError> {
+    let club_tag = ClubTag::get_self(&auth_session).await?;
+    Ok(Json(UserResponse {
         display_name: auth_session.display_name().to_owned(),
         account_id: auth_session.account_id().to_owned(),
         club_tag: club_tag.club_tag,
     }))
+}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct FavoriteMapResponse {
+    uid: String,
+    name: String,
+    author: UserResponse,
+}
+
+async fn favorite_maps(
+    auth_session: NadeoAuthenticatedSession,
+) -> Result<Json<Vec<FavoriteMapResponse>>, ApiError> {
+    let favorite_maps = FavoriteMaps::get(&auth_session).await?;
+
+    let mut favorites = Vec::new();
+    for favorite in favorite_maps.list {
+        let user = User::get_from_account_id(&auth_session, &favorite.author).await?;
+        let club_tag = ClubTag::get(&favorite.author).await?;
+        favorites.push(FavoriteMapResponse {
+            uid: favorite.uid,
+            name: favorite.name,
+            author: UserResponse {
+                display_name: user.display_name,
+                account_id: user.account_id,
+                club_tag: club_tag.club_tag,
+            },
+        });
+    }
+
+    Ok(Json(favorites))
 }
 
 #[derive(Deserialize, TS)]

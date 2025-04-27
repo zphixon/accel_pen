@@ -1,13 +1,11 @@
-use std::sync::LazyLock;
-
-use serde::Deserialize;
-use tokio::sync::RwLock;
-
 use crate::{
     api::CLIENT,
     config::CONFIG,
     error::{ApiError, ApiErrorInner, Context},
 };
+use serde::Deserialize;
+use std::sync::LazyLock;
+use tokio::sync::RwLock;
 
 static UBI_PASSWORD: LazyLock<String> = LazyLock::new(|| {
     let Ok(password) = std::fs::read_to_string(&CONFIG.nadeo.ubi.password_path) else {
@@ -67,10 +65,11 @@ async fn refresh_token(refresh_token: &str) -> Result<UbiToken, ApiError> {
             .json()
             .await
             .context("Parsing JSON from failed refresh")?;
-        Err(ApiErrorInner::OauthFailed(format!("{}", error)).into())
+        Err(ApiErrorInner::ApiReturnedError(error).into())
     }
 }
 
+/// Application-specific user/pass authenticated access token
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UbiToken {
@@ -78,6 +77,8 @@ pub struct UbiToken {
     refresh_token: String,
 }
 
+/// Application-specific user/pass authenticated access tokens, for both
+/// NadeoServies and NadeoLiveServices audiences
 pub struct UbiTokens {
     nadeo_services: UbiToken,
     nadeo_live_services: UbiToken,

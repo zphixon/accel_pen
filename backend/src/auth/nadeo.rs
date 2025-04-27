@@ -42,32 +42,40 @@ pub fn oauth_start_url(state: Uuid) -> Result<Url, ApiError> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NadeoTokenPairInner {
+pub struct NadeoTokensInner {
     token_type: String,
     expires_in: u32,
     access_token: String,
     refresh_token: String,
 }
 
-impl NadeoTokenPairInner {
+impl NadeoTokensInner {
     pub fn access_token(&self) -> &str {
         &self.access_token
     }
 }
 
+/// OAuth-authenticated access tokens
 #[derive(Clone, Serialize, Deserialize)]
-pub struct NadeoTokenPair {
-    inner: NadeoTokenPairInner,
+pub struct NadeoTokens {
+    inner: NadeoTokensInner,
     user: User,
     issued: time::OffsetDateTime,
 }
 
-impl NadeoTokenPair {
-    async fn from_nadeo(token_pair: NadeoTokenPairInner) -> Result<Self, ApiError> {
-        let issued = time::OffsetDateTime::now_utc();
-        let user = User::get(&token_pair).await?;
+impl Deref for NadeoTokens {
+    type Target = NadeoTokensInner;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
 
-        Ok(NadeoTokenPair {
+impl NadeoTokens {
+    async fn from_inner(token_pair: NadeoTokensInner) -> Result<Self, ApiError> {
+        let issued = time::OffsetDateTime::now_utc();
+        let user = User::get_self(&token_pair).await?;
+
+        Ok(NadeoTokens {
             inner: token_pair,
             user,
             issued,
@@ -82,11 +90,7 @@ impl NadeoTokenPair {
         &self.user.display_name
     }
 
-    fn refresh_token(&self) -> &str {
-        &self.inner.refresh_token
-    }
-
-    pub fn access_token(&self) -> &str {
+    pub fn oauth_access_token(&self) -> &str {
         &self.inner.access_token
     }
 
@@ -96,14 +100,14 @@ impl NadeoTokenPair {
         time::OffsetDateTime::now_utc() > expiry
     }
 
-    pub async fn from_random_state(
+    pub async fn from_random_state_session(
         random_state: &RandomStateSession,
         request: crate::OauthFinishRequest,
     ) -> Result<Self, ApiError> {
         if random_state.state().hyphenated().to_string() != request.state {
-            return Err(ApiErrorInner::OauthFailed(String::from(
+            return Err(ApiErrorInner::InvalidOauth(
                 "Invalid random state returned from Nadeo API",
-            ))
+            )
             .into());
         }
 
@@ -125,14 +129,14 @@ impl NadeoTokenPair {
             .context("Sending request for access token")?;
 
         if response.status().is_success() {
-            let nadeo_oauth: NadeoTokenPairInner = response
+            let nadeo_oauth: NadeoTokensInner = response
                 .json()
                 .await
                 .context("Parsing oauth tokens from Nadeo")?;
-            Self::from_nadeo(nadeo_oauth).await
+            Self::from_inner(nadeo_oauth).await
         } else {
             let json_error: serde_json::Value = response.json().await?;
-            Err(ApiErrorInner::OauthFailed(format!("{}", json_error)).into())
+            Err(ApiErrorInner::ApiReturnedError(json_error).into())
         }
     }
 
@@ -157,24 +161,24 @@ impl NadeoTokenPair {
             .context("Sending request for refresh token")?;
 
         if response.status().is_success() {
-            let token_pair: NadeoTokenPairInner = response
+            let token_pair: NadeoTokensInner = response
                 .json()
                 .await
                 .context("Parsing oauth tokens from Nadeo")?;
-            NadeoTokenPair::from_nadeo(token_pair).await
+            NadeoTokens::from_inner(token_pair).await
         } else {
             let json_error: serde_json::Value = response.json().await?;
-            Err(ApiErrorInner::OauthFailed(format!("{}", json_error)).into())
+            Err(ApiErrorInner::ApiReturnedError(json_error).into())
         }
     }
 }
 
 pub struct NadeoAuthenticatedSession {
-    tokens: Arc<NadeoTokenPair>,
+    tokens: Arc<NadeoTokens>,
 }
 
 impl Deref for NadeoAuthenticatedSession {
-    type Target = NadeoTokenPair;
+    type Target = NadeoTokens;
     fn deref(&self) -> &Self::Target {
         &self.tokens
     }
@@ -185,7 +189,7 @@ impl NadeoAuthenticatedSession {
 
     pub async fn upgrade(
         session: &RandomStateSession,
-        tokens: NadeoTokenPair,
+        tokens: NadeoTokens,
     ) -> Result<(), ApiError> {
         session
             .session
@@ -207,7 +211,7 @@ where
 
         let Some(tokens) = session
             .session
-            .get::<NadeoTokenPair>(NadeoAuthenticatedSession::KEY)
+            .get::<NadeoTokens>(NadeoAuthenticatedSession::KEY)
             .await
             .context("Reading auth from session")?
         else {
@@ -253,10 +257,6 @@ impl RandomStateSession {
 
     pub fn state(&self) -> &Uuid {
         &self.state
-    }
-
-    pub fn session(&self) -> &Session {
-        &self.session
     }
 
     pub async fn update_session(session: &Session, state: Uuid) -> Result<(), ApiError> {
