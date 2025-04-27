@@ -1,5 +1,6 @@
 use std::sync::LazyLock;
 
+use api::CLIENT;
 use axum::{
     extract::{Query, State},
     http::{header, HeaderValue, Method, Uri},
@@ -9,10 +10,10 @@ use axum::{
 };
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
-use session::{AuthenticatedSession, RandomState, TokenPair};
-use sqlx::{ConnectOptions, MySqlPool};
+use session::{NadeoAuthenticatedSession, RandomState};
+use sqlx::MySqlPool;
 use tokio::net::TcpListener;
-use tower_http::cors::{self, CorsLayer};
+use tower_http::cors::{self, AllowMethods, CorsLayer};
 use tower_sessions::{
     cookie::{time::Duration, Key, SameSite},
     Expiry, MemoryStore, Session, SessionManagerLayer,
@@ -22,14 +23,15 @@ use ts_rs::TS;
 use url::Url;
 use uuid::Uuid;
 
+mod api;
+mod auth;
 mod config;
 mod error;
-mod nadeo;
 mod session;
 
+use auth::{nadeo::{NadeoTokenPair, NadeoTokenPairInner, OAUTH_AUTHORIZE_URL, OAUTH_GET_ACCESS_TOKEN_URL}, ubi::UbiTokens, User};
 use config::{CONFIG, OAUTH_CLIENT_SECRET};
 use error::{ApiError, ApiErrorInner, Context};
-use session::NadeoTokenPair;
 
 #[derive(Clone)]
 struct AppState {
@@ -46,13 +48,9 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Bind on {}", CONFIG.net.bind);
 
-    let ubi_auth_task = tokio::spawn(nadeo::ubi_auth_task());
+    let ubi_auth_task = tokio::spawn(UbiTokens::auth_task());
 
     let server_task = tokio::spawn(async {
-        while nadeo::UBI_TOKENS.read().await.is_none() {
-            tokio::task::yield_now().await;
-        }
-
         let pool = MySqlPool::connect(CONFIG.db.url.as_str())
             .await
             .context("Connecting to database")?;
@@ -80,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
             .layer(
                 CorsLayer::new()
                     .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?)
-                    .allow_methods(cors::AllowMethods::list([Method::GET, Method::POST]))
+                    .allow_methods(AllowMethods::list([Method::GET, Method::POST]))
                     .allow_credentials(true),
             )
             .layer(session_layer);
@@ -117,7 +115,7 @@ async fn oauth_start(session: Session) -> Result<Redirect, ApiError> {
 
     Ok(Redirect::to(
         Url::parse_with_params(
-            nadeo::OAUTH_AUTHORIZE_URL,
+            OAUTH_AUTHORIZE_URL,
             &[
                 ("response_type", "code"),
                 ("client_id", &CONFIG.nadeo.oauth.identifier),
@@ -156,9 +154,9 @@ async fn oauth_finish(
         .append_pair("redirect_uri", CONFIG.nadeo.oauth.redirect_url.as_str())
         .finish();
 
-    let response = nadeo::CLIENT
+    let response = CLIENT
         .clone()
-        .post(Url::parse(nadeo::OAUTH_GET_ACCESS_TOKEN_URL).unwrap())
+        .post(Url::parse(OAUTH_GET_ACCESS_TOKEN_URL).unwrap())
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(params)
         .send()
@@ -166,14 +164,14 @@ async fn oauth_finish(
         .context("Sending request for access token")?;
 
     if response.status().is_success() {
-        let nadeo_oauth: NadeoTokenPair = response
+        let nadeo_oauth: NadeoTokenPairInner = response
             .json()
             .await
             .context("Parsing oauth tokens from Nadeo")?;
 
-        AuthenticatedSession::update_session(
+        NadeoAuthenticatedSession::update_session(
             random_state.session(),
-            TokenPair::from_nadeo(nadeo_oauth),
+            NadeoTokenPair::from_nadeo(nadeo_oauth),
         )
         .await
         .context("Finishing oauth")?;
@@ -207,8 +205,10 @@ struct SelfResponse {
     club_tag: String,
 }
 
-async fn self_handler(auth_session: AuthenticatedSession) -> Result<Json<SelfResponse>, ApiError> {
-    let user = nadeo::User::get(auth_session.tokens()).await?;
+async fn self_handler(
+    auth_session: NadeoAuthenticatedSession,
+) -> Result<Json<SelfResponse>, ApiError> {
+    let user = User::get(auth_session.tokens()).await?;
 
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -216,7 +216,7 @@ async fn self_handler(auth_session: AuthenticatedSession) -> Result<Json<SelfRes
         club_tag: String,
     }
 
-    let response = nadeo::CLIENT
+    let response = CLIENT
         .clone()
         .get(
             Url::parse_with_params(
@@ -229,14 +229,7 @@ async fn self_handler(auth_session: AuthenticatedSession) -> Result<Json<SelfRes
             "Authorization",
             format!(
                 "nadeo_v1 t={}",
-                nadeo::UBI_TOKENS
-                    .read()
-                    .await
-                    .as_ref()
-                    .unwrap()
-                    .nadeo_services
-                    .access_token
-                    .as_str()
+                UbiTokens::nadeo_services().await
             ),
         )
         .send()

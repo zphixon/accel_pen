@@ -1,65 +1,26 @@
 use crate::{
-    error::{ApiError, ApiErrorInner, Context},
-    nadeo,
+    auth::nadeo::{self, NadeoTokenPair}, error::{ApiError, ApiErrorInner, Context},
 };
 use axum::{
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},
 };
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_sessions::Session;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NadeoTokenPair {
-    token_type: String,
-    expires_in: u32,
-    access_token: String,
-    refresh_token: String,
+pub struct NadeoAuthenticatedSession {
+    tokens: Arc<NadeoTokenPair>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct TokenPair {
-    inner: NadeoTokenPair,
-    issued: time::OffsetDateTime,
-}
-
-impl TokenPair {
-    pub fn from_nadeo(nadeo_token_pair: NadeoTokenPair) -> Self {
-        TokenPair {
-            inner: nadeo_token_pair,
-            issued: time::OffsetDateTime::now_utc(),
-        }
-    }
-
-    pub fn refresh_token(&self) -> &str {
-        &self.inner.refresh_token
-    }
-
-    pub fn access_token(&self) -> &str {
-        &self.inner.access_token
-    }
-
-    pub fn expired(&self) -> bool {
-        let margin = time::Duration::seconds(self.inner.expires_in.saturating_sub(30) as i64);
-        let expiry = self.issued + margin;
-        time::OffsetDateTime::now_utc() > expiry
-    }
-}
-
-pub struct AuthenticatedSession {
-    tokens: Arc<TokenPair>,
-}
-
-impl AuthenticatedSession {
+impl NadeoAuthenticatedSession {
     const KEY: &str = "authSession";
 
-    pub fn tokens(&self) -> &TokenPair {
+    pub fn tokens(&self) -> &NadeoTokenPair {
         &self.tokens
     }
 
-    pub async fn update_session(session: &Session, tokens: TokenPair) -> Result<(), ApiError> {
+    pub async fn update_session(session: &Session, tokens: NadeoTokenPair) -> Result<(), ApiError> {
         session
             .insert(Self::KEY, tokens)
             .await
@@ -68,7 +29,7 @@ impl AuthenticatedSession {
     }
 }
 
-impl<S> FromRequestParts<S> for AuthenticatedSession
+impl<S> FromRequestParts<S> for NadeoAuthenticatedSession
 where
     S: Send + Sync,
 {
@@ -78,7 +39,7 @@ where
         let session = Session::from_request_parts(parts, state).await?;
 
         let Some(tokens) = session
-            .get::<TokenPair>(AuthenticatedSession::KEY)
+            .get::<NadeoTokenPair>(NadeoAuthenticatedSession::KEY)
             .await
             .context("Reading auth from session")?
         else {
@@ -96,7 +57,7 @@ where
                 .await
                 .context("Refreshing token while extracting authenticated session")?;
 
-            AuthenticatedSession::update_session(&session, tokens.clone())
+            NadeoAuthenticatedSession::update_session(&session, tokens.clone())
                 .await
                 .context("Setting session after refreshing")?;
 

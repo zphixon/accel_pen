@@ -1,4 +1,3 @@
-use base64::Engine;
 use std::{net::SocketAddr, path::PathBuf, sync::LazyLock};
 use url::Url;
 
@@ -10,7 +9,6 @@ from_env::config!(
         root: String,
         bind: SocketAddr,
         user_agent: String,
-        #[serde(default = "default_cors_host")]
         cors_host: String,
         frontend_url: Url,
     },
@@ -30,10 +28,6 @@ from_env::config!(
         },
     },
 );
-
-fn default_cors_host() -> String {
-    String::from("*")
-}
 
 impl Config {
     pub fn route_v1(&self, path: &str) -> String {
