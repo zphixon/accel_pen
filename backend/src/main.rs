@@ -1,9 +1,9 @@
 use std::sync::LazyLock;
 
-use api::{ClubTag, User, CLIENT};
+use api::ClubTag;
 use axum::{
     extract::{Query, State},
-    http::{header, HeaderValue, Method, Uri},
+    http::{HeaderValue, Method, Uri},
     response::{Html, Redirect},
     routing::get,
     Json, Router,
@@ -19,7 +19,6 @@ use tower_sessions::{
 };
 use tracing_subscriber::EnvFilter;
 use ts_rs::TS;
-use url::Url;
 use uuid::Uuid;
 
 mod api;

@@ -1,6 +1,7 @@
-
 use crate::{
-    api::{User, CLIENT}, config::CONFIG, error::{ApiError, ApiErrorInner, Context}
+    api::{User, CLIENT},
+    config::CONFIG,
+    error::{ApiError, ApiErrorInner, Context},
 };
 use axum::{
     extract::FromRequestParts,
@@ -8,7 +9,10 @@ use axum::{
 };
 use reqwest::header;
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, sync::{Arc, LazyLock}};
+use std::{
+    ops::Deref,
+    sync::{Arc, LazyLock},
+};
 use tower_sessions::Session;
 use url::Url;
 use uuid::Uuid;
@@ -92,7 +96,10 @@ impl NadeoTokenPair {
         time::OffsetDateTime::now_utc() > expiry
     }
 
-    pub async fn from_random_state(random_state: &RandomStateSession, request: crate::OauthFinishRequest) -> Result<Self, ApiError> {
+    pub async fn from_random_state(
+        random_state: &RandomStateSession,
+        request: crate::OauthFinishRequest,
+    ) -> Result<Self, ApiError> {
         if random_state.state().hyphenated().to_string() != request.state {
             return Err(ApiErrorInner::OauthFailed(String::from(
                 "Invalid random state returned from Nadeo API",
@@ -176,8 +183,12 @@ impl Deref for NadeoAuthenticatedSession {
 impl NadeoAuthenticatedSession {
     const KEY: &str = "authSession";
 
-    pub async fn upgrade(session: &RandomStateSession, tokens: NadeoTokenPair) -> Result<(), ApiError> {
-        session.session
+    pub async fn upgrade(
+        session: &RandomStateSession,
+        tokens: NadeoTokenPair,
+    ) -> Result<(), ApiError> {
+        session
+            .session
             .insert(Self::KEY, tokens)
             .await
             .context("Writing tokens to session")?;
@@ -194,7 +205,8 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let session = RandomStateSession::from_request_parts(parts, state).await?;
 
-        let Some(tokens) = session.session
+        let Some(tokens) = session
+            .session
             .get::<NadeoTokenPair>(NadeoAuthenticatedSession::KEY)
             .await
             .context("Reading auth from session")?

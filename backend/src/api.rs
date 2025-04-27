@@ -1,12 +1,14 @@
 use crate::{
-    auth::{nadeo::{NadeoTokenPair, NadeoTokenPairInner}, ubi::UbiTokens},
+    auth::{
+        nadeo::{NadeoTokenPair, NadeoTokenPairInner},
+        ubi::UbiTokens,
+    },
     config::CONFIG,
     error::{ApiError, Context},
 };
 use serde::{Deserialize, Serialize};
-use url::Url;
 use std::sync::LazyLock;
-use ts_rs::TS;
+use url::Url;
 
 pub static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
     reqwest::Client::builder()
