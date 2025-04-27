@@ -7,7 +7,7 @@ use axum::{
 };
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
-use session::{AuthenticatedSession, RandomState};
+use session::{AuthenticatedSession, RandomState, TokenPair};
 use sqlx::MySqlPool;
 use tokio::net::TcpListener;
 use tower_http::cors::{self, CorsLayer};
@@ -15,7 +15,7 @@ use tower_sessions::{
     cookie::{time::Duration, Key, SameSite},
     Expiry, MemoryStore, Session, SessionManagerLayer,
 };
-use tracing_subscriber::{util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::EnvFilter;
 use ts_rs::TS;
 use url::Url;
 use uuid::Uuid;
@@ -25,9 +25,9 @@ mod error;
 mod nadeo;
 mod session;
 
-use config::{CLIENT_SECRET, CONFIG};
+use config::{CONFIG, OAUTH_CLIENT_SECRET};
 use error::{ApiError, ApiErrorInner, Context};
-use session::NadeoOauth;
+use session::NadeoTokenPair;
 
 #[derive(Clone)]
 struct AppState {
@@ -38,8 +38,8 @@ struct AppState {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
-        .with_file(true)
-        .with_line_number(true)
+        //.with_file(true)
+        //.with_line_number(true)
         .init();
 
     tracing::info!("Bind on {}", CONFIG.net.bind);
@@ -99,9 +99,9 @@ async fn oauth_start(session: Session) -> Result<Redirect, ApiError> {
             nadeo::OAUTH_AUTHORIZE_URL,
             &[
                 ("response_type", "code"),
-                ("client_id", &CONFIG.nadeo.identifier),
+                ("client_id", &CONFIG.nadeo.oauth.identifier),
                 ("scope", "read_favorite write_favorite"),
-                ("redirect_uri", CONFIG.nadeo.redirect_url.as_str()),
+                ("redirect_uri", CONFIG.nadeo.oauth.redirect_url.as_str()),
                 ("state", state.as_hyphenated().to_string().as_str()),
             ],
         )
@@ -129,10 +129,10 @@ async fn oauth_finish(
 
     let params = form_urlencoded::Serializer::new(String::new())
         .append_pair("grant_type", "authorization_code")
-        .append_pair("client_id", &CONFIG.nadeo.identifier)
-        .append_pair("client_secret", &CLIENT_SECRET)
+        .append_pair("client_id", &CONFIG.nadeo.oauth.identifier)
+        .append_pair("client_secret", &OAUTH_CLIENT_SECRET)
         .append_pair("code", &request.code)
-        .append_pair("redirect_uri", CONFIG.nadeo.redirect_url.as_str())
+        .append_pair("redirect_uri", CONFIG.nadeo.oauth.redirect_url.as_str())
         .finish();
 
     let response = nadeo::CLIENT
@@ -145,14 +145,17 @@ async fn oauth_finish(
         .context("Sending request for access token")?;
 
     if response.status().is_success() {
-        let nadeo_oauth: NadeoOauth = response
+        let nadeo_oauth: NadeoTokenPair = response
             .json()
             .await
             .context("Parsing oauth tokens from Nadeo")?;
 
-        AuthenticatedSession::update_session(random_state.session(), &nadeo_oauth)
-            .await
-            .context("Finishing oauth")?;
+        AuthenticatedSession::update_session(
+            random_state.session(),
+            TokenPair::from_nadeo(nadeo_oauth),
+        )
+        .await
+        .context("Finishing oauth")?;
 
         //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
         Ok(Html(config::CLIENT_REDIRECT.as_str()))

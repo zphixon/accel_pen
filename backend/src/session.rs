@@ -1,4 +1,7 @@
-use crate::error::{ApiError, ApiErrorInner, Context};
+use crate::{
+    error::{ApiError, ApiErrorInner, Context},
+    nadeo,
+};
 use axum::{
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},
@@ -9,37 +12,56 @@ use tower_sessions::Session;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NadeoOauth {
+pub struct NadeoTokenPair {
     token_type: String,
-    pub expires_in: u64,
-    pub access_token: String,
-    pub refresh_token: String,
+    expires_in: u32,
+    access_token: String,
+    refresh_token: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TokenPair {
+    inner: NadeoTokenPair,
+    issued: time::OffsetDateTime,
+}
+
+impl TokenPair {
+    pub fn from_nadeo(nadeo_token_pair: NadeoTokenPair) -> Self {
+        TokenPair {
+            inner: nadeo_token_pair,
+            issued: time::OffsetDateTime::now_utc(),
+        }
+    }
+
+    pub fn refresh_token(&self) -> &str {
+        &self.inner.refresh_token
+    }
+
+    pub fn access_token(&self) -> &str {
+        &self.inner.access_token
+    }
+
+    pub fn expired(&self) -> bool {
+        let margin = time::Duration::seconds(self.inner.expires_in.saturating_sub(30) as i64);
+        let expiry = self.issued + margin;
+        time::OffsetDateTime::now_utc() > expiry
+    }
 }
 
 pub struct AuthenticatedSession {
-    session: Session,
-    tokens: Arc<NadeoOauth>,
+    tokens: Arc<TokenPair>,
 }
 
 impl AuthenticatedSession {
     const KEY: &str = "authSession";
 
-    pub fn tokens(&self) -> &NadeoOauth {
+    pub fn tokens(&self) -> &TokenPair {
         &self.tokens
     }
 
-    pub async fn swap_tokens(&mut self, tokens: &NadeoOauth) -> Result<(), ApiError> {
-        self.tokens = Arc::new(tokens.clone());
-        Self::update_session(&self.session, &self.tokens).await
-    }
-
-    pub fn session(&self) -> &Session {
-        &self.session
-    }
-
-    pub async fn update_session(session: &Session, tokens: &NadeoOauth) -> Result<(), ApiError> {
+    pub async fn update_session(session: &Session, tokens: TokenPair) -> Result<(), ApiError> {
         session
-            .insert(Self::KEY, tokens.clone())
+            .insert(Self::KEY, tokens)
             .await
             .context("Writing tokens to session")?;
         Ok(())
@@ -56,7 +78,7 @@ where
         let session = Session::from_request_parts(parts, state).await?;
 
         let Some(tokens) = session
-            .get::<NadeoOauth>(AuthenticatedSession::KEY)
+            .get::<TokenPair>(AuthenticatedSession::KEY)
             .await
             .context("Reading auth from session")?
         else {
@@ -67,8 +89,25 @@ where
             .into());
         };
 
+        let tokens = if tokens.expired() {
+            tracing::debug!("access token about to expire, refreshing");
+
+            let tokens = nadeo::refresh(tokens)
+                .await
+                .context("Refreshing token while extracting authenticated session")?;
+
+            AuthenticatedSession::update_session(&session, tokens.clone())
+                .await
+                .context("Setting session after refreshing")?;
+
+            tracing::debug!("successfully refreshed");
+
+            tokens
+        } else {
+            tokens
+        };
+
         Ok(Self {
-            session,
             tokens: Arc::new(tokens),
         })
     }

@@ -1,3 +1,4 @@
+use base64::Engine;
 use std::{net::SocketAddr, path::PathBuf, sync::LazyLock};
 use url::Url;
 
@@ -18,10 +19,15 @@ from_env::config!(
         password_path: PathBuf,
     },
     nadeo {
-        identifier: String,
-        secret_path: PathBuf,
-        redirect_url: Url,
-    }
+        oauth {
+            identifier: String,
+            secret_path: PathBuf,
+            redirect_url: Url,
+        },
+        ubi {
+            basic_path: PathBuf,
+        },
+    },
 );
 
 fn default_cors_host() -> String {
@@ -46,11 +52,18 @@ pub static CLIENT_REDIRECT: LazyLock<String> = LazyLock::new(|| {
     )
 });
 
-pub static CLIENT_SECRET: LazyLock<String> = LazyLock::new(|| {
-    let Ok(secret) = std::fs::read_to_string(&CONFIG.nadeo.secret_path) else {
+pub static OAUTH_CLIENT_SECRET: LazyLock<String> = LazyLock::new(|| {
+    let Ok(secret) = std::fs::read_to_string(&CONFIG.nadeo.oauth.secret_path) else {
         panic!("Couldn't read nadeo client secret file");
     };
     secret
+});
+
+pub static UBI_BASIC_AUTH: LazyLock<String> = LazyLock::new(|| {
+    let Ok(basic) = std::fs::read_to_string(&CONFIG.nadeo.ubi.basic_path) else {
+        panic!("Couldn't read ubisoft basic file");
+    };
+    base64::engine::general_purpose::STANDARD.encode(basic)
 });
 
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {

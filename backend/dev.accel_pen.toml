@@ -9,7 +9,10 @@ frontend_url = "http://localhost:5173"
 url = "mysql://localhost:3306/accel_pen"
 password_path = "../secret_root_pw.txt"
 
-[nadeo]
+[nadeo.oauth]
 identifier = "e9cfcb43163263a46845"
 secret_path = "../nadeo_client_secret.txt"
 redirect_url = "http://localhost:2460/v1/oauth/finish"
+
+[nadeo.ubi]
+basic_path = "../ubi_secret.txt"
