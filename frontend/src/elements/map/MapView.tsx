@@ -1,6 +1,7 @@
 import { Suspense, use } from "react";
 
 import * as api from "../../api";
+import NavBar from "../NavBar";
 
 interface MapViewInnerProps {
   mapDataPromise: ReturnType<typeof api.mapData>,
@@ -13,7 +14,10 @@ function MapViewInner({ mapDataPromise }: MapViewInnerProps) {
   }
 
   return <>
-    Map {mapData.name}
+    <p>
+      Map <br/>
+      {mapData.name}
+    </p>
   </>
 }
 
@@ -27,12 +31,15 @@ function MapView({ mapId }: MapViewProps) {
     return <>Invalid map ID</>;
   }
 
-  return <Suspense>
-    <MapViewInner mapDataPromise={api.mapData({
-      type: "MapDataRequest",
-      map_id: mapIdNumber,
-    })} />
-  </Suspense>;
+  return <>
+    <NavBar />
+    <Suspense>
+      <MapViewInner mapDataPromise={api.mapData({
+        type: "MapDataRequest",
+        map_id: mapIdNumber,
+      })} />
+    </Suspense>
+  </>;
 }
 
 export default MapView

@@ -112,11 +112,19 @@ async fn fallback(uri: Uri) -> ApiError {
     ApiErrorInner::NotFound(uri.to_string()).into()
 }
 
-async fn oauth_start(session: Session) -> Result<Redirect, ApiError> {
+#[derive(Deserialize)]
+struct OauthStartRequest {
+    return_path: Option<String>,
+}
+
+async fn oauth_start(
+    session: Session,
+    WithRejection(Query(request), _): WithRejection<Query<OauthStartRequest>, ApiError>,
+) -> Result<Redirect, ApiError> {
     session.clear().await;
 
     let state = Uuid::new_v4();
-    RandomStateSession::update_session(&session, state)
+    RandomStateSession::update_session(&session, state, request.return_path)
         .await
         .context("Updating session with random state")?;
 
@@ -133,7 +141,7 @@ async fn oauth_finish(
     State(state): State<AppState>,
     random_state: RandomStateSession,
     WithRejection(Query(request), _): WithRejection<Query<OauthFinishRequest>, ApiError>,
-) -> Result<Html<&'static str>, ApiError> {
+) -> Result<Html<String>, ApiError> {
     let token_pair = NadeoTokens::from_random_state_session(&random_state, request).await?;
 
     let session = NadeoAuthenticatedSession::upgrade(random_state, token_pair)
@@ -153,20 +161,31 @@ async fn oauth_finish(
     .await
     .context("Adding user to users table")?;
 
-    static CLIENT_REDIRECT: LazyLock<String> = LazyLock::new(|| {
-        format!(
-            r#"<!DOCTYPE html>
+    let mut frontend_url = CONFIG.net.frontend_url.clone();
+    {
+        let mut segments = frontend_url.path_segments_mut().unwrap();
+        if let Some(return_path) = session.return_path() {
+            for part in return_path.split("/") {
+                if part != "" {
+                    segments.push(part);
+                }
+            }
+            tracing::trace!("Returning to {:?}", return_path);
+        }
+    }
+
+    let client_redirect = format!(
+        r#"<!DOCTYPE html>
 <html>
 <head><meta http-equiv="refresh" content="0; url='{}'"></head>
 <body></body>
 </html>
 "#,
-            CONFIG.net.frontend_url.as_str()
-        )
-    });
+        frontend_url
+    );
 
     //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
-    Ok(Html(CLIENT_REDIRECT.as_str()))
+    Ok(Html(client_redirect))
 }
 
 async fn oauth_logout(auth_session: NadeoAuthenticatedSession) -> Result<Redirect, ApiError> {

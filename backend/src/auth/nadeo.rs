@@ -207,6 +207,10 @@ impl NadeoAuthenticatedSession {
     pub fn session(&self) -> &Session {
         &self.session.session
     }
+
+    pub fn return_path(&self) -> Option<&str> {
+        self.session.return_path()
+    }
 }
 
 impl<S> FromRequestParts<S> for NadeoAuthenticatedSession
@@ -252,21 +256,35 @@ where
     }
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct RandomStateSessionData {
+    state: Uuid,
+    return_path: Option<String>,
+}
+
 pub struct RandomStateSession {
     session: Session,
-    state: Uuid,
+    data: RandomStateSessionData,
 }
 
 impl RandomStateSession {
     const KEY: &str = "randomState";
 
     pub fn state(&self) -> &Uuid {
-        &self.state
+        &self.data.state
     }
 
-    pub async fn update_session(session: &Session, state: Uuid) -> Result<(), ApiError> {
+    pub fn return_path(&self) -> Option<&str> {
+        self.data.return_path.as_deref()
+    }
+
+    pub async fn update_session(
+        session: &Session,
+        state: Uuid,
+        return_path: Option<String>,
+    ) -> Result<(), ApiError> {
         session
-            .insert(Self::KEY, state)
+            .insert(Self::KEY, RandomStateSessionData { state, return_path })
             .await
             .context("Writing state to session")?;
         Ok(())
@@ -282,8 +300,8 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let session = Session::from_request_parts(parts, state).await?;
 
-        let Some(state) = session
-            .get::<Uuid>(RandomStateSession::KEY)
+        let Some(data) = session
+            .get::<RandomStateSessionData>(RandomStateSession::KEY)
             .await
             .context("Reading state from session")?
         else {
@@ -294,7 +312,7 @@ where
             .into());
         };
 
-        Ok(Self { session, state })
+        Ok(Self { session, data })
     }
 }
 

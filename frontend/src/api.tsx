@@ -14,8 +14,12 @@ export function apiUrl(): URL {
   }
 }
 
-export function oauthStartUrl(): URL {
-  return new URL(apiUrl() + "/oauth/start");
+export function oauthStartUrl(returnPath: string | null): URL {
+  let url = new URL(apiUrl() + "/oauth/start");
+  if (returnPath != null) {
+    url.searchParams.append("return_path", returnPath);
+  }
+  return url;
 }
 
 export function oauthLogoutUrl(): URL {

@@ -4,6 +4,7 @@ import { Link } from "wouter";
 
 import * as api from "../../api.tsx";
 import * as types from "../../../../backend/bindings/index.ts";
+import NavBar from "../NavBar.tsx";
 
 function MapUpload() {
   let { pending } = useFormStatus();
@@ -29,6 +30,7 @@ function MapUpload() {
   }
 
   return <>
+    <NavBar />
     <form action={uploadMap}>
       <label htmlFor="mapData">Map file </label>
       <input name="map_data" id="mapData" type="file"></input>
