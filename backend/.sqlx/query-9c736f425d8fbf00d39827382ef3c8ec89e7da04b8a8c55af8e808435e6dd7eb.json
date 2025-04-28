@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "\n            INSERT INTO user (display_name, account_id, registered)\n            VALUES (?, ?, NOW())\n            ON DUPLICATE KEY UPDATE display_name=display_name\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "9c736f425d8fbf00d39827382ef3c8ec89e7da04b8a8c55af8e808435e6dd7eb"
+}

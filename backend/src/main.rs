@@ -1,6 +1,5 @@
 use api::{ClubTag, FavoriteMaps, User};
 use axum::{
-    body::Bytes,
     extract::{DefaultBodyLimit, Multipart, Query, State},
     http::{HeaderValue, Method, Uri},
     response::{Html, Redirect},
@@ -142,7 +141,11 @@ async fn oauth_finish(
         .context("Finishing oauth")?;
 
     sqlx::query!(
-        "REPLACE INTO user (display_name, account_id, registered) VALUES (?, ?, NOW())",
+        "
+            INSERT INTO user (display_name, account_id, registered)
+            VALUES (?, ?, NOW())
+            ON DUPLICATE KEY UPDATE display_name=display_name
+        ",
         session.display_name(),
         session.account_id(),
     )
@@ -261,7 +264,9 @@ struct MapUploadMeta {}
 #[derive(Serialize, TS)]
 #[ts(export)]
 #[serde(tag = "type")]
-struct MapUploadResponse {}
+struct MapUploadResponse {
+    map_id: u32,
+}
 
 async fn map_upload(
     State(state): State<AppState>,
@@ -332,5 +337,12 @@ async fn map_upload(
         user_id.user_id,
     ).execute(&state.pool).await.context("Adding map to database")?;
 
-    Ok(Json(MapUploadResponse {}))
+    let ap_id = sqlx::query!("SELECT ap_id FROM map WHERE gbx_mapuid = ?", map_info.id)
+        .fetch_one(&state.pool)
+        .await
+        .context("Retrieving ID of newly uploaded map")?;
+
+    Ok(Json(MapUploadResponse {
+        map_id: ap_id.ap_id,
+    }))
 }
