@@ -7,6 +7,7 @@ use axum::{
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},
 };
+use base64::Engine;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -189,15 +190,18 @@ impl NadeoAuthenticatedSession {
     const KEY: &str = "authSession";
 
     pub async fn upgrade(
-        session: &RandomStateSession,
+        session: RandomStateSession,
         tokens: NadeoTokens,
-    ) -> Result<(), ApiError> {
+    ) -> Result<NadeoAuthenticatedSession, ApiError> {
         session
             .session
-            .insert(Self::KEY, tokens)
+            .insert(Self::KEY, tokens.clone())
             .await
             .context("Writing tokens to session")?;
-        Ok(())
+        Ok(NadeoAuthenticatedSession {
+            session,
+            tokens: Arc::new(tokens),
+        })
     }
 
     pub fn session(&self) -> &Session {
@@ -227,7 +231,7 @@ where
             .into());
         };
 
-        let tokens = if tokens.expired() {
+        if tokens.expired() {
             tracing::debug!("access token about to expire, refreshing");
 
             let tokens = tokens
@@ -235,21 +239,16 @@ where
                 .await
                 .context("Refreshing token while extracting authenticated session")?;
 
-            NadeoAuthenticatedSession::upgrade(&session, tokens.clone())
+            let session = NadeoAuthenticatedSession::upgrade(session, tokens.clone())
                 .await
                 .context("Setting session after refreshing")?;
 
             tracing::debug!("successfully refreshed");
 
-            tokens
+            Ok(session)
         } else {
-            tokens
-        };
-
-        Ok(Self {
-            session,
-            tokens: Arc::new(tokens),
-        })
+            NadeoAuthenticatedSession::upgrade(session, tokens).await
+        }
     }
 }
 
@@ -297,4 +296,11 @@ where
 
         Ok(Self { session, state })
     }
+}
+
+pub fn login_to_uid(login: &str) -> Result<String, ApiError> {
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(login)?;
+    let hex_string = hex::encode(bytes);
+    let uuid = Uuid::try_parse(&hex_string)?;
+    Ok(uuid.hyphenated().to_string())
 }

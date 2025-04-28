@@ -27,7 +27,7 @@
         "type_info": {
           "type": "Blob",
           "flags": "NOT_NULL | BLOB | BINARY | NO_DEFAULT_VALUE",
-          "max_size": 65535
+          "max_size": 16777215
         }
       },
       {

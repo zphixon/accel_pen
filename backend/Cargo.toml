@@ -4,22 +4,23 @@
 from_env = { git = "https://github.com/zphixon/from_env" }
 
 anyhow = { version = "1.0.97", features = ["backtrace"] }
-axum = { version = "0.8.1", features = ["query", "macros"] }
+axum = { version = "0.8.1", features = ["query", "macros", "multipart"] }
 axum-extra = { version = "0.10.1", features = ["cookie", "typed-header"] }
 base64 = "0.22.1"
 form_urlencoded = "1.2.1"
+hex = "0.4.3"
 image = { version = "0.25.5", features = ["serde"] }
 random = "0.9.1"
 reqwest = { version = "0.12.15", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-sqlx = { version = "0.8.3", features = ["runtime-tokio", "mysql", "time"] }
+sqlx = { version = "=0.8.3", features = ["runtime-tokio", "mysql", "time"] }
 strum = { version = "0.27.1", features = ["derive"] }
 thiserror = "2.0.12"
 time = { version = "0.3.41", features = ["serde"] }
 tokio = { version = "1.44.1", features = ["full"] }
 toml = "0.8.20"
-tower-http = { version = "0.6.2", features = ["cors"] }
+tower-http = { version = "0.6.2", features = ["cors", "limit"] }
 tower-sessions = { version = "0.14.0", features = ["signed", "private"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["tracing", "env-filter"] }
@@ -41,6 +42,7 @@ axum-extra.workspace = true
 axum.workspace = true
 base64.workspace = true
 form_urlencoded.workspace = true
+hex.workspace = true
 image.workspace = true
 reqwest.workspace = true
 serde_json.workspace = true

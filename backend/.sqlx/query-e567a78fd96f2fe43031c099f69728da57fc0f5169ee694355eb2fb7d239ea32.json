@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "REPLACE INTO user (display_name, account_id, registered) VALUES (?, ?, NOW())",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e567a78fd96f2fe43031c099f69728da57fc0f5169ee694355eb2fb7d239ea32"
+}

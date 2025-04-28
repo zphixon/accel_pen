@@ -1,9 +1,10 @@
 use api::{ClubTag, FavoriteMaps, User};
 use axum::{
-    extract::{Query, State},
+    body::Bytes,
+    extract::{DefaultBodyLimit, Multipart, Query, State},
     http::{HeaderValue, Method, Uri},
     response::{Html, Redirect},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use axum_extra::extract::WithRejection;
@@ -11,7 +12,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
 use std::sync::LazyLock;
 use tokio::net::TcpListener;
-use tower_http::cors::{AllowMethods, CorsLayer};
+use tower_http::{
+    cors::{AllowMethods, CorsLayer},
+    limit::RequestBodyLimitLayer,
+};
 use tower_sessions::{
     cookie::{time::Duration, Key, SameSite},
     Expiry, MemoryStore, Session, SessionManagerLayer,
@@ -68,7 +72,8 @@ async fn main() -> anyhow::Result<()> {
             .with_private(Key::generate());
 
         let app = Router::new()
-            .route(&CONFIG.route_v1("map_data"), get(map_data))
+            .route(&CONFIG.route_v1("map/data"), get(map_data))
+            .route(&CONFIG.route_v1("map/upload"), post(map_upload))
             .route(&CONFIG.route_v1("oauth/start"), get(oauth_start))
             .route(&CONFIG.route_v1("oauth/finish"), get(oauth_finish))
             .route(&CONFIG.route_v1("oauth/logout"), get(oauth_logout))
@@ -76,13 +81,15 @@ async fn main() -> anyhow::Result<()> {
             .route(&CONFIG.route_v1("self/favorite_maps"), get(favorite_maps))
             .with_state(AppState { pool })
             .fallback(fallback)
+            .layer(session_layer)
+            .layer(DefaultBodyLimit::disable())
+            .layer(RequestBodyLimitLayer::new(20 * 1000 * 1000))
             .layer(
                 CorsLayer::new()
                     .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?)
                     .allow_methods(AllowMethods::list([Method::GET, Method::POST]))
                     .allow_credentials(true),
-            )
-            .layer(session_layer);
+            );
 
         let listener = TcpListener::bind(CONFIG.net.bind).await?;
         axum::serve(listener, app).await?;
@@ -124,14 +131,24 @@ struct OauthFinishRequest {
 }
 
 async fn oauth_finish(
+    State(state): State<AppState>,
     random_state: RandomStateSession,
     WithRejection(Query(request), _): WithRejection<Query<OauthFinishRequest>, ApiError>,
 ) -> Result<Html<&'static str>, ApiError> {
     let token_pair = NadeoTokens::from_random_state_session(&random_state, request).await?;
 
-    NadeoAuthenticatedSession::upgrade(&random_state, token_pair)
+    let session = NadeoAuthenticatedSession::upgrade(random_state, token_pair)
         .await
         .context("Finishing oauth")?;
+
+    sqlx::query!(
+        "REPLACE INTO user (display_name, account_id, registered) VALUES (?, ?, NOW())",
+        session.display_name(),
+        session.account_id(),
+    )
+    .execute(&state.pool)
+    .await
+    .context("Adding user to users table")?;
 
     static CLIENT_REDIRECT: LazyLock<String> = LazyLock::new(|| {
         format!(
@@ -149,9 +166,7 @@ async fn oauth_finish(
     Ok(Html(CLIENT_REDIRECT.as_str()))
 }
 
-async fn oauth_logout(
-    auth_session: NadeoAuthenticatedSession,
-) -> Result<Redirect, ApiError> {
+async fn oauth_logout(auth_session: NadeoAuthenticatedSession) -> Result<Redirect, ApiError> {
     auth_session.session().clear().await;
     Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
 }
@@ -236,4 +251,86 @@ async fn map_data(
     } else {
         Err(ApiErrorInner::MapNotFound(request.map_id).into())
     }
+}
+
+#[derive(Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct MapUploadMeta {}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct MapUploadResponse {}
+
+async fn map_upload(
+    State(state): State<AppState>,
+    session: NadeoAuthenticatedSession,
+    WithRejection(mut multipart, _): WithRejection<Multipart, ApiError>,
+) -> Result<Json<MapUploadResponse>, ApiError> {
+    let user_id = sqlx::query!(
+        "SELECT user_id FROM user WHERE account_id = ?",
+        session.account_id()
+    )
+    .fetch_one(&state.pool)
+    .await
+    .context("Reading numeric user ID from database")?;
+
+    let mut map_data = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .context("Reading field from multipart body while uploading map")?
+    {
+        let Some(name) = field.name() else {
+            return Err(ApiErrorInner::MissingFromMultipart("Name of field").into());
+        };
+        let name = String::from(name);
+        let data = field
+            .bytes()
+            .await
+            .with_context(|| format!("Reading value of multipart field {}", name))?;
+
+        tracing::debug!("{:?}", name);
+
+        if &name == "map_meta" {}
+        if &name == "map_data" {
+            map_data = Some(data);
+        }
+    }
+
+    let Some(map_data) = map_data else {
+        return Err(ApiErrorInner::MissingFromMultipart("Value of map_data").into());
+    };
+
+    let map_node = gbx_rs::Node::read_from(&map_data).context("Parsing map for upload")?;
+    let gbx_rs::parse::CGame::CtnChallenge(map) =
+        map_node.parse().context("Parsing full map data")?
+    else {
+        return Err(ApiErrorInner::NotAMap.into());
+    };
+
+    let Some(map_info) = map.map_info.as_ref() else {
+        return Err(ApiErrorInner::MissingFromMultipart("Map info from map").into());
+    };
+
+    let author = auth::nadeo::login_to_uid(map_info.author).context("Parsing map author")?;
+    if session.account_id() != author {
+        return Err(ApiErrorInner::NotYourMap.into());
+    }
+
+    let Some(map_name) = map.map_name else {
+        return Err(ApiErrorInner::MissingFromMultipart("Map name").into());
+    };
+
+    let buffer = map_data.to_vec();
+    sqlx::query!("INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created, uploaded) VALUES (?, ?, ?, ?, NOW(), NOW())",
+        map_info.id,
+        buffer,
+        map_name,
+        user_id.user_id,
+    ).execute(&state.pool).await.context("Adding map to database")?;
+
+    Ok(Json(MapUploadResponse {}))
 }

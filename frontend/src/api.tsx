@@ -30,15 +30,41 @@ export function selfUrl(): URL {
   }
 }
 
-async function get<T>(path: string, data: any): Promise<T | types.TsApiError> {
-  let response = await fetch(
-    apiUrl() + path + "?" + new URLSearchParams(data).toString(),
-    {
-      mode: 'cors',
-      credentials: 'include',
-    },
-  );
-  let value: T | types.TsApiError = await response.json();
+interface ApiCallOptions {
+  params?: any,
+  body?: any,
+  method?: string,
+}
+async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions = {}): Promise<T | types.TsApiError> {
+  let error: types.TsApiError = {
+    type: 'TsApiError',
+    error: 'ApiFailed',
+    status: 500,
+    message: `Request to backend failed`,
+  };
+
+  try {
+    var response = await fetch(
+      apiUrl() + path + "?" + new URLSearchParams(params).toString(),
+      {
+        method: method,
+        mode: 'cors',
+        credentials: 'include',
+        body: body,
+      },
+    );
+  } catch (err) {
+    console.log("Could not request API:", err);
+    return error;
+  }
+
+  try {
+    var value: T | types.TsApiError = await response.json();
+  } catch (err) {
+    console.log("Could not parse API response as JSON:", err);
+    return error;
+  }
+
   if (response.ok) {
     return value as T;
   } else {
@@ -48,9 +74,13 @@ async function get<T>(path: string, data: any): Promise<T | types.TsApiError> {
 }
 
 export async function self(): Promise<types.UserResponse | types.TsApiError> {
-  return await get<types.UserResponse>("/self", undefined);
+  return await apiCall<types.UserResponse>("/self");
 }
 
 export async function mapData(request: types.MapDataRequest): Promise<types.MapDataResponse | types.TsApiError> {
-  return await get<types.MapDataResponse>("/map_data", request);
+  return await apiCall<types.MapDataResponse>("/map/data", { params: request });
+}
+
+export async function uploadMap(data: FormData): Promise<types.MapUploadResponse | types.TsApiError> {
+  return await apiCall<types.MapUploadResponse>("/map/upload", { body: data, method: 'POST' });
 }

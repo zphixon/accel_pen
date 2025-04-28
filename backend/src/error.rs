@@ -81,6 +81,53 @@ pub enum ApiErrorInner {
     #[error("Map not found: {0}")]
     MapNotFound(#[ts(skip)] u32),
 
+    #[error("Multipart error: {0}")]
+    MultipartError(
+        #[ts(skip)]
+        #[from]
+        axum::extract::multipart::MultipartError,
+    ),
+
+    #[error("Invalid multipart: {0}")]
+    InvalidMultipart(
+        #[ts(skip)]
+        #[from]
+        axum::extract::multipart::MultipartRejection,
+    ),
+
+    #[error("Missing from multipart field: {0}")]
+    MissingFromMultipart(#[ts(skip)] &'static str),
+
+    #[error("Invalid GBX data: {0}")]
+    InvalidGbx(
+        #[ts(skip)]
+        #[from]
+        gbx_rs::GbxError,
+    ),
+
+    #[error("Not a map")]
+    NotAMap,
+
+    #[error("Cannot upload map that isn't yours")]
+    NotYourMap,
+
+    #[error("Not base64")]
+    NotBase64(
+        #[ts(skip)]
+        #[from]
+        base64::DecodeError,
+    ),
+
+    #[error("Invalid UTF-8")]
+    NotUtf8(#[ts(skip)] #[from] std::str::Utf8Error),
+
+    #[error("Not UUID")]
+    NotUuid(
+        #[ts(skip)]
+        #[from]
+        uuid::Error,
+    ),
+
     #[error("No such API: {0}")]
     NotFound(#[ts(skip)] String),
 }
@@ -123,12 +170,25 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::AxumError(_)
             | ApiErrorInner::ApiReturnedError(_)
             | ApiErrorInner::UnexpectedResponse(_) => StatusCode::INTERNAL_SERVER_ERROR,
+
             ApiErrorInner::ApiFailed(err) => err.status().unwrap_or(StatusCode::BAD_GATEWAY),
-            ApiErrorInner::InvalidQuery(_) | ApiErrorInner::InvalidJson(_) => {
-                StatusCode::BAD_REQUEST
-            }
+
+            ApiErrorInner::InvalidQuery(_)
+            | ApiErrorInner::InvalidJson(_)
+            | ApiErrorInner::InvalidMultipart(_)
+            | ApiErrorInner::MissingFromMultipart(_)
+            | ApiErrorInner::InvalidGbx(_)
+            | ApiErrorInner::MultipartError(_)
+            | ApiErrorInner::NotAMap
+            | ApiErrorInner::NotBase64(_)
+            | ApiErrorInner::NotUtf8(_)
+            | ApiErrorInner::NotYourMap
+            | ApiErrorInner::NotUuid(_) => StatusCode::BAD_REQUEST,
+
             ApiErrorInner::InvalidOauth(_) => StatusCode::UNAUTHORIZED,
+
             ApiErrorInner::MapNotFound(_) | ApiErrorInner::NotFound(_) => StatusCode::NOT_FOUND,
+
             ApiErrorInner::Rejected((code, _)) => *code,
         };
 

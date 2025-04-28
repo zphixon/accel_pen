@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created, uploaded) VALUES (?, ?, ?, ?, NOW(), NOW())",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "f8b5caf36dc148987a23ea9b433a2c17039894802b1686f2af88d7496ca17c2f"
+}
