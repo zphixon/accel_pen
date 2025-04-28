@@ -1,9 +1,9 @@
 import UserView from "./UserView";
 
 function NavBar() {
-  return <span>
+  return <div>
     Accel Pen <UserView />
-  </span>;
+  </div>;
 }
 
 export default NavBar

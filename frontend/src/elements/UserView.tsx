@@ -15,10 +15,10 @@ function UserOrLogin({ selfPromise }: UserOrLoginProps) {
     if (selfResult.status == 401 && selfResult.error.type == "Rejected") {
       return <Link href={`~/login?returnPath=${returnPath}`}>Log in</Link>;
     } else {
-      return <span>Could not log in: {selfResult.message}</span>;
+      return <>Could not log in: {selfResult.message}</>;
     }
   } else {
-    return <span>{selfResult.display_name} <a href={api.oauthLogoutUrl().href}>Log out</a></span>;
+    return <>{selfResult.display_name} <a href={api.oauthLogoutUrl().href}>Log out</a></>;
   }
 }
 

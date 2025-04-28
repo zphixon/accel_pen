@@ -85,7 +85,11 @@ pub enum ApiErrorInner {
     UnexpectedResponse(#[ts(skip)] &'static str),
 
     #[error("Rejected: {}", .0.1)]
-    Rejected(#[ts(skip)] #[serde(skip)](axum::http::StatusCode, &'static str)),
+    Rejected(
+        #[ts(skip)]
+        #[serde(skip)]
+        (axum::http::StatusCode, &'static str),
+    ),
 
     #[error("Map not found: {0}")]
     MapNotFound(#[ts(skip)] u32),
@@ -135,7 +139,12 @@ pub enum ApiErrorInner {
     ),
 
     #[error("Invalid UTF-8")]
-    NotUtf8(#[serde(skip)] #[ts(skip)] #[from] std::str::Utf8Error),
+    NotUtf8(
+        #[serde(skip)]
+        #[ts(skip)]
+        #[from]
+        std::str::Utf8Error,
+    ),
 
     #[error("Not UUID")]
     NotUuid(
@@ -147,6 +156,14 @@ pub enum ApiErrorInner {
 
     #[error("No such API: {0}")]
     NotFound(#[ts(skip)] String),
+
+    #[error("Could not parse time value: {0}")]
+    Time(
+        #[ts(skip)]
+        #[serde(skip)]
+        #[from]
+        time::error::Format,
+    ),
 }
 
 impl From<(axum::http::StatusCode, &'static str)> for ApiErrorInner {
@@ -184,7 +201,8 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::SessionError(_)
             | ApiErrorInner::AxumError(_)
             | ApiErrorInner::ApiReturnedError(_)
-            | ApiErrorInner::UnexpectedResponse(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            | ApiErrorInner::UnexpectedResponse(_)
+            | ApiErrorInner::Time(_) => StatusCode::INTERNAL_SERVER_ERROR,
 
             ApiErrorInner::ApiFailed(err) => err.status().unwrap_or(StatusCode::BAD_GATEWAY),
 

@@ -9,7 +9,6 @@ use axum::{
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
-use std::sync::LazyLock;
 use tokio::net::TcpListener;
 use tower_http::{
     cors::{AllowMethods, CorsLayer},
@@ -257,19 +256,37 @@ struct MapDataRequest {
 #[serde(tag = "type")]
 struct MapDataResponse {
     name: String,
+    author_id: u32,
+    author_name: String,
+    uploaded: String,
 }
 
 async fn map_data(
     State(state): State<AppState>,
     WithRejection(Query(request), _): WithRejection<Query<MapDataRequest>, ApiError>,
 ) -> Result<Json<MapDataResponse>, ApiError> {
-    let row = sqlx::query!("SELECT * FROM map WHERE ap_id = ?", request.map_id)
-        .fetch_optional(&state.pool)
-        .await
-        .with_context(|| format!("Fetching map {} from database", request.map_id))?;
+    let row = sqlx::query!(
+        "
+            SELECT map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, user.display_name
+            FROM map JOIN user ON map.author = user.user_id
+            WHERE map.ap_id = ?
+        ",
+        request.map_id
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .with_context(|| format!("Fetching map {} from database", request.map_id))?;
 
     if let Some(row) = row {
-        Ok(Json(MapDataResponse { name: row.mapname }))
+        Ok(Json(MapDataResponse {
+            name: row.mapname,
+            author_id: row.author,
+            author_name: row.display_name,
+            uploaded: row
+                .uploaded
+                .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+                .context("Formatting map upload time")?,
+        }))
     } else {
         Err(ApiErrorInner::MapNotFound(request.map_id).into())
     }

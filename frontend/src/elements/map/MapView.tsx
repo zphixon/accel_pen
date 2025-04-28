@@ -13,10 +13,11 @@ function MapViewInner({ mapDataPromise }: MapViewInnerProps) {
     return <>{message}</>;
   }
 
+  let upload = new Date(mapData.uploaded);
   return <>
     <p>
       Map <br/>
-      {mapData.name}
+      {mapData.name} by {mapData.author_name}, uploaded {upload.toString()}
     </p>
   </>
 }
@@ -33,7 +34,7 @@ function MapView({ mapId }: MapViewProps) {
 
   return <>
     <NavBar />
-    <Suspense>
+    <Suspense fallback={<p>Loading</p>}>
       <MapViewInner mapDataPromise={api.mapData({
         type: "MapDataRequest",
         map_id: mapIdNumber,

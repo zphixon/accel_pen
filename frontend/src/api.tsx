@@ -70,6 +70,9 @@ async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions
   }
 
   if (response.ok) {
+    if (import.meta.env.DEV) {
+      console.log(value);
+    }
     return value as T;
   } else {
     console.error("API call failed:", value);
