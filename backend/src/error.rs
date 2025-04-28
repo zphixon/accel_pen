@@ -7,11 +7,13 @@ use serde::Serialize;
 use std::{fmt::Display, ops::Deref};
 use ts_rs::TS;
 
-#[derive(Debug, thiserror::Error, strum::IntoStaticStr, TS)]
+#[derive(Debug, Serialize, thiserror::Error, strum::IntoStaticStr, TS)]
+#[serde(tag = "type")]
 #[ts(export)]
 pub enum ApiErrorInner {
     #[error("Database error: {0}")]
     Database(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         sqlx::Error,
@@ -19,6 +21,7 @@ pub enum ApiErrorInner {
 
     #[error("Migration error: {0}")]
     Migration(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         sqlx::migrate::MigrateError,
@@ -26,6 +29,7 @@ pub enum ApiErrorInner {
 
     #[error("Invalid query: {0}")]
     InvalidQuery(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         axum::extract::rejection::QueryRejection,
@@ -33,6 +37,7 @@ pub enum ApiErrorInner {
 
     #[error("URL parse error: {0}")]
     UrlParseError(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         url::ParseError,
@@ -40,6 +45,7 @@ pub enum ApiErrorInner {
 
     #[error("Session error: {0}")]
     SessionError(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         tower_sessions::session::Error,
@@ -47,6 +53,7 @@ pub enum ApiErrorInner {
 
     #[error("Axum error: {0}")]
     AxumError(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         axum::http::Error,
@@ -54,6 +61,7 @@ pub enum ApiErrorInner {
 
     #[error("Request to API failed: {0}")]
     ApiFailed(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         reqwest::Error,
@@ -64,6 +72,7 @@ pub enum ApiErrorInner {
 
     #[error("Invalid JSON: {0}")]
     InvalidJson(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         axum::extract::rejection::JsonRejection,
@@ -76,13 +85,14 @@ pub enum ApiErrorInner {
     UnexpectedResponse(#[ts(skip)] &'static str),
 
     #[error("Rejected: {}", .0.1)]
-    Rejected(#[ts(skip)] (axum::http::StatusCode, &'static str)),
+    Rejected(#[ts(skip)] #[serde(skip)](axum::http::StatusCode, &'static str)),
 
     #[error("Map not found: {0}")]
     MapNotFound(#[ts(skip)] u32),
 
     #[error("Multipart error: {0}")]
     MultipartError(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         axum::extract::multipart::MultipartError,
@@ -90,6 +100,7 @@ pub enum ApiErrorInner {
 
     #[error("Invalid multipart: {0}")]
     InvalidMultipart(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         axum::extract::multipart::MultipartRejection,
@@ -100,6 +111,7 @@ pub enum ApiErrorInner {
 
     #[error("Invalid GBX data: {0}")]
     InvalidGbx(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         gbx_rs::GbxError,
@@ -108,21 +120,26 @@ pub enum ApiErrorInner {
     #[error("Not a map")]
     NotAMap,
 
-    #[error("Cannot upload map that isn't yours")]
+    #[error("Map already uploaded")]
+    AlreadyUploaded { map_id: u32 },
+
+    #[error("Please don't upload maps that aren't yours")]
     NotYourMap,
 
     #[error("Not base64")]
     NotBase64(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         base64::DecodeError,
     ),
 
     #[error("Invalid UTF-8")]
-    NotUtf8(#[ts(skip)] #[from] std::str::Utf8Error),
+    NotUtf8(#[serde(skip)] #[ts(skip)] #[from] std::str::Utf8Error),
 
     #[error("Not UUID")]
     NotUuid(
+        #[serde(skip)]
         #[ts(skip)]
         #[from]
         uuid::Error,
@@ -151,8 +168,7 @@ pub enum ApiError {
 #[ts(export)]
 #[serde(tag = "type")]
 struct TsApiError {
-    #[ts(as = "ApiErrorInner")]
-    error: String,
+    error: ApiErrorInner,
     status: u16,
     message: String,
 }
@@ -161,7 +177,6 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         tracing::error!("{}", self);
 
-        let error: &'static str = (&*self).into();
         let status_code = match &*self {
             ApiErrorInner::Database(_)
             | ApiErrorInner::Migration(_)
@@ -183,6 +198,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::NotBase64(_)
             | ApiErrorInner::NotUtf8(_)
             | ApiErrorInner::NotYourMap
+            | ApiErrorInner::AlreadyUploaded { .. }
             | ApiErrorInner::NotUuid(_) => StatusCode::BAD_REQUEST,
 
             ApiErrorInner::InvalidOauth(_) => StatusCode::UNAUTHORIZED,
@@ -192,12 +208,13 @@ impl IntoResponse for ApiError {
             ApiErrorInner::Rejected((code, _)) => *code,
         };
 
+        let message = self.to_string();
         (
             status_code,
             Json(TsApiError {
-                error: error.to_owned(),
+                error: self.inner(),
                 status: status_code.as_u16(),
-                message: self.to_string(),
+                message,
             }),
         )
             .into_response()
@@ -279,6 +296,15 @@ impl Display for ApiError {
                 Display::fmt(inner, f)?;
                 write!(f, "\n  {}", context)
             }
+        }
+    }
+}
+
+impl ApiError {
+    fn inner(self) -> ApiErrorInner {
+        match self {
+            ApiError::Root(api_error_inner) => api_error_inner,
+            ApiError::Context { inner, .. } => inner.inner(),
         }
     }
 }

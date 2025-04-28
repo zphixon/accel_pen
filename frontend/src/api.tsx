@@ -38,7 +38,7 @@ interface ApiCallOptions {
 async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions = {}): Promise<T | types.TsApiError> {
   let error: types.TsApiError = {
     type: 'TsApiError',
-    error: 'ApiFailed',
+    error: { type: 'ApiFailed' },
     status: 500,
     message: `Request to backend failed`,
   };
@@ -73,7 +73,7 @@ async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions
   }
 }
 
-export async function self(): Promise<types.UserResponse | types.TsApiError> {
+export async function getSelf(): Promise<types.UserResponse | types.TsApiError> {
   return await apiCall<types.UserResponse>("/self");
 }
 

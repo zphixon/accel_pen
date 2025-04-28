@@ -325,6 +325,22 @@ async fn map_upload(
         return Err(ApiErrorInner::NotYourMap.into());
     }
 
+    let maybe_map = sqlx::query!(
+        "SELECT ap_id, gbx_mapuid FROM map WHERE gbx_mapuid = ?",
+        map_info.id
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .context("Trying to find a map that might already exist")?;
+
+    if let Some(exists_map) = maybe_map {
+        // hmmmmmmmmm
+        return Err(ApiErrorInner::AlreadyUploaded {
+            map_id: exists_map.ap_id,
+        }
+        .into());
+    }
+
     let Some(map_name) = map.map_name else {
         return Err(ApiErrorInner::MissingFromMultipart("Map name").into());
     };

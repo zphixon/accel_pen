@@ -20,7 +20,12 @@ function MapUpload() {
 
   let mapUploadError = undefined;
   if (uploadResult?.type == "TsApiError") {
-    mapUploadError = <>Could not upload map: {uploadResult.message}</>;
+    console.log(uploadResult.error.type);
+    if (uploadResult.error.type == "AlreadyUploaded") {
+      mapUploadError = <Link href={`~/map/${uploadResult.error.map_id}`}>Already uploaded</Link>;
+    } else {
+      mapUploadError = <>Could not upload map: {uploadResult.message}</>;
+    }
   }
 
   return <>
