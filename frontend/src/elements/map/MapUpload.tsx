@@ -8,8 +8,13 @@ import * as api from "../../api.tsx";
 import * as types from "../../../../backend/bindings/index.ts";
 
 function MapUpload() {
+  let user = api.useLoggedInUser();
+  let loggedIn = user?.type == 'UserResponse';
+
   let { pending } = useFormStatus();
   let [uploadResult, setUploadResult] = useState<types.MapUploadResponse | types.TsApiError>();
+
+  let allowUpload = !pending && loggedIn;
 
   async function uploadMap(form: FormData) {
     setUploadResult(await api.uploadMap(form));
@@ -34,8 +39,10 @@ function MapUpload() {
     <NavBar />
     <form action={uploadMap}>
       <label htmlFor="mapData">Map file </label>
-      <input name="map_data" id="mapData" type="file"></input>
-      <button name="submit" type="submit" disabled={pending}>Upload</button>
+      <input name="map_data" id="mapData" type="file" disabled={!allowUpload}></input>
+      <button name="submit" type="submit" disabled={!allowUpload}>
+        {allowUpload ? "Upload" : "Log in to upload"}
+      </button>
     </form>
     {linkToUploadedMap ? linkToUploadedMap : ""}
     {mapUploadError ? mapUploadError : ""}

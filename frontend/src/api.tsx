@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import * as types from '../../backend/bindings/index.ts';
 
 const API_URL_DEV = new URL("http://localhost:2460/v1");
@@ -32,6 +34,14 @@ export function selfUrl(): URL {
   } else {
     return SELF_URL;
   }
+}
+
+export function useLoggedInUser(): types.UserResponse | types.TsApiError | undefined {
+  const [user, setUser] = useState<types.UserResponse | types.TsApiError | undefined>(undefined);
+  useEffect(() => {
+    getSelf().then(response => setUser(response))
+  }, []);
+  return user;
 }
 
 interface ApiCallOptions {
@@ -71,7 +81,7 @@ async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions
 
   if (response.ok) {
     if (import.meta.env.DEV) {
-      console.log(value);
+      console.log("Logging API response in dev mode", value);
     }
     return value as T;
   } else {
