@@ -2,9 +2,10 @@ import { useFormStatus } from "react-dom";
 import { useState } from "react";
 import { Link } from "wouter";
 
+import NavBar from "../NavBar.tsx";
+
 import * as api from "../../api.tsx";
 import * as types from "../../../../backend/bindings/index.ts";
-import NavBar from "../NavBar.tsx";
 
 function MapUpload() {
   let { pending } = useFormStatus();
