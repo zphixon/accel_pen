@@ -1,0 +1,24 @@
+.nandoString {
+    /*background-color: rgb(1, 73, 53);*/
+    /*text-shadow: 1px 1px white;*/
+}
+
+.nandoString .textStretch {
+    display: inline-block;
+    transform: scale(1.5, 1);
+    margin: 0em 0.1em;
+}
+
+.nandoString .textShrink {
+    display: inline-block;
+    transform: scale(0.8, 1);
+    margin: 0em -0.05em;
+}
+
+.nandoString .textUppercase {
+    text-transform: uppercase;
+}
+
+.nandoString .textShadow {
+    text-shadow: 1px 1px black;
+}

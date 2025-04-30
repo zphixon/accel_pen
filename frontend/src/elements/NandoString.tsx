@@ -1,3 +1,5 @@
+import "./NandoString.css";
+
 function NandoString({ string: tag }: { string: string }) {
   let result = <></>;
   let bold = false;
@@ -41,10 +43,12 @@ function NandoString({ string: tag }: { string: string }) {
         continue;
       } else if (tag.charAt(ptr) == "w") {
         wide = true;
+        narrow = false;
         ptr += 1;
         continue;
       } else if (tag.charAt(ptr) == "n") {
         narrow = true;
+        wide = false;
         ptr += 1;
         continue;
       } else if (tag.charAt(ptr) == "t") {
@@ -86,16 +90,16 @@ function NandoString({ string: tag }: { string: string }) {
       part = <i>{part}</i>;
     }
     if (wide) {
-      //
+      part = <span className="textStretch">{part}</span>;
     }
     if (narrow) {
-      //
+      part = <span className="textShrink">{part}</span>;
     }
     if (uppercase) {
-      //
+      part = <span className="textUppercase">{part}</span>;
     }
     if (shadow) {
-      //
+      part = <span className="textShadow">{part}</span>;
     }
     if (color != undefined) {
       part = <span style={{ color: "#" + color }}>{part}</span>;
