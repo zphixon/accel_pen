@@ -1,7 +1,6 @@
 import { Suspense, use } from "react";
 
 import * as api from "../../api";
-import NavBar from "../NavBar";
 
 interface MapViewInnerProps {
   mapDataPromise: ReturnType<typeof api.mapData>,
@@ -33,7 +32,6 @@ function MapView({ mapId }: MapViewProps) {
   }
 
   return <>
-    <NavBar />
     <Suspense fallback={<p>Loading</p>}>
       <MapViewInner mapDataPromise={api.mapData({
         type: "MapDataRequest",

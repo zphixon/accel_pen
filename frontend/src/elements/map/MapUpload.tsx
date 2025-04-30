@@ -2,8 +2,6 @@ import { useFormStatus } from "react-dom";
 import { useState } from "react";
 import { Link } from "wouter";
 
-import NavBar from "../NavBar.tsx";
-
 import * as api from "../../api.tsx";
 import * as types from "../../../../backend/bindings/index.ts";
 
@@ -36,7 +34,6 @@ function MapUpload() {
   }
 
   return <>
-    <NavBar />
     <form action={uploadMap}>
       <label htmlFor="mapData">Map file </label>
       <input name="map_data" id="mapData" type="file" disabled={!allowUpload}></input>

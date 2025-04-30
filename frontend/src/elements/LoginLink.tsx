@@ -3,7 +3,7 @@ import { usePathname } from "wouter/use-browser-location";
 
 function LoginLink() {
   let returnPath = encodeURIComponent(usePathname());
-  return <Link href={`~/login?returnPath=${returnPath}`}>Log in</Link>;
+  return <Link className="loginLink" href={`~/login?returnPath=${returnPath}`}>Log in</Link>;
 }
 
 export default LoginLink

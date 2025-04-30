@@ -1,5 +1,3 @@
-import NavBar from "./NavBar";
-
 function Home() {
   let mode;
   if (import.meta.env.DEV) {
@@ -7,7 +5,6 @@ function Home() {
   }
 
   return <>
-    <NavBar />
     <p>{mode}</p>
   </>;
 }

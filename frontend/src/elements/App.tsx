@@ -5,11 +5,13 @@ import Home from './Home.tsx'
 import NotFound from './NotFound.tsx'
 import MapUpload from './map/MapUpload.tsx'
 import MapView from './map/MapView.tsx'
+import NavBar from './NavBar.tsx'
 
 import * as api from '../api.tsx';
 
 function App() {
   return <>
+    <NavBar />
     <Switch>
       <Route path="/"><Home /></Route>
 
