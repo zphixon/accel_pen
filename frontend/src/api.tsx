@@ -65,6 +65,7 @@ async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions
         mode: 'cors',
         credentials: 'include',
         body: body,
+        signal: AbortSignal.timeout(5000),
       },
     );
   } catch (err) {
@@ -92,6 +93,10 @@ async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions
 
 export async function getSelf(): Promise<types.UserResponse | types.TsApiError> {
   return await apiCall<types.UserResponse>("/self");
+}
+
+export async function favoriteMaps(): Promise<[types.FavoriteMapResponse] | types.TsApiError> {
+  return await apiCall<[types.FavoriteMapResponse]>("/self/favorite_maps");
 }
 
 export async function mapData(request: types.MapDataRequest): Promise<types.MapDataResponse | types.TsApiError> {

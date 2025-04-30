@@ -1,4 +1,4 @@
-function ClubTag({ tag }: { tag: string }) {
+function NandoString({ string: tag }: { string: string }) {
   let result = <></>;
   let bold = false;
   let italic = false;
@@ -10,7 +10,19 @@ function ClubTag({ tag }: { tag: string }) {
 
   let ptr = 0;
   while (ptr < tag.length) {
-    let part = <i className="fa-solid">{tag.charAt(ptr)}</i>;
+    let codepoint = tag.codePointAt(ptr) ?? 0;
+
+    let part;
+    if (
+      0xE000 <= codepoint && codepoint <= 0xF8FF
+      || 0xF0000 <= codepoint && codepoint <= 0xFFFFD
+      || 0x100000 <= codepoint && codepoint <= 0x10FFFD
+    ) {
+      console.log("private use")
+      part = <i className="fa-solid">{tag.charAt(ptr)}</i>;
+    } else {
+      part = <>{tag.charAt(ptr)}</>;
+    }
 
     if (tag.charAt(ptr) == "$") {
       ptr += 1;
@@ -94,7 +106,7 @@ function ClubTag({ tag }: { tag: string }) {
     ptr += 1;
   }
 
-  return <>{result}</>;
+  return <span className="nandoString">{result}</span>;
 }
 
-export default ClubTag
+export default NandoString

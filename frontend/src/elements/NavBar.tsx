@@ -1,10 +1,9 @@
 import { Link } from "wouter";
 
 import LoginLink from "./LoginLink";
-import * as api from "../api";
-
-import "./NavBar.css";
 import UserSummary from "./UserSummary";
+
+import * as api from "../api";
 
 function NavBar() {
   let user = api.useLoggedInUser();
@@ -13,7 +12,7 @@ function NavBar() {
   if (user == undefined || user.type == 'TsApiError' && user.status == 401 && user.error.type == 'Rejected') {
     userLink = <LoginLink />;
   } else if (user.type == 'TsApiError') {
-    userLink = <div className="errorMessage">Could not log in: {user.message}</div>;
+    userLink = <div className="errorMessage">Could not check logged in status: {user.message}</div>;
   } else {
     userLink = <span className="userHeader">
       <UserSummary user={user} />

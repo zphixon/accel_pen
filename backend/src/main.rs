@@ -238,6 +238,7 @@ struct FavoriteMapResponse {
 }
 
 #[derive(Serialize, TS)]
+#[serde(untagged)]
 enum UserOrAuthor {
     User(UserResponse),
     Author(AuthorResponse),

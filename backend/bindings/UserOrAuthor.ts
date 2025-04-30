@@ -2,4 +2,4 @@
 import type { AuthorResponse } from "./AuthorResponse";
 import type { UserResponse } from "./UserResponse";
 
-export type UserOrAuthor = { "User": UserResponse } | { "Author": AuthorResponse };
+export type UserOrAuthor = UserResponse | AuthorResponse;
