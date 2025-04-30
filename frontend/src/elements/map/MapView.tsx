@@ -1,6 +1,7 @@
 import { Suspense, use } from "react";
 
 import * as api from "../../api";
+import UserSummary from "../UserSummary";
 
 interface MapViewInnerProps {
   mapDataPromise: ReturnType<typeof api.mapData>,
@@ -16,7 +17,7 @@ function MapViewInner({ mapDataPromise }: MapViewInnerProps) {
   return <>
     <p>
       Map <br/>
-      {mapData.name} by {mapData.author_name}, uploaded {upload.toString()}
+      {mapData.name} by <UserSummary user={mapData.author} />, uploaded {upload.toString()}
     </p>
   </>
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "\n            SELECT map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, user.display_name\n            FROM map JOIN user ON map.author = user.user_id\n            WHERE map.ap_id = ?\n        ",
+  "query": "\n            SELECT map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, user.display_name, user.user_id, user.account_id\n            FROM map JOIN user ON map.author = user.user_id\n            WHERE map.ap_id = ?\n        ",
   "describe": {
     "columns": [
       {
@@ -56,6 +56,24 @@
           "flags": "NOT_NULL | NO_DEFAULT_VALUE",
           "max_size": 512
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "user_id",
+        "type_info": {
+          "type": "Long",
+          "flags": "NOT_NULL | PRIMARY_KEY | UNSIGNED | AUTO_INCREMENT",
+          "max_size": 10
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "account_id",
+        "type_info": {
+          "type": "String",
+          "flags": "NOT_NULL | UNIQUE_KEY | NO_DEFAULT_VALUE",
+          "max_size": 144
+        }
       }
     ],
     "parameters": {
@@ -67,8 +85,10 @@
       false,
       false,
       false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "dc74cbe988ebe8d5c816eb267680350277d5ba51903bea3ccf8df45b298c27f2"
+  "hash": "d948f87070868446530f83785bba03e23e63443888dfa7a7197af2ad5490535b"
 }

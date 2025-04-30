@@ -1,4 +1,6 @@
+export * from "./UserOrAuthor"
 export * from "./MapUploadResponse"
+export * from "./AuthorResponse"
 export * from "./ApiErrorInner"
 export * from "./MapDataRequest"
 export * from "./UserResponse"

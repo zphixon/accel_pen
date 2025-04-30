@@ -198,17 +198,33 @@ async fn oauth_logout(auth_session: NadeoAuthenticatedSession) -> Result<Redirec
 struct UserResponse {
     display_name: String,
     account_id: String,
+    user_id: u32,
     club_tag: String,
 }
 
 async fn self_handler(
+    State(state): State<AppState>,
     auth_session: NadeoAuthenticatedSession,
 ) -> Result<Json<UserResponse>, ApiError> {
-    let club_tag = ClubTag::get_self(&auth_session).await?;
+    let Some(user_id) = sqlx::query!(
+        "SELECT user_id FROM user WHERE account_id = ?",
+        auth_session.account_id()
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .context("Finding Accel Pen account for favorite map")?
+    else {
+        return Err(ApiErrorInner::NotFound(String::from("Self not found in DB?")).into());
+    };
+
+    let club_tag = ClubTag::get_self(&auth_session)
+        .await
+        .context("Get self club tag")?;
     Ok(Json(UserResponse {
         display_name: auth_session.display_name().to_owned(),
         account_id: auth_session.account_id().to_owned(),
         club_tag: club_tag.club_tag,
+        user_id: user_id.user_id,
     }))
 }
 
@@ -218,25 +234,64 @@ async fn self_handler(
 struct FavoriteMapResponse {
     uid: String,
     name: String,
-    author: UserResponse,
+    author: UserOrAuthor,
+}
+
+#[derive(Serialize, TS)]
+enum UserOrAuthor {
+    User(UserResponse),
+    Author(AuthorResponse),
+}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct AuthorResponse {
+    account_id: String,
+    display_name: String,
+    club_tag: String,
 }
 
 async fn favorite_maps(
+    State(state): State<AppState>,
     auth_session: NadeoAuthenticatedSession,
 ) -> Result<Json<Vec<FavoriteMapResponse>>, ApiError> {
-    let favorite_maps = FavoriteMaps::get(&auth_session).await?;
+    let favorite_maps = FavoriteMaps::get(&auth_session)
+        .await
+        .context("Getting favorite maps")?;
 
     let mut favorites = Vec::new();
     for favorite in favorite_maps.list {
-        let user = User::get_from_account_id(&auth_session, &favorite.author).await?;
-        let club_tag = ClubTag::get(&favorite.author).await?;
+        let user = User::get_from_account_id(&auth_session, &favorite.author)
+            .await
+            .context("Get user from account ID for favorite map author")?;
+        let club_tag = ClubTag::get(&favorite.author)
+            .await
+            .context("Get club tag for favorite map author")?;
+
         favorites.push(FavoriteMapResponse {
             uid: favorite.uid,
             name: favorite.name,
-            author: UserResponse {
-                display_name: user.display_name,
-                account_id: user.account_id,
-                club_tag: club_tag.club_tag,
+            author: if let Some(user_id) = sqlx::query!(
+                "SELECT user_id FROM user WHERE account_id = ?",
+                favorite.author
+            )
+            .fetch_optional(&state.pool)
+            .await
+            .context("Finding Accel Pen account for favorite map")?
+            {
+                UserOrAuthor::User(UserResponse {
+                    display_name: user.display_name,
+                    account_id: user.account_id,
+                    club_tag: club_tag.club_tag,
+                    user_id: user_id.user_id,
+                })
+            } else {
+                UserOrAuthor::Author(AuthorResponse {
+                    account_id: user.account_id,
+                    display_name: user.display_name,
+                    club_tag: club_tag.club_tag,
+                })
             },
         });
     }
@@ -256,8 +311,7 @@ struct MapDataRequest {
 #[serde(tag = "type")]
 struct MapDataResponse {
     name: String,
-    author_id: u32,
-    author_name: String,
+    author: UserResponse,
     uploaded: String,
 }
 
@@ -267,7 +321,7 @@ async fn map_data(
 ) -> Result<Json<MapDataResponse>, ApiError> {
     let row = sqlx::query!(
         "
-            SELECT map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, user.display_name
+            SELECT map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, user.display_name, user.user_id, user.account_id
             FROM map JOIN user ON map.author = user.user_id
             WHERE map.ap_id = ?
         ",
@@ -278,10 +332,17 @@ async fn map_data(
     .with_context(|| format!("Fetching map {} from database", request.map_id))?;
 
     if let Some(row) = row {
+        let club_tag = ClubTag::get(&row.account_id)
+            .await
+            .context("Getting club tag for map data author")?;
         Ok(Json(MapDataResponse {
             name: row.mapname,
-            author_id: row.author,
-            author_name: row.display_name,
+            author: UserResponse {
+                display_name: row.display_name,
+                account_id: row.account_id,
+                user_id: row.user_id,
+                club_tag: club_tag.club_tag,
+            },
             uploaded: row
                 .uploaded
                 .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
