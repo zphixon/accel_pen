@@ -1,10 +1,8 @@
 use crate::{
-    auth::{
-        nadeo::{NadeoTokens, NadeoTokensInner},
-        ubi::UbiTokens,
-    },
     config::CONFIG,
     error::{ApiError, ApiErrorInner, Context},
+    nadeo::auth::{NadeoAuthSessionInner, NadeoTokensInner},
+    ubi::UbiTokens,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
@@ -20,19 +18,19 @@ pub static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct User {
+pub struct NadeoUser {
     pub account_id: String,
     pub display_name: String,
 }
 
-impl User {
+impl NadeoUser {
     pub const ENDPOINT: &str = "https://api.trackmania.com/api/user";
 
     /// Takes NadeoTokensInner, because we would like NadeoTokens to have the account_id as well
-    pub async fn get_self(token: &NadeoTokensInner) -> Result<User, ApiError> {
+    pub async fn get_self(token: &NadeoTokensInner) -> Result<NadeoUser, ApiError> {
         Ok(CLIENT
             .clone()
-            .get(User::ENDPOINT)
+            .get(NadeoUser::ENDPOINT)
             .bearer_auth(token.access_token())
             .send()
             .await
@@ -49,7 +47,7 @@ impl User {
     pub async fn get_from_account_id(
         token: &NadeoTokensInner,
         account_id: &str,
-    ) -> Result<User, ApiError> {
+    ) -> Result<NadeoUser, ApiError> {
         let response: serde_json::Value = CLIENT
             .clone()
             .get(
@@ -88,7 +86,7 @@ impl User {
             .into());
         };
 
-        Ok(User {
+        Ok(NadeoUser {
             account_id: account_id.to_owned(),
             display_name: display_name.to_owned(),
         })
@@ -97,7 +95,7 @@ impl User {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FavoriteMap {
+pub struct NadeoFavoriteMap {
     pub uid: String,
     pub name: String,
     pub author: String,
@@ -105,14 +103,14 @@ pub struct FavoriteMap {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FavoriteMaps {
-    pub list: Vec<FavoriteMap>,
+pub struct NadeoFavoriteMaps {
+    pub list: Vec<NadeoFavoriteMap>,
 }
 
-impl FavoriteMaps {
+impl NadeoFavoriteMaps {
     pub const ENDPOINT: &str = "https://api.trackmania.com/api/user/maps/favorite";
 
-    pub async fn get(nadeo_token: &NadeoTokens) -> Result<FavoriteMaps, ApiError> {
+    pub async fn get(nadeo_token: &NadeoAuthSessionInner) -> Result<NadeoFavoriteMaps, ApiError> {
         let response = CLIENT
             .clone()
             .get(Url::parse(Self::ENDPOINT).unwrap())
@@ -141,14 +139,14 @@ impl FavoriteMaps {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 
-pub struct ClubTag {
+pub struct NadeoClubTag {
     pub club_tag: String,
 }
 
-impl ClubTag {
+impl NadeoClubTag {
     pub const ENDPOINT: &str = "https://prod.trackmania.core.nadeo.online/accounts/clubTags/";
 
-    pub async fn get(account_id: &str) -> Result<ClubTag, ApiError> {
+    pub async fn get(account_id: &str) -> Result<NadeoClubTag, ApiError> {
         Ok(CLIENT
             .clone()
             .get(
@@ -162,7 +160,7 @@ impl ClubTag {
             .send()
             .await
             .context("Sending request for club tag")?
-            .json::<Vec<ClubTag>>()
+            .json::<Vec<NadeoClubTag>>()
             .await
             .context("Reading JSON for club tag response")?
             .pop()

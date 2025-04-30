@@ -1,4 +1,3 @@
-use api::{ClubTag, FavoriteMaps, User};
 use axum::{
     extract::{DefaultBodyLimit, Multipart, Query, State},
     http::{HeaderValue, Method, Uri},
@@ -22,17 +21,18 @@ use tracing_subscriber::EnvFilter;
 use ts_rs::TS;
 use uuid::Uuid;
 
-mod api;
-mod auth;
 mod config;
 mod error;
+mod nadeo;
+mod ubi;
 
-use auth::{
-    nadeo::{NadeoAuthenticatedSession, NadeoTokens, RandomStateSession},
-    ubi::UbiTokens,
-};
 use config::CONFIG;
 use error::{ApiError, ApiErrorInner, Context};
+use nadeo::{
+    api::{NadeoClubTag, NadeoFavoriteMaps, NadeoUser},
+    auth::{NadeoAuthSession, NadeoOauthFinishRequest, RandomStateSession},
+};
+use ubi::UbiTokens;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -128,23 +128,15 @@ async fn oauth_start(
         .await
         .context("Updating session with random state")?;
 
-    Ok(Redirect::to(auth::nadeo::oauth_start_url(state)?.as_str()))
-}
-
-#[derive(Deserialize)]
-struct OauthFinishRequest {
-    code: String,
-    state: String,
+    Ok(Redirect::to(nadeo::auth::oauth_start_url(state)?.as_str()))
 }
 
 async fn oauth_finish(
     State(state): State<AppState>,
     random_state: RandomStateSession,
-    WithRejection(Query(request), _): WithRejection<Query<OauthFinishRequest>, ApiError>,
+    WithRejection(Query(request), _): WithRejection<Query<NadeoOauthFinishRequest>, ApiError>,
 ) -> Result<Html<String>, ApiError> {
-    let token_pair = NadeoTokens::from_random_state_session(&state, &random_state, request).await?;
-
-    let session = NadeoAuthenticatedSession::upgrade(random_state, token_pair)
+    let session = NadeoAuthSession::upgrade(&state, random_state, request)
         .await
         .context("Finishing oauth")?;
 
@@ -188,7 +180,7 @@ async fn oauth_finish(
     Ok(Html(client_redirect))
 }
 
-async fn oauth_logout(auth_session: NadeoAuthenticatedSession) -> Result<Redirect, ApiError> {
+async fn oauth_logout(auth_session: NadeoAuthSession) -> Result<Redirect, ApiError> {
     auth_session.session().clear().await;
     Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
 }
@@ -203,9 +195,7 @@ struct UserResponse {
     club_tag: String,
 }
 
-async fn self_handler(
-    auth_session: NadeoAuthenticatedSession,
-) -> Result<Json<UserResponse>, ApiError> {
+async fn self_handler(auth_session: NadeoAuthSession) -> Result<Json<UserResponse>, ApiError> {
     Ok(Json(UserResponse {
         display_name: auth_session.display_name().to_owned(),
         account_id: auth_session.account_id().to_owned(),
@@ -241,18 +231,18 @@ struct AuthorResponse {
 
 async fn favorite_maps(
     State(state): State<AppState>,
-    auth_session: NadeoAuthenticatedSession,
+    auth_session: NadeoAuthSession,
 ) -> Result<Json<Vec<FavoriteMapResponse>>, ApiError> {
-    let favorite_maps = FavoriteMaps::get(&auth_session)
+    let favorite_maps = NadeoFavoriteMaps::get(&auth_session)
         .await
         .context("Getting favorite maps")?;
 
     let mut favorites = Vec::new();
     for favorite in favorite_maps.list {
-        let user = User::get_from_account_id(&auth_session, &favorite.author)
+        let user = NadeoUser::get_from_account_id(&auth_session, &favorite.author)
             .await
             .context("Get user from account ID for favorite map author")?;
-        let club_tag = ClubTag::get(&favorite.author)
+        let club_tag = NadeoClubTag::get(&favorite.author)
             .await
             .context("Get club tag for favorite map author")?;
 
@@ -321,7 +311,7 @@ async fn map_data(
     .with_context(|| format!("Fetching map {} from database", request.map_id))?;
 
     if let Some(row) = row {
-        let club_tag = ClubTag::get(&row.account_id)
+        let club_tag = NadeoClubTag::get(&row.account_id)
             .await
             .context("Getting club tag for map data author")?;
         Ok(Json(MapDataResponse {
@@ -358,7 +348,7 @@ struct MapUploadResponse {
 
 async fn map_upload(
     State(state): State<AppState>,
-    session: NadeoAuthenticatedSession,
+    session: NadeoAuthSession,
     WithRejection(mut multipart, _): WithRejection<Multipart, ApiError>,
 ) -> Result<Json<MapUploadResponse>, ApiError> {
     let user_id = sqlx::query!(
@@ -408,7 +398,7 @@ async fn map_upload(
         return Err(ApiErrorInner::MissingFromMultipart("Map info from map").into());
     };
 
-    let author = auth::nadeo::login_to_uid(map_info.author).context("Parsing map author")?;
+    let author = nadeo::auth::login_to_uid(map_info.author).context("Parsing map author")?;
     if session.account_id() != author {
         return Err(ApiErrorInner::NotYourMap.into());
     }
@@ -491,7 +481,7 @@ async fn map_all_by(
         return Err(ApiErrorInner::NotFound(String::from("User not found in DB?")).into());
     };
 
-    let club_tag = ClubTag::get(&user.account_id)
+    let club_tag = NadeoClubTag::get(&user.account_id)
         .await
         .context("Getting club tag for all maps by author")?;
 

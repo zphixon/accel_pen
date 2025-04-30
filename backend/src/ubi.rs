@@ -1,7 +1,7 @@
 use crate::{
-    api::CLIENT,
     config::CONFIG,
     error::{ApiError, ApiErrorInner, Context},
+    nadeo::api::CLIENT,
 };
 use serde::Deserialize;
 use std::sync::LazyLock;
