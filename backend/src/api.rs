@@ -148,10 +148,6 @@ pub struct ClubTag {
 impl ClubTag {
     pub const ENDPOINT: &str = "https://prod.trackmania.core.nadeo.online/accounts/clubTags/";
 
-    pub async fn get_self(nadeo_token: &NadeoTokens) -> Result<ClubTag, ApiError> {
-        Self::get(nadeo_token.account_id()).await
-    }
-
     pub async fn get(account_id: &str) -> Result<ClubTag, ApiError> {
         Ok(CLIENT
             .clone()

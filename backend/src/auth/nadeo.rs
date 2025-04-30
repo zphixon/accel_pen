@@ -1,7 +1,8 @@
 use crate::{
-    api::{User, CLIENT},
+    api::{ClubTag, User, CLIENT},
     config::CONFIG,
     error::{ApiError, ApiErrorInner, Context},
+    AppState,
 };
 use axum::{
     extract::FromRequestParts,
@@ -61,6 +62,8 @@ impl NadeoTokensInner {
 pub struct NadeoTokens {
     inner: NadeoTokensInner,
     user: User,
+    club_tag: String,
+    user_id: u32,
     issued: time::OffsetDateTime,
 }
 
@@ -72,13 +75,30 @@ impl Deref for NadeoTokens {
 }
 
 impl NadeoTokens {
-    async fn from_inner(token_pair: NadeoTokensInner) -> Result<Self, ApiError> {
+    async fn from_inner(token_pair: NadeoTokensInner, state: &AppState) -> Result<Self, ApiError> {
         let issued = time::OffsetDateTime::now_utc();
         let user = User::get_self(&token_pair).await?;
+
+        let Some(user_id) = sqlx::query!(
+            "SELECT user_id FROM user WHERE account_id = ?",
+            user.account_id
+        )
+        .fetch_optional(&state.pool)
+        .await
+        .context("Finding Accel Pen account for favorite map")?
+        else {
+            return Err(ApiErrorInner::NotFound(String::from("Self not found in DB?")).into());
+        };
+
+        let club_tag = ClubTag::get(&user.account_id)
+            .await
+            .context("Get self club tag")?;
 
         Ok(NadeoTokens {
             inner: token_pair,
             user,
+            club_tag: club_tag.club_tag,
+            user_id: user_id.user_id,
             issued,
         })
     }
@@ -89,6 +109,14 @@ impl NadeoTokens {
 
     pub fn display_name(&self) -> &str {
         &self.user.display_name
+    }
+
+    pub fn club_tag(&self) -> &str {
+        &self.club_tag
+    }
+
+    pub fn user_id(&self) -> u32 {
+        self.user_id
     }
 
     pub fn oauth_access_token(&self) -> &str {
@@ -102,6 +130,7 @@ impl NadeoTokens {
     }
 
     pub async fn from_random_state_session(
+        state: &AppState,
         random_state: &RandomStateSession,
         request: crate::OauthFinishRequest,
     ) -> Result<Self, ApiError> {
@@ -134,14 +163,14 @@ impl NadeoTokens {
                 .json()
                 .await
                 .context("Parsing oauth tokens from Nadeo")?;
-            Self::from_inner(nadeo_oauth).await
+            Self::from_inner(nadeo_oauth, state).await
         } else {
             let json_error: serde_json::Value = response.json().await?;
             Err(ApiErrorInner::ApiReturnedError(json_error).into())
         }
     }
 
-    async fn refresh(self) -> Result<Self, ApiError> {
+    async fn refresh(self, state: &AppState) -> Result<Self, ApiError> {
         let params = form_urlencoded::Serializer::new(String::new())
             .append_pair("grant_type", "refresh_token")
             .append_pair("client_id", &CONFIG.nadeo.oauth.identifier)
@@ -166,7 +195,7 @@ impl NadeoTokens {
                 .json()
                 .await
                 .context("Parsing oauth tokens from Nadeo")?;
-            NadeoTokens::from_inner(token_pair).await
+            NadeoTokens::from_inner(token_pair, state).await
         } else {
             let json_error: serde_json::Value = response.json().await?;
             Err(ApiErrorInner::ApiReturnedError(json_error).into())
@@ -213,13 +242,13 @@ impl NadeoAuthenticatedSession {
     }
 }
 
-impl<S> FromRequestParts<S> for NadeoAuthenticatedSession
-where
-    S: Send + Sync,
-{
+impl FromRequestParts<AppState> for NadeoAuthenticatedSession {
     type Rejection = ApiError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         let session = RandomStateSession::from_request_parts(parts, state).await?;
 
         let Some(tokens) = session
@@ -239,7 +268,7 @@ where
             tracing::debug!("access token about to expire, refreshing");
 
             let tokens = tokens
-                .refresh()
+                .refresh(state)
                 .await
                 .context("Refreshing token while extracting authenticated session")?;
 
@@ -291,13 +320,13 @@ impl RandomStateSession {
     }
 }
 
-impl<S> FromRequestParts<S> for RandomStateSession
-where
-    S: Send + Sync,
-{
+impl FromRequestParts<AppState> for RandomStateSession {
     type Rejection = ApiError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         let session = Session::from_request_parts(parts, state).await?;
 
         let Some(data) = session

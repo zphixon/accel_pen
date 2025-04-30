@@ -35,7 +35,7 @@ use config::CONFIG;
 use error::{ApiError, ApiErrorInner, Context};
 
 #[derive(Clone)]
-struct AppState {
+pub struct AppState {
     pool: MySqlPool,
 }
 
@@ -142,7 +142,7 @@ async fn oauth_finish(
     random_state: RandomStateSession,
     WithRejection(Query(request), _): WithRejection<Query<OauthFinishRequest>, ApiError>,
 ) -> Result<Html<String>, ApiError> {
-    let token_pair = NadeoTokens::from_random_state_session(&random_state, request).await?;
+    let token_pair = NadeoTokens::from_random_state_session(&state, &random_state, request).await?;
 
     let session = NadeoAuthenticatedSession::upgrade(random_state, token_pair)
         .await
@@ -204,28 +204,13 @@ struct UserResponse {
 }
 
 async fn self_handler(
-    State(state): State<AppState>,
     auth_session: NadeoAuthenticatedSession,
 ) -> Result<Json<UserResponse>, ApiError> {
-    let Some(user_id) = sqlx::query!(
-        "SELECT user_id FROM user WHERE account_id = ?",
-        auth_session.account_id()
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .context("Finding Accel Pen account for favorite map")?
-    else {
-        return Err(ApiErrorInner::NotFound(String::from("Self not found in DB?")).into());
-    };
-
-    let club_tag = ClubTag::get_self(&auth_session)
-        .await
-        .context("Get self club tag")?;
     Ok(Json(UserResponse {
         display_name: auth_session.display_name().to_owned(),
         account_id: auth_session.account_id().to_owned(),
-        club_tag: club_tag.club_tag,
-        user_id: user_id.user_id,
+        club_tag: auth_session.club_tag().to_owned(),
+        user_id: auth_session.user_id(),
     }))
 }
 
