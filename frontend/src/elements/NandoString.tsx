@@ -18,7 +18,6 @@ function NandoString({ string: tag }: { string: string }) {
       || 0xF0000 <= codepoint && codepoint <= 0xFFFFD
       || 0x100000 <= codepoint && codepoint <= 0x10FFFD
     ) {
-      console.log("private use")
       part = <i className="fa-solid">{tag.charAt(ptr)}</i>;
     } else {
       part = <>{tag.charAt(ptr)}</>;

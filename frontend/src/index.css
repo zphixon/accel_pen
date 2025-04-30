@@ -23,3 +23,7 @@ body {
 .userHeader, .loginLink {
   justify-self: end;
 }
+
+a {
+  color: rgb(68, 68, 183);
+}

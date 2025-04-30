@@ -72,6 +72,7 @@ async fn main() -> anyhow::Result<()> {
         let app = Router::new()
             .route(&CONFIG.route_v1("map/data"), get(map_data))
             .route(&CONFIG.route_v1("map/upload"), post(map_upload))
+            .route(&CONFIG.route_v1("map/all_by"), get(map_all_by))
             .route(&CONFIG.route_v1("oauth/start"), get(oauth_start))
             .route(&CONFIG.route_v1("oauth/finish"), get(oauth_finish))
             .route(&CONFIG.route_v1("oauth/logout"), get(oauth_logout))
@@ -314,6 +315,8 @@ struct MapDataResponse {
     name: String,
     author: UserResponse,
     uploaded: String,
+    map_id: u32,
+    uid: String,
 }
 
 async fn map_data(
@@ -322,7 +325,7 @@ async fn map_data(
 ) -> Result<Json<MapDataResponse>, ApiError> {
     let row = sqlx::query!(
         "
-            SELECT map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, user.display_name, user.user_id, user.account_id
+            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, user.display_name, user.user_id, user.account_id
             FROM map JOIN user ON map.author = user.user_id
             WHERE map.ap_id = ?
         ",
@@ -348,6 +351,8 @@ async fn map_data(
                 .uploaded
                 .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
                 .context("Formatting map upload time")?,
+            map_id: row.ap_id,
+            uid: row.gbx_mapuid,
         }))
     } else {
         Err(ApiErrorInner::MapNotFound(request.map_id).into())
@@ -458,5 +463,73 @@ async fn map_upload(
 
     Ok(Json(MapUploadResponse {
         map_id: ap_id.ap_id,
+    }))
+}
+
+#[derive(Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct AllMapsByRequest {
+    user_id: u32,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct AllMapsByResponse {
+    maps: Vec<MapDataResponse>,
+}
+
+async fn map_all_by(
+    State(state): State<AppState>,
+    WithRejection(Query(request), _): WithRejection<Query<AllMapsByRequest>, ApiError>,
+) -> Result<Json<AllMapsByResponse>, ApiError> {
+    let maps = sqlx::query!(
+        "
+            SELECT ap_id, gbx_mapuid, mapname, votes, uploaded FROM map WHERE author = ?
+        ",
+        request.user_id
+    )
+    .fetch_all(&state.pool)
+    .await
+    .context("Fetching all maps by user from database")?;
+
+    let Some(user) = sqlx::query!(
+        "SELECT display_name, account_id FROM user WHERE user_id = ?",
+        request.user_id,
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .context("Finding Accel Pen account for finding all maps by user")?
+    else {
+        tracing::error!("{} not in db", request.user_id);
+        return Err(ApiErrorInner::NotFound(String::from("User not found in DB?")).into());
+    };
+
+    let club_tag = ClubTag::get(&user.account_id)
+        .await
+        .context("Getting club tag for all maps by author")?;
+
+    Ok(Json(AllMapsByResponse {
+        maps: maps
+            .into_iter()
+            .map(|row| {
+                Ok(MapDataResponse {
+                    name: row.mapname,
+                    author: UserResponse {
+                        display_name: user.display_name.clone(),
+                        account_id: user.account_id.clone(),
+                        user_id: request.user_id,
+                        club_tag: club_tag.club_tag.clone(),
+                    },
+                    uploaded: row
+                        .uploaded
+                        .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+                        .context("Formatting map upload time")?,
+                    map_id: row.ap_id,
+                    uid: row.gbx_mapuid,
+                })
+            })
+            .collect::<Result<Vec<_>, ApiError>>()?,
     }))
 }

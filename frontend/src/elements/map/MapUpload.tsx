@@ -13,6 +13,7 @@ function MapUpload() {
   let [uploadResult, setUploadResult] = useState<types.MapUploadResponse | types.TsApiError>();
 
   let allowUpload = !pending && loggedIn;
+  let [fileWasInput, setFileWasInput] = useState(false);
 
   async function uploadMap(form: FormData) {
     setUploadResult(await api.uploadMap(form));
@@ -36,8 +37,8 @@ function MapUpload() {
   return <>
     <form action={uploadMap}>
       <label htmlFor="mapData">Map file </label>
-      <input name="map_data" id="mapData" type="file" disabled={!allowUpload}></input>
-      <button name="submit" type="submit" disabled={!allowUpload}>
+      <input name="map_data" id="mapData" type="file" onChange={evt => setFileWasInput(evt.target.value != null)} disabled={!allowUpload}></input>
+      <button name="submit" type="submit" disabled={!(allowUpload && fileWasInput)}>
         {allowUpload ? "Upload" : "Log in to upload"}
       </button>
     </form>

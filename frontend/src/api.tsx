@@ -73,10 +73,12 @@ async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions
     return error;
   }
 
+  var text = "";
   try {
-    var value: T | types.TsApiError = await response.json();
+    text = await response.text();
+    var value: T | types.TsApiError = JSON.parse(text);
   } catch (err) {
-    console.log("Could not parse API response as JSON:", err);
+    console.log("Could not parse API response as JSON:", err, text);
     return error;
   }
 
@@ -93,6 +95,10 @@ async function apiCall<T>(path: string, { params, body, method }: ApiCallOptions
 
 export async function getSelf(): Promise<types.UserResponse | types.TsApiError> {
   return await apiCall<types.UserResponse>("/self");
+}
+
+export async function allMapsBy(request: types.AllMapsByRequest): Promise<types.AllMapsByResponse | types.TsApiError> {
+  return await apiCall<types.AllMapsByResponse>("/map/all_by", { params: request });
 }
 
 export async function favoriteMaps(): Promise<[types.FavoriteMapResponse] | types.TsApiError> {
