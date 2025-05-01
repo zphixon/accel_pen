@@ -109,7 +109,10 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn fallback(uri: Uri) -> ApiError {
-    ApiErrorInner::NotFound(uri.to_string()).into()
+    ApiErrorInner::NotFound {
+        error: uri.to_string(),
+    }
+    .into()
 }
 
 #[derive(Deserialize)]
@@ -330,7 +333,10 @@ async fn map_data(
             uid: row.gbx_mapuid,
         }))
     } else {
-        Err(ApiErrorInner::MapNotFound(request.map_id).into())
+        Err(ApiErrorInner::MapNotFound {
+            map_id: request.map_id,
+        }
+        .into())
     }
 }
 
@@ -367,7 +373,10 @@ async fn map_upload(
         .context("Reading field from multipart body while uploading map")?
     {
         let Some(name) = field.name() else {
-            return Err(ApiErrorInner::MissingFromMultipart("Name of field").into());
+            return Err(ApiErrorInner::MissingFromMultipart {
+                error: "Name of field",
+            }
+            .into());
         };
         let name = String::from(name);
         let data = field
@@ -384,7 +393,10 @@ async fn map_upload(
     }
 
     let Some(map_data) = map_data else {
-        return Err(ApiErrorInner::MissingFromMultipart("Value of map_data").into());
+        return Err(ApiErrorInner::MissingFromMultipart {
+            error: "Value of map_data",
+        }
+        .into());
     };
 
     let map_node = gbx_rs::Node::read_from(&map_data).context("Parsing map for upload")?;
@@ -395,7 +407,10 @@ async fn map_upload(
     };
 
     let Some(map_info) = map.map_info.as_ref() else {
-        return Err(ApiErrorInner::MissingFromMultipart("Map info from map").into());
+        return Err(ApiErrorInner::MissingFromMultipart {
+            error: "Map info from map",
+        }
+        .into());
     };
 
     let author = nadeo::auth::login_to_uid(map_info.author).context("Parsing map author")?;
@@ -420,7 +435,7 @@ async fn map_upload(
     }
 
     let Some(map_name) = map.map_name else {
-        return Err(ApiErrorInner::MissingFromMultipart("Map name").into());
+        return Err(ApiErrorInner::MissingFromMultipart { error: "Map name" }.into());
     };
 
     let buffer = map_data.to_vec();
@@ -478,7 +493,10 @@ async fn map_all_by(
     .context("Finding Accel Pen account for finding all maps by user")?
     else {
         tracing::error!("{} not in db", request.user_id);
-        return Err(ApiErrorInner::NotFound(String::from("User not found in DB?")).into());
+        return Err(ApiErrorInner::NotFound {
+            error: String::from("User not found in DB?"),
+        }
+        .into());
     };
 
     let club_tag = NadeoClubTag::get(&user.account_id)

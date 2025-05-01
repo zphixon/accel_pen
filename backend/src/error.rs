@@ -11,164 +11,182 @@ use ts_rs::TS;
 #[serde(tag = "type")]
 #[ts(export)]
 pub enum ApiErrorInner {
-    #[error("Database error: {0}")]
-    Database(
+    #[error("Database error: {error}")]
+    Database {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        sqlx::Error,
-    ),
+        error: sqlx::Error,
+    },
 
-    #[error("Migration error: {0}")]
-    Migration(
+    #[error("Migration error: {error}")]
+    Migration {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        sqlx::migrate::MigrateError,
-    ),
+        error: sqlx::migrate::MigrateError,
+    },
 
-    #[error("Invalid query: {0}")]
-    InvalidQuery(
+    #[error("Invalid query: {error}")]
+    InvalidQuery {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        axum::extract::rejection::QueryRejection,
-    ),
+        error: axum::extract::rejection::QueryRejection,
+    },
 
-    #[error("URL parse error: {0}")]
-    UrlParseError(
+    #[error("URL parse error: {error}")]
+    UrlParseError {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        url::ParseError,
-    ),
+        error: url::ParseError,
+    },
 
-    #[error("Session error: {0}")]
-    SessionError(
+    #[error("Session error: {error}")]
+    SessionError {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        tower_sessions::session::Error,
-    ),
+        error: tower_sessions::session::Error,
+    },
 
-    #[error("Axum error: {0}")]
-    AxumError(
+    #[error("Axum error: {error}")]
+    AxumError {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        axum::http::Error,
-    ),
+        error: axum::http::Error,
+    },
 
-    #[error("Request to API failed: {0}")]
-    ApiFailed(
+    #[error("Request to API failed: {error}")]
+    ApiFailed {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        reqwest::Error,
-    ),
+        error: reqwest::Error,
+    },
 
-    #[error("Request to API failed: {0}")]
-    ApiReturnedError(#[ts(skip)] serde_json::Value),
+    #[error("Request to API failed: {error}")]
+    ApiReturnedError {
+        #[ts(skip)]
+        error: serde_json::Value,
+    },
 
-    #[error("Invalid JSON: {0}")]
-    InvalidJson(
+    #[error("Invalid JSON: {error}")]
+    InvalidJson {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        axum::extract::rejection::JsonRejection,
-    ),
+        error: axum::extract::rejection::JsonRejection,
+    },
 
-    #[error("Invalid oauth: {0}")]
-    InvalidOauth(#[ts(skip)] &'static str),
+    #[error("Invalid oauth: {error}")]
+    InvalidOauth {
+        #[ts(skip)]
+        error: &'static str,
+    },
 
-    #[error("Unexpected response from Nadeo API: {0}")]
-    UnexpectedResponse(#[ts(skip)] &'static str),
+    #[error("Unexpected response from Nadeo API: {error}")]
+    UnexpectedResponse {
+        #[ts(skip)]
+        error: &'static str,
+    },
 
-    #[error("Rejected: {}", .0.1)]
-    Rejected(
+    #[error("Rejected: {}", error.1)]
+    Rejected {
         #[ts(skip)]
         #[serde(skip)]
-        (axum::http::StatusCode, &'static str),
-    ),
+        error: (axum::http::StatusCode, &'static str),
+    },
 
-    #[error("Map not found: {0}")]
-    MapNotFound(#[ts(skip)] u32),
-
-    #[error("Multipart error: {0}")]
-    MultipartError(
-        #[serde(skip)]
+    #[error("Map not found: {map_id}")]
+    MapNotFound {
         #[ts(skip)]
-        #[from]
-        axum::extract::multipart::MultipartError,
-    ),
+        map_id: i32,
+    },
 
-    #[error("Invalid multipart: {0}")]
-    InvalidMultipart(
-        #[serde(skip)]
-        #[ts(skip)]
-        #[from]
-        axum::extract::multipart::MultipartRejection,
-    ),
-
-    #[error("Missing from multipart field: {0}")]
-    MissingFromMultipart(#[ts(skip)] &'static str),
-
-    #[error("Invalid GBX data: {0}")]
-    InvalidGbx(
+    #[error("Multipart error: {error}")]
+    MultipartError {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        gbx_rs::GbxError,
-    ),
+        error: axum::extract::multipart::MultipartError,
+    },
+
+    #[error("Invalid multipart: {error}")]
+    InvalidMultipart {
+        #[serde(skip)]
+        #[ts(skip)]
+        #[from]
+        error: axum::extract::multipart::MultipartRejection,
+    },
+
+    #[error("Missing from multipart field: {error}")]
+    MissingFromMultipart {
+        #[ts(skip)]
+        error: &'static str,
+    },
+
+    #[error("Invalid GBX data: {error}")]
+    InvalidGbx {
+        #[serde(skip)]
+        #[ts(skip)]
+        #[from]
+        error: gbx_rs::GbxError,
+    },
 
     #[error("Not a map")]
     NotAMap,
 
     #[error("Map already uploaded")]
-    AlreadyUploaded { map_id: u32 },
+    AlreadyUploaded { map_id: i32 },
 
     #[error("Please don't upload maps that aren't yours")]
     NotYourMap,
 
     #[error("Not base64")]
-    NotBase64(
+    NotBase64 {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        base64::DecodeError,
-    ),
+        error: base64::DecodeError,
+    },
 
     #[error("Invalid UTF-8")]
-    NotUtf8(
+    NotUtf8 {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        std::str::Utf8Error,
-    ),
+        error: std::str::Utf8Error,
+    },
 
     #[error("Not UUID")]
-    NotUuid(
+    NotUuid {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        uuid::Error,
-    ),
+        error: uuid::Error,
+    },
 
-    #[error("No such API: {0}")]
-    NotFound(#[ts(skip)] String),
+    #[error("No such API: {error}")]
+    NotFound {
+        #[ts(skip)]
+        error: String,
+    },
 
-    #[error("Could not parse time value: {0}")]
-    Time(
+    #[error("Could not parse time value: {error}")]
+    Time {
         #[ts(skip)]
         #[serde(skip)]
         #[from]
-        time::error::Format,
-    ),
+        error: time::error::Format,
+    },
 }
 
 impl From<(axum::http::StatusCode, &'static str)> for ApiErrorInner {
     fn from(value: (axum::http::StatusCode, &'static str)) -> Self {
-        ApiErrorInner::Rejected(value)
+        ApiErrorInner::Rejected { error: value }
     }
 }
 
@@ -195,47 +213,52 @@ impl IntoResponse for ApiError {
         tracing::error!("{}", self);
 
         let status_code = match &*self {
-            ApiErrorInner::Database(_)
-            | ApiErrorInner::Migration(_)
-            | ApiErrorInner::UrlParseError(_)
-            | ApiErrorInner::SessionError(_)
-            | ApiErrorInner::AxumError(_)
-            | ApiErrorInner::ApiReturnedError(_)
-            | ApiErrorInner::UnexpectedResponse(_)
-            | ApiErrorInner::Time(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorInner::Database { .. }
+            | ApiErrorInner::Migration { .. }
+            | ApiErrorInner::UrlParseError { .. }
+            | ApiErrorInner::SessionError { .. }
+            | ApiErrorInner::AxumError { .. }
+            | ApiErrorInner::ApiReturnedError { .. }
+            | ApiErrorInner::UnexpectedResponse { .. }
+            | ApiErrorInner::Time { error: _ } => StatusCode::INTERNAL_SERVER_ERROR,
 
-            ApiErrorInner::ApiFailed(err) => err.status().unwrap_or(StatusCode::BAD_GATEWAY),
+            ApiErrorInner::ApiFailed { error } => error.status().unwrap_or(StatusCode::BAD_GATEWAY),
 
-            ApiErrorInner::InvalidQuery(_)
-            | ApiErrorInner::InvalidJson(_)
-            | ApiErrorInner::InvalidMultipart(_)
-            | ApiErrorInner::MissingFromMultipart(_)
-            | ApiErrorInner::InvalidGbx(_)
-            | ApiErrorInner::MultipartError(_)
+            ApiErrorInner::InvalidQuery { .. }
+            | ApiErrorInner::InvalidJson { .. }
+            | ApiErrorInner::InvalidMultipart { .. }
+            | ApiErrorInner::MissingFromMultipart { .. }
+            | ApiErrorInner::InvalidGbx { .. }
+            | ApiErrorInner::MultipartError { .. }
             | ApiErrorInner::NotAMap
-            | ApiErrorInner::NotBase64(_)
-            | ApiErrorInner::NotUtf8(_)
+            | ApiErrorInner::NotBase64 { .. }
+            | ApiErrorInner::NotUtf8 { .. }
             | ApiErrorInner::NotYourMap
             | ApiErrorInner::AlreadyUploaded { .. }
-            | ApiErrorInner::NotUuid(_) => StatusCode::BAD_REQUEST,
+            | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
-            ApiErrorInner::InvalidOauth(_) => StatusCode::UNAUTHORIZED,
+            ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,
 
-            ApiErrorInner::MapNotFound(_) | ApiErrorInner::NotFound(_) => StatusCode::NOT_FOUND,
+            ApiErrorInner::MapNotFound { .. } | ApiErrorInner::NotFound { error: _ } => {
+                StatusCode::NOT_FOUND
+            }
 
-            ApiErrorInner::Rejected((code, _)) => *code,
+            ApiErrorInner::Rejected { error: (code, _) } => *code,
         };
 
         let message = self.to_string();
-        (
-            status_code,
-            Json(TsApiError {
-                error: self.inner(),
-                status: status_code.as_u16(),
-                message,
-            }),
-        )
-            .into_response()
+        match serde_json::to_string(&TsApiError {
+            error: self.inner(),
+            status: status_code.as_u16(),
+            message,
+        }) {
+            Ok(json) => (status_code, json).into_response(),
+            Err(serde_err) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Couldn't format json??? {}", serde_err),
+            )
+                .into_response(),
+        }
     }
 }
 

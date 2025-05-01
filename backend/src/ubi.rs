@@ -65,7 +65,7 @@ async fn refresh_token(refresh_token: &str) -> Result<UbiToken, ApiError> {
             .json()
             .await
             .context("Parsing JSON from failed refresh")?;
-        Err(ApiErrorInner::ApiReturnedError(error).into())
+        Err(ApiErrorInner::ApiReturnedError { error: error }.into())
     }
 }
 

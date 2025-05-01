@@ -68,21 +68,21 @@ impl NadeoUser {
             .context("Parsing JSON response from Nadeo for user display name")?;
 
         let Some(object) = response.as_object() else {
-            return Err(ApiErrorInner::UnexpectedResponse(
-                "Response for display name was not an object",
-            )
+            return Err(ApiErrorInner::UnexpectedResponse {
+                error: "Response for display name was not an object",
+            }
             .into());
         };
         let Some(display_name) = object.get(account_id) else {
-            return Err(ApiErrorInner::UnexpectedResponse(
-                "Response for display name did not have a display name for the account ID",
-            )
+            return Err(ApiErrorInner::UnexpectedResponse {
+                error: "Response for display name did not have a display name for the account ID",
+            }
             .into());
         };
         let Some(display_name) = display_name.as_str() else {
-            return Err(ApiErrorInner::UnexpectedResponse(
-                "Response for display name was not a string",
-            )
+            return Err(ApiErrorInner::UnexpectedResponse {
+                error: "Response for display name was not a string",
+            }
             .into());
         };
 
@@ -125,12 +125,12 @@ impl NadeoFavoriteMaps {
                 .await
                 .context("Reading JSON for favorite maps")?)
         } else {
-            Err(ApiErrorInner::ApiReturnedError(
-                response
+            Err(ApiErrorInner::ApiReturnedError {
+                error: response
                     .json::<serde_json::Value>()
                     .await
                     .context("Parsing error JSON")?,
-            )
+            }
             .into())
         }
     }

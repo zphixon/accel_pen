@@ -141,9 +141,9 @@ impl NadeoAuthSessionInner {
         request: NadeoOauthFinishRequest,
     ) -> Result<Self, ApiError> {
         if random_state.state().hyphenated().to_string() != request.state {
-            return Err(ApiErrorInner::InvalidOauth(
-                "Invalid random state returned from Nadeo API",
-            )
+            return Err(ApiErrorInner::InvalidOauth {
+                error: "Invalid random state returned from Nadeo API",
+            }
             .into());
         }
 
@@ -172,7 +172,7 @@ impl NadeoAuthSessionInner {
             Self::from_inner(nadeo_oauth, state).await
         } else {
             let json_error: serde_json::Value = response.json().await?;
-            Err(ApiErrorInner::ApiReturnedError(json_error).into())
+            Err(ApiErrorInner::ApiReturnedError { error: json_error }.into())
         }
     }
 
@@ -204,7 +204,7 @@ impl NadeoAuthSessionInner {
             NadeoAuthSessionInner::from_inner(token_pair, state).await
         } else {
             let json_error: serde_json::Value = response.json().await?;
-            Err(ApiErrorInner::ApiReturnedError(json_error).into())
+            Err(ApiErrorInner::ApiReturnedError { error: json_error }.into())
         }
     }
 }
@@ -279,10 +279,9 @@ impl FromRequestParts<AppState> for NadeoAuthSession {
             .await
             .context("Reading auth from session")?
         else {
-            return Err(ApiErrorInner::Rejected((
-                StatusCode::UNAUTHORIZED,
-                "Not authenticated by Nadeo",
-            ))
+            return Err(ApiErrorInner::Rejected {
+                error: (StatusCode::UNAUTHORIZED, "Not authenticated by Nadeo"),
+            }
             .into());
         };
 
@@ -356,10 +355,9 @@ impl FromRequestParts<AppState> for RandomStateSession {
             .await
             .context("Reading state from session")?
         else {
-            return Err(ApiErrorInner::Rejected((
-                StatusCode::UNAUTHORIZED,
-                "No oauth flow in progress",
-            ))
+            return Err(ApiErrorInner::Rejected {
+                error: (StatusCode::UNAUTHORIZED, "No oauth flow in progress"),
+            }
             .into());
         };
 
