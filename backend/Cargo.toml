@@ -1,6 +1,10 @@
-[workspace]
+[package]
+name = "accel_pen"
+version = "0.1.0"
+edition = "2021"
 
-[workspace.dependencies]
+[dependencies]
+gbx_rs = { path = "../gbx_rs" }
 from_env = { git = "https://github.com/zphixon/from_env" }
 
 anyhow = { version = "1.0.97", features = ["backtrace"] }
@@ -27,36 +31,3 @@ tracing-subscriber = { version = "0.3.19", features = ["tracing", "env-filter"] 
 ts-rs = { version = "10.1.0", features = ["url-impl"] }
 url = { version = "2.5.4", features = ["serde"] }
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
-
-[package]
-name = "accel_pen"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-gbx_rs = { path = "gbx_rs" }
-from_env.workspace = true
-
-anyhow.workspace = true
-axum-extra.workspace = true
-axum.workspace = true
-base64.workspace = true
-form_urlencoded.workspace = true
-hex.workspace = true
-image.workspace = true
-reqwest.workspace = true
-serde_json.workspace = true
-serde.workspace = true
-sqlx.workspace = true
-strum.workspace = true
-thiserror.workspace = true
-time.workspace = true
-tokio.workspace = true
-toml.workspace = true
-tower-http.workspace = true
-tower-sessions.workspace = true
-tracing-subscriber.workspace = true
-tracing.workspace = true
-ts-rs.workspace = true
-url.workspace = true
-uuid.workspace = true

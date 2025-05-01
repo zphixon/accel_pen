@@ -15,6 +15,7 @@ dependencies = [
  "gbx_rs",
  "hex",
  "image",
+ "random",
  "reqwest",
  "serde",
  "serde_json",
@@ -880,10 +881,8 @@ dependencies = [
  "byteorder",
  "bytes",
  "lzokay-native",
- "random",
  "thiserror 2.0.12",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

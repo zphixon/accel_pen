@@ -7,9 +7,9 @@ edition = "2021"
 byteorder = "1.5.0"
 bytes = "1.10.1"
 lzokay-native = "0.1.0"
-thiserror.workspace = true
-tracing.workspace = true
+thiserror = "2.0.12"
+tracing = "0.1.41"
 
 [dev-dependencies]
-tracing-subscriber.workspace = true
-random.workspace = true
+tracing-subscriber = { version = "0.3.19", features = ["tracing", "env-filter"] }
+random = "0.9.1"
