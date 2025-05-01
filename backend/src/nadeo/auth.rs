@@ -69,7 +69,7 @@ pub struct NadeoAuthSessionInner {
     inner: NadeoTokensInner,
     user: NadeoUser,
     club_tag: String,
-    user_id: u32,
+    user_id: i32,
     issued: time::OffsetDateTime,
 }
 
@@ -85,16 +85,20 @@ impl NadeoAuthSessionInner {
         let issued = time::OffsetDateTime::now_utc();
         let user = NadeoUser::get_self(&token_pair).await?;
 
-        let Some(user_id) = sqlx::query!(
-            "SELECT user_id FROM user WHERE account_id = ?",
-            user.account_id
+        let user_id = sqlx::query!(
+            "
+                INSERT INTO ap_user (display_name, account_id, registered)
+                VALUES ($1, $2, NOW())
+                ON CONFLICT (account_id) DO UPDATE
+                    SET display_name=excluded.display_name
+                RETURNING user_id
+            ",
+            user.display_name,
+            user.account_id,
         )
-        .fetch_optional(&state.pool)
+        .fetch_one(&state.pool)
         .await
-        .context("Finding Accel Pen account for favorite map")?
-        else {
-            return Err(ApiErrorInner::NotFound(String::from("Self not found in DB?")).into());
-        };
+        .context("Adding user to users table")?;
 
         let club_tag = NadeoClubTag::get(&user.account_id)
             .await
@@ -121,7 +125,7 @@ impl NadeoAuthSessionInner {
         &self.club_tag
     }
 
-    pub fn user_id(&self) -> u32 {
+    pub fn user_id(&self) -> i32 {
         self.user_id
     }
 

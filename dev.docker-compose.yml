@@ -1,7 +1,7 @@
 name: dev_accel_pen
 
 secrets:
-  db_root_password:
+  db_password:
     file: ${ACCEL_PEN_DB_PASSWORD_PATH}
 
 volumes:
@@ -14,11 +14,11 @@ services:
       dockerfile: database.Dockerfile
     restart: always
     volumes:
-      - database:/var/lib/mysql
+      - database:/var/lib/postgresql/data
     secrets:
-      - db_root_password
+      - db_password
     environment:
-      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
-      MYSQL_DATABASE: accel_pen
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: accel_pen
     ports:
-      - "3306:3306"
+      - "5432:5432"

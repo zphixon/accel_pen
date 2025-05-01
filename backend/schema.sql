@@ -1,38 +1,38 @@
-CREATE TABLE user (
-    user_id INTEGER UNSIGNED AUTO_INCREMENT,
-    display_name VARCHAR(128) NOT NULL,
-    account_id CHAR(36) UNIQUE NOT NULL,
+CREATE TABLE ap_user (
+    user_id SERIAL UNIQUE NOT NULL,
+    display_name TEXT NOT NULL,
+    account_id TEXT UNIQUE NOT NULL,
     site_admin BOOLEAN NOT NULL DEFAULT FALSE,
-    registered TIMESTAMP NOT NULL,
+    registered TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
 
     CONSTRAINT pk_user PRIMARY KEY (user_id)
 );
 
 CREATE TABLE map (
-    ap_id INTEGER UNSIGNED UNIQUE AUTO_INCREMENT,
-    gbx_mapuid VARCHAR(128) UNIQUE NOT NULL,
-    gbx_data MEDIUMBLOB NOT NULL,
+    ap_id SERIAL UNIQUE NOT NULL,
+    gbx_mapuid TEXT UNIQUE NOT NULL,
+    gbx_data BYTEA NOT NULL,
     mapname TEXT NOT NULL,
-    author INTEGER UNSIGNED NOT NULL,
+    author INTEGER NOT NULL,
     votes INTEGER NOT NULL DEFAULT 1,
-    uploaded TIMESTAMP NOT NULL,
-    created TIMESTAMP NOT NULL,
+    uploaded TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
+    created TIMESTAMP WITH TIME ZONE NOT NULL,
 
     CONSTRAINT pk_map PRIMARY KEY (ap_id, gbx_mapuid),
     CONSTRAINT fk_map_author FOREIGN KEY (author)
-        REFERENCES user (user_id)
+        REFERENCES ap_user (user_id)
         ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE vote (
-    user_id INTEGER UNSIGNED,
-    ap_id INTEGER UNSIGNED,
-    vote_value TINYINT NOT NULL,
-    cast TIMESTAMP NOT NULL,
+    user_id INTEGER,
+    ap_id INTEGER,
+    vote_value SMALLINT NOT NULL,
+    cast_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
 
     CONSTRAINT pk_vote PRIMARY KEY (user_id, ap_id),
     CONSTRAINT fk_vote_user FOREIGN KEY (user_id)
-        REFERENCES user (user_id)
+        REFERENCES ap_user (user_id)
         ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_vote_map FOREIGN KEY (ap_id)
         REFERENCES map (ap_id)

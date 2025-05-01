@@ -6,7 +6,8 @@ cors_host = "http://localhost:5173"
 frontend_url = "http://localhost:5173"
 
 [db]
-url = "mysql://localhost:3306/accel_pen"
+url = "postgres://localhost:5432/accel_pen"
+username = "postgres"
 password_path = "../secret_root_pw.txt"
 
 [nadeo.oauth]

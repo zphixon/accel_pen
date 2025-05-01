@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created, uploaded) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bytea",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "57acc7f307f3327409071e43797108bda603611c3b315e2d3ba993fc21d08d3c"
+}

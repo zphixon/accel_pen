@@ -14,6 +14,7 @@ from_env::config!(
     },
     db {
         url: Url,
+        username: String,
         password_path: PathBuf,
     },
     nadeo {
@@ -50,7 +51,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     config
         .db
         .url
-        .set_username("root")
+        .set_username(&config.db.username)
         .expect("Couldn't set username on DB URL");
 
     let Ok(password) = std::fs::read_to_string(&config.db.password_path) else {

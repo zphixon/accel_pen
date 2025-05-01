@@ -7,7 +7,7 @@ use axum::{
 };
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
-use sqlx::MySqlPool;
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use tokio::net::TcpListener;
 use tower_http::{
     cors::{AllowMethods, CorsLayer},
@@ -36,7 +36,7 @@ use ubi::UbiTokens;
 
 #[derive(Clone)]
 pub struct AppState {
-    pool: MySqlPool,
+    pool: PgPool,
 }
 
 #[tokio::main]
@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     let ubi_auth_task = tokio::spawn(UbiTokens::auth_task());
 
     let server_task = tokio::spawn(async {
-        let pool = MySqlPool::connect(CONFIG.db.url.as_str())
+        let pool = PgPool::connect(CONFIG.db.url.as_str())
             .await
             .context("Connecting to database")?;
 
@@ -143,19 +143,6 @@ async fn oauth_finish(
         .await
         .context("Finishing oauth")?;
 
-    sqlx::query!(
-        "
-            INSERT INTO user (display_name, account_id, registered)
-            VALUES (?, ?, NOW())
-            ON DUPLICATE KEY UPDATE display_name=display_name
-        ",
-        session.display_name(),
-        session.account_id(),
-    )
-    .execute(&state.pool)
-    .await
-    .context("Adding user to users table")?;
-
     let mut frontend_url = CONFIG.net.frontend_url.clone();
     {
         let mut segments = frontend_url.path_segments_mut().unwrap();
@@ -194,7 +181,7 @@ async fn oauth_logout(auth_session: NadeoAuthSession) -> Result<Redirect, ApiErr
 struct UserResponse {
     display_name: String,
     account_id: String,
-    user_id: u32,
+    user_id: i32,
     club_tag: String,
 }
 
@@ -253,7 +240,7 @@ async fn favorite_maps(
             uid: favorite.uid,
             name: favorite.name,
             author: if let Some(user_id) = sqlx::query!(
-                "SELECT user_id FROM user WHERE account_id = ?",
+                "SELECT user_id FROM ap_user WHERE account_id = $1",
                 favorite.author
             )
             .fetch_optional(&state.pool)
@@ -283,7 +270,7 @@ async fn favorite_maps(
 #[ts(export)]
 #[serde(tag = "type")]
 struct MapDataRequest {
-    map_id: u32,
+    map_id: i32,
 }
 
 #[derive(Serialize, TS)]
@@ -293,7 +280,7 @@ struct MapDataResponse {
     name: String,
     author: UserResponse,
     uploaded: String,
-    map_id: u32,
+    map_id: i32,
     uid: String,
 }
 
@@ -303,9 +290,9 @@ async fn map_data(
 ) -> Result<Json<MapDataResponse>, ApiError> {
     let row = sqlx::query!(
         "
-            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, user.display_name, user.user_id, user.account_id
-            FROM map JOIN user ON map.author = user.user_id
-            WHERE map.ap_id = ?
+            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id
+            FROM map JOIN ap_user ON map.author = ap_user.user_id
+            WHERE map.ap_id = $1
         ",
         request.map_id
     )
@@ -349,7 +336,7 @@ struct MapUploadMeta {}
 #[ts(export)]
 #[serde(tag = "type")]
 struct MapUploadResponse {
-    map_id: u32,
+    map_id: i32,
 }
 
 async fn map_upload(
@@ -358,7 +345,7 @@ async fn map_upload(
     WithRejection(mut multipart, _): WithRejection<Multipart, ApiError>,
 ) -> Result<Json<MapUploadResponse>, ApiError> {
     let user_id = sqlx::query!(
-        "SELECT user_id FROM user WHERE account_id = ?",
+        "SELECT user_id FROM ap_user WHERE account_id = $1",
         session.account_id()
     )
     .fetch_one(&state.pool)
@@ -419,7 +406,7 @@ async fn map_upload(
     }
 
     let maybe_map = sqlx::query!(
-        "SELECT ap_id, gbx_mapuid FROM map WHERE gbx_mapuid = ?",
+        "SELECT ap_id, gbx_mapuid FROM map WHERE gbx_mapuid = $1",
         map_info.id
     )
     .fetch_optional(&state.pool)
@@ -439,14 +426,14 @@ async fn map_upload(
     };
 
     let buffer = map_data.to_vec();
-    sqlx::query!("INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created, uploaded) VALUES (?, ?, ?, ?, NOW(), NOW())",
+    sqlx::query!("INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created, uploaded) VALUES ($1, $2, $3, $4, NOW(), NOW())",
         map_info.id,
         buffer,
         map_name,
         user_id.user_id,
     ).execute(&state.pool).await.context("Adding map to database")?;
 
-    let ap_id = sqlx::query!("SELECT ap_id FROM map WHERE gbx_mapuid = ?", map_info.id)
+    let ap_id = sqlx::query!("SELECT ap_id FROM map WHERE gbx_mapuid = $1", map_info.id)
         .fetch_one(&state.pool)
         .await
         .context("Retrieving ID of newly uploaded map")?;
@@ -460,7 +447,7 @@ async fn map_upload(
 #[ts(export)]
 #[serde(tag = "type")]
 struct AllMapsByRequest {
-    user_id: u32,
+    user_id: i32,
 }
 
 #[derive(Serialize, TS)]
@@ -476,7 +463,7 @@ async fn map_all_by(
 ) -> Result<Json<AllMapsByResponse>, ApiError> {
     let maps = sqlx::query!(
         "
-            SELECT ap_id, gbx_mapuid, mapname, votes, uploaded FROM map WHERE author = ?
+            SELECT ap_id, gbx_mapuid, mapname, votes, uploaded FROM map WHERE author = $1
         ",
         request.user_id
     )
@@ -485,7 +472,7 @@ async fn map_all_by(
     .context("Fetching all maps by user from database")?;
 
     let Some(user) = sqlx::query!(
-        "SELECT display_name, account_id FROM user WHERE user_id = ?",
+        "SELECT display_name, account_id FROM ap_user WHERE user_id = $1",
         request.user_id,
     )
     .fetch_optional(&state.pool)
