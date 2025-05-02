@@ -52,7 +52,9 @@ async fn main() -> anyhow::Result<()> {
     let ubi_auth_task = tokio::spawn(UbiTokens::auth_task());
 
     let server_task = tokio::spawn(async {
-        let pool = PgPool::connect(CONFIG.db.url.as_str())
+        let pool = PgPoolOptions::new()
+            .acquire_timeout(std::time::Duration::from_secs(3))
+            .connect(CONFIG.db.url.as_str())
             .await
             .context("Connecting to database")?;
 

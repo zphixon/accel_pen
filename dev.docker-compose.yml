@@ -9,9 +9,7 @@ volumes:
 
 services:
   database:
-    build:
-      context: ./backend
-      dockerfile: database.Dockerfile
+    image: postgres:17.4-bookworm
     restart: always
     volumes:
       - database:/var/lib/postgresql/data

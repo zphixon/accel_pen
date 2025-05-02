@@ -1,7 +1,6 @@
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::Serialize;
 use std::{fmt::Display, ops::Deref};
