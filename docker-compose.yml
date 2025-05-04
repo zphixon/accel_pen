@@ -10,7 +10,7 @@ volumes:
 services:
   backend:
     build:
-      context: ./backend
+      context: .
     restart: always
     depends_on:
       - database
