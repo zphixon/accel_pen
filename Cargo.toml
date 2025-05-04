@@ -5,8 +5,7 @@ edition = "2021"
 
 [dependencies]
 gbx_rs = { path = "gbx_rs" }
-from_env = { git = "https://github.com/zphixon/from_env" }
-tera = { git = "https://github.com/zphixon/tera", branch = "has_template", features = ["builtins"] }
+from_env = { path = "from_env" }
 
 anyhow = { version = "1.0.97", features = ["backtrace"] }
 axum = { version = "0.8.1", features = ["query", "macros", "multipart"] }
@@ -23,6 +22,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 sqlx = { version = "=0.8.3", features = ["runtime-tokio", "postgres", "time"] }
 strum = { version = "0.27.1", features = ["derive"] }
+tera = { version = "1.20.0", features = ["builtins"] }
 thiserror = "2.0.12"
 time = { version = "0.3.41", features = ["serde"] }
 tokio = { version = "1.44.1", features = ["full"] }
