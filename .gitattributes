@@ -1,0 +1,3 @@
+*.html.tera linguist-language=HTML
+bindings/* linguist-generated
+.sqlx/* linguist-generated
