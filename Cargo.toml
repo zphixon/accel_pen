@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gbx_rs = { path = "../gbx_rs" }
+gbx_rs = { path = "gbx_rs" }
 from_env = { git = "https://github.com/zphixon/from_env" }
 tera = { git = "https://github.com/zphixon/tera", branch = "has_template", features = ["builtins"] }
 

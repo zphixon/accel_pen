@@ -8,12 +8,12 @@ user_agent = "Accel Pen - xdd.farm - zack@grape.surgery"
 [db]
 url = "postgres://localhost:5432/accel_pen"
 username = "postgres"
-password_path = "../secret_root_pw.txt"
+password_path = "db_pw_secret.txt"
 
 [nadeo.oauth]
 identifier = "e9cfcb43163263a46845"
-secret_path = "../nadeo_client_secret.txt"
+secret_path = "nadeo_client_secret.txt"
 
 [nadeo.ubi]
 username = "zack@grape.surgery"
-password_path = "../ubi_secret.txt"
+password_path = "ubi_secret.txt"
