@@ -1,0 +1,51 @@
+<!doctype HTML>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{ config.root }}static/index.css" />
+
+    <link rel="stylesheet" href="{{ config.root }}static/nandoString.css" />
+    <script src="{{ config.root }}static/nandoString.js"></script>
+
+    <script defer src="{{ config.root }}static/fontawesome/fontawesome.min.js"></script>
+    <script defer src="{{ config.root }}static/fontawesome/solid.min.js"></script>
+    <title>
+      {%- block tabTitle -%}
+        Accel Pen
+      {%- endblock tabTitle -%}
+    </title>
+
+    {% block head %}
+    {% endblock head %}
+  </head>
+  <body>
+    <div id="L"></div>
+    <div id="root">
+      <div class="navBar">
+        <span class="homeLink">
+          <h1>
+            {%- block title -%}
+              <a href="{{ config.root }}">Accel Pen</a>
+            {%- endblock title -%}
+          </h1>
+        </span>
+        {% if user -%}
+        <span class="userHeader">
+          <span class="userClubTag nandoString">{{ user.club_tag }}</span>
+          <span class="userDisplayName">{{ user.display_name }}</span>
+          <a href="{{ config.logout_path }}">Log out</a>
+        </span>
+        {%- else -%}
+        <span class="loginLink">
+          <a href="{{ config.login_path }}{% block returnPath %}{% endblock returnPath %}">Log in</a>
+        </span>
+        {%- endif %}
+      </div>
+      {% block content %}
+      <p>This template is empty. Hmmm</p>
+      {% endblock content %}
+    </div>
+    <div id="R"></div>
+  </body>
+</html>

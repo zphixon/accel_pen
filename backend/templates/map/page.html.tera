@@ -1,0 +1,47 @@
+{% extends "layout.html.tera" %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ config.root }}static/mapview.css">
+{% endblock head %}
+
+{% block tabTitle -%}
+  {%- if map -%}
+    {{ super() }} - {{ map.name }} by {{ map.author.display_name }}
+  {%- else -%}
+    {{ super() }} - No such map
+  {%- endif -%}
+{%- endblock tabTitle %}
+
+{% block returnPath -%}
+  {%- if map -%}
+    ?returnPath=/map/{{ map.id }}
+  {%- endif -%}
+{%- endblock returnPath %}
+
+{% block content %}
+  {% if map %}
+    <div class="mapHeader">
+      <h2 class="mapName"><span class="nandoString">{{ map.name }}</span></h2>
+      <div class="mapAuthor"><span class="nandoString">{{ map.author.club_tag }}</span> {{ map.author.display_name }}</div>
+      <p>
+        Uploaded <span class="uploadDate">{{ map.uploaded }}</span>
+      </p>
+    </div>
+
+    {% if user and user.user_id == map.author.user_id %}
+      <button>Edit</button>
+      <button>Delete</button>
+    {% endif %}
+
+    <script type="text/javascript">
+      let uploadDate = document.querySelector(".uploadDate");
+      let date = new Date(uploadDate.innerText);
+      uploadDate.innerText = new Intl.DateTimeFormat(undefined, {
+        dateStyle: "full",
+        timeStyle: "short",
+      }).format(date);
+    </script>
+  {% else %}
+    <h1>No such map</h1>
+  {% endif %}
+{% endblock content %}

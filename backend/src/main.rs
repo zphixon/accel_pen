@@ -1,17 +1,22 @@
+use std::{path::PathBuf, sync::Arc};
+
 use axum::{
-    extract::{DefaultBodyLimit, Multipart, Query, State},
-    http::{HeaderValue, Method, Uri},
-    response::{Html, Redirect},
+    extract::{DefaultBodyLimit, Multipart, Path, Query, State},
+    http::{HeaderValue, Method, StatusCode, Uri},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Json, Router,
 };
 use axum_extra::extract::WithRejection;
+use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
+use tera::Tera;
 use tokio::net::TcpListener;
 use tower_http::{
     cors::{AllowMethods, CorsLayer},
     limit::RequestBodyLimitLayer,
+    services::ServeDir,
 };
 use tower_sessions::{
     cookie::{time::Duration, Key, SameSite},
@@ -37,6 +42,7 @@ use ubi::UbiTokens;
 #[derive(Clone)]
 pub struct AppState {
     pool: PgPool,
+    tera: Arc<std::sync::RwLock<Tera>>,
 }
 
 #[tokio::main]
@@ -48,6 +54,53 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     tracing::info!("Bind on {}", CONFIG.net.bind);
+
+    let tera = Tera::new("templates/**/*").context("Reading templates")?;
+    tracing::debug!("Template names:");
+    for template_name in tera.get_template_names() {
+        tracing::debug!("  {}", template_name);
+    }
+    let tera = Arc::new(std::sync::RwLock::new(tera));
+
+    if CONFIG.debug_templates {
+        let tera = Arc::clone(&tera);
+        std::thread::spawn(move || {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let mut watcher = notify::recommended_watcher(tx).unwrap();
+            watcher
+                .watch(
+                    &PathBuf::from("templates"),
+                    notify::RecursiveMode::Recursive,
+                )
+                .unwrap();
+            while let Ok(event) = rx.recv() {
+                match event {
+                    Ok(notify::Event {
+                        kind: notify::EventKind::Modify(_),
+                        paths,
+                        ..
+                    }) => {
+                        tracing::debug!("Reloading templates - {:?}", paths);
+                        match tera.write().unwrap().full_reload() {
+                            Ok(_) => {}
+                            Err(err) => {
+                                use std::error::Error;
+                                tracing::error!(
+                                    "Couldn't reload templates: {} {:?}",
+                                    err,
+                                    err.source()
+                                );
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        tracing::error!("template watcher error: {}", err)
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
 
     let ubi_auth_task = tokio::spawn(UbiTokens::auth_task());
 
@@ -72,22 +125,21 @@ async fn main() -> anyhow::Result<()> {
             .with_private(Key::generate());
 
         let app = Router::new()
-            .route(&CONFIG.route_v1("map/data"), get(map_data))
-            .route(&CONFIG.route_v1("map/upload"), post(map_upload))
-            .route(&CONFIG.route_v1("map/all_by"), get(map_all_by))
-            .route(&CONFIG.route_v1("oauth/start"), get(oauth_start))
-            .route(&CONFIG.route_v1("oauth/finish"), get(oauth_finish))
-            .route(&CONFIG.route_v1("oauth/logout"), get(oauth_logout))
-            .route(&CONFIG.route_v1("self"), get(self_handler))
-            .route(&CONFIG.route_v1("self/favorite_maps"), get(favorite_maps))
-            .with_state(AppState { pool })
-            .fallback(fallback)
+            .route(&CONFIG.route(""), get(index))
+            .route(&CONFIG.route("map/{map_id}"), get(get_map_page))
+            .route(&CONFIG.route("map/upload"), get(get_map_upload))
+            .route(&CONFIG.route_api_v1("map/upload"), post(post_map_upload))
+            .route(&CONFIG.oauth_start_route(), get(oauth_start))
+            .route(&CONFIG.oauth_finish_route(), get(oauth_finish))
+            .route(&CONFIG.oauth_logout_route(), get(oauth_logout))
+            .nest_service(&CONFIG.route("static"), ServeDir::new("static"))
+            .with_state(AppState { pool, tera })
             .layer(session_layer)
             .layer(DefaultBodyLimit::disable())
             .layer(RequestBodyLimitLayer::new(20 * 1000 * 1000))
             .layer(
                 CorsLayer::new()
-                    .allow_origin(CONFIG.net.cors_host.parse::<HeaderValue>()?)
+                    .allow_origin(CONFIG.net.url.as_str().parse::<HeaderValue>()?)
                     .allow_methods(AllowMethods::list([Method::GET, Method::POST]))
                     .allow_credentials(true),
             );
@@ -110,14 +162,64 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn fallback(uri: Uri) -> ApiError {
-    ApiErrorInner::NotFound {
-        error: uri.to_string(),
+async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
+    let mut context = config::context_with_auth_session(auth.as_ref());
+
+    if let Some(auth) = auth {
+        match sqlx::query!(
+            "
+                SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded
+                FROM map
+                WHERE map.author = $1
+                LIMIT 20
+            ",
+            auth.user_id(),
+        )
+        .fetch_all(&state.pool)
+        .await
+        {
+            Ok(my_maps) => {
+                #[derive(Serialize)]
+                struct MapContext<'auth> {
+                    id: i32,
+                    gbx_uid: &'auth str,
+                    name: &'auth str,
+                    votes: i32,
+                    uploaded: time::OffsetDateTime,
+                }
+
+                let mut maps_context = Vec::new();
+                for map in my_maps.iter() {
+                    maps_context.push(MapContext {
+                        id: map.ap_id,
+                        gbx_uid: &map.gbx_mapuid,
+                        name: &map.mapname,
+                        votes: map.votes,
+                        uploaded: map.uploaded,
+                    });
+                }
+                context.insert("maps", &maps_context);
+            }
+            Err(err) => {
+                return (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response()
+            }
+        }
     }
-    .into()
+
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("index.html.tera", &context)
+        .context("Rendering index template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct OauthStartRequest {
     return_path: Option<String>,
 }
@@ -145,7 +247,7 @@ async fn oauth_finish(
         .await
         .context("Finishing oauth")?;
 
-    let mut frontend_url = CONFIG.net.frontend_url.clone();
+    let mut frontend_url = CONFIG.net.url.clone();
     {
         let mut segments = frontend_url.path_segments_mut().unwrap();
         if let Some(return_path) = session.return_path() {
@@ -166,6 +268,8 @@ async fn oauth_finish(
 </html>
 "#,
         frontend_url
+            .join(session.return_path().unwrap_or_default())
+            .unwrap_or(frontend_url)
     );
 
     //Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
@@ -174,7 +278,7 @@ async fn oauth_finish(
 
 async fn oauth_logout(auth_session: NadeoAuthSession) -> Result<Redirect, ApiError> {
     auth_session.session().clear().await;
-    Ok(Redirect::to(CONFIG.net.frontend_url.as_str()))
+    Ok(Redirect::to(CONFIG.net.url.as_str()))
 }
 
 #[derive(Serialize, TS)]
@@ -185,87 +289,6 @@ struct UserResponse {
     account_id: String,
     user_id: i32,
     club_tag: String,
-}
-
-async fn self_handler(auth_session: NadeoAuthSession) -> Result<Json<UserResponse>, ApiError> {
-    Ok(Json(UserResponse {
-        display_name: auth_session.display_name().to_owned(),
-        account_id: auth_session.account_id().to_owned(),
-        club_tag: auth_session.club_tag().to_owned(),
-        user_id: auth_session.user_id(),
-    }))
-}
-
-#[derive(Serialize, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-struct FavoriteMapResponse {
-    uid: String,
-    name: String,
-    author: UserOrAuthor,
-}
-
-#[derive(Serialize, TS)]
-#[serde(untagged)]
-enum UserOrAuthor {
-    User(UserResponse),
-    Author(AuthorResponse),
-}
-
-#[derive(Serialize, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-struct AuthorResponse {
-    account_id: String,
-    display_name: String,
-    club_tag: String,
-}
-
-async fn favorite_maps(
-    State(state): State<AppState>,
-    auth_session: NadeoAuthSession,
-) -> Result<Json<Vec<FavoriteMapResponse>>, ApiError> {
-    let favorite_maps = NadeoFavoriteMaps::get(&auth_session)
-        .await
-        .context("Getting favorite maps")?;
-
-    let mut favorites = Vec::new();
-    for favorite in favorite_maps.list {
-        let user = NadeoUser::get_from_account_id(&auth_session, &favorite.author)
-            .await
-            .context("Get user from account ID for favorite map author")?;
-        let club_tag = NadeoClubTag::get(&favorite.author)
-            .await
-            .context("Get club tag for favorite map author")?;
-
-        favorites.push(FavoriteMapResponse {
-            uid: favorite.uid,
-            name: favorite.name,
-            author: if let Some(user_id) = sqlx::query!(
-                "SELECT user_id FROM ap_user WHERE account_id = $1",
-                favorite.author
-            )
-            .fetch_optional(&state.pool)
-            .await
-            .context("Finding Accel Pen account for favorite map")?
-            {
-                UserOrAuthor::User(UserResponse {
-                    display_name: user.display_name,
-                    account_id: user.account_id,
-                    club_tag: club_tag.club_tag,
-                    user_id: user_id.user_id,
-                })
-            } else {
-                UserOrAuthor::Author(AuthorResponse {
-                    account_id: user.account_id,
-                    display_name: user.display_name,
-                    club_tag: club_tag.club_tag,
-                })
-            },
-        });
-    }
-
-    Ok(Json(favorites))
 }
 
 #[derive(Deserialize, TS)]
@@ -329,10 +352,104 @@ async fn map_data(
     }
 }
 
-#[derive(Deserialize, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-struct MapUploadMeta {}
+async fn get_map_page(
+    State(state): State<AppState>,
+    auth: Option<NadeoAuthSession>,
+    Path(map_id): Path<i32>,
+) -> Response {
+    let mut context = config::context_with_auth_session(auth.as_ref());
+
+    let map = match sqlx::query!(
+        "
+            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
+                map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id
+            FROM map JOIN ap_user ON map.author = ap_user.user_id
+            WHERE map.ap_id = $1
+        ",
+        map_id,
+    )
+    .fetch_optional(&state.pool)
+    .await
+    {
+        Ok(maybe_row) => maybe_row,
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("DB error: {}", err),
+            )
+                .into_response()
+        }
+    };
+
+    #[derive(Serialize)]
+    struct MapContext<'auth> {
+        id: i32,
+        gbx_uid: &'auth str,
+        name: &'auth str,
+        votes: i32,
+        uploaded: String,
+        author: UserResponse,
+    }
+
+    if let Some(map) = map {
+        let Ok(club_tag) = NadeoClubTag::get(&map.account_id)
+            .await
+            .context("Getting club tag for map data author")
+        else {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Couldn't get club tag for author",
+            )
+                .into_response();
+        };
+        context.insert(
+            "map",
+            &MapContext {
+                id: map.ap_id,
+                gbx_uid: &map.gbx_mapuid,
+                name: &map.mapname,
+                votes: map.votes,
+                uploaded: map
+                    .uploaded
+                    .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+                    .unwrap(),
+                author: UserResponse {
+                    display_name: map.display_name,
+                    account_id: map.account_id,
+                    user_id: map.user_id,
+                    club_tag: club_tag.club_tag,
+                },
+            },
+        );
+    } else {
+        context.insert("map", &None::<()>);
+    }
+
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("map/page.html.tera", &context)
+        .context("Rendering index template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
+}
+
+async fn get_map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
+    let context = config::context_with_auth_session(auth.as_ref());
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("map/upload.html.tera", &context)
+        .context("Rendering index template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
+}
 
 #[derive(Serialize, TS)]
 #[ts(export)]
@@ -341,7 +458,7 @@ struct MapUploadResponse {
     map_id: i32,
 }
 
-async fn map_upload(
+async fn post_map_upload(
     State(state): State<AppState>,
     session: NadeoAuthSession,
     WithRejection(mut multipart, _): WithRejection<Multipart, ApiError>,
@@ -442,76 +559,5 @@ async fn map_upload(
 
     Ok(Json(MapUploadResponse {
         map_id: ap_id.ap_id,
-    }))
-}
-
-#[derive(Deserialize, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-struct AllMapsByRequest {
-    user_id: i32,
-}
-
-#[derive(Serialize, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-struct AllMapsByResponse {
-    maps: Vec<MapDataResponse>,
-}
-
-async fn map_all_by(
-    State(state): State<AppState>,
-    WithRejection(Query(request), _): WithRejection<Query<AllMapsByRequest>, ApiError>,
-) -> Result<Json<AllMapsByResponse>, ApiError> {
-    let maps = sqlx::query!(
-        "
-            SELECT ap_id, gbx_mapuid, mapname, votes, uploaded FROM map WHERE author = $1
-        ",
-        request.user_id
-    )
-    .fetch_all(&state.pool)
-    .await
-    .context("Fetching all maps by user from database")?;
-
-    let Some(user) = sqlx::query!(
-        "SELECT display_name, account_id FROM ap_user WHERE user_id = $1",
-        request.user_id,
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .context("Finding Accel Pen account for finding all maps by user")?
-    else {
-        tracing::error!("{} not in db", request.user_id);
-        return Err(ApiErrorInner::NotFound {
-            error: String::from("User not found in DB?"),
-        }
-        .into());
-    };
-
-    let club_tag = NadeoClubTag::get(&user.account_id)
-        .await
-        .context("Getting club tag for all maps by author")?;
-
-    Ok(Json(AllMapsByResponse {
-        maps: maps
-            .into_iter()
-            .map(|row| {
-                Ok(MapDataResponse {
-                    name: row.mapname,
-                    author: UserResponse {
-                        display_name: user.display_name.clone(),
-                        account_id: user.account_id.clone(),
-                        user_id: request.user_id,
-                        club_tag: club_tag.club_tag.clone(),
-                    },
-                    uploaded: row
-                        .uploaded
-                        .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
-                        .context("Formatting map upload time")?,
-                    map_id: row.ap_id,
-                    uid: row.gbx_mapuid,
-                })
-            })
-            .collect::<Result<Vec<_>, ApiError>>()?,
     }))
 }

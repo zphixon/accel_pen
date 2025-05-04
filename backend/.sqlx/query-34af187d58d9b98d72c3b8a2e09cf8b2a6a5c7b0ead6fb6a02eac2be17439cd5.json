@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,\n                map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id\n            FROM map JOIN ap_user ON map.author = ap_user.user_id\n            WHERE map.ap_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ap_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "gbx_mapuid",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "mapname",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "votes",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "uploaded",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "author",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "display_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "user_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "account_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "34af187d58d9b98d72c3b8a2e09cf8b2a6a5c7b0ead6fb6a02eac2be17439cd5"
+}

@@ -5,7 +5,7 @@ use crate::{
     AppState,
 };
 use axum::{
-    extract::FromRequestParts,
+    extract::{FromRequestParts, OptionalFromRequestParts},
     http::{request::Parts, StatusCode},
 };
 use base64::Engine;
@@ -36,7 +36,7 @@ pub fn oauth_start_url(state: Uuid) -> Result<Url, ApiError> {
             ("response_type", "code"),
             ("client_id", &CONFIG.nadeo.oauth.identifier),
             ("scope", "read_favorite write_favorite"),
-            ("redirect_uri", CONFIG.nadeo.oauth.redirect_url.as_str()),
+            ("redirect_uri", CONFIG.oauth_redirect_url().as_str()),
             ("state", state.as_hyphenated().to_string().as_str()),
         ],
     )
@@ -156,7 +156,7 @@ impl NadeoAuthSessionInner {
             .append_pair("client_id", &CONFIG.nadeo.oauth.identifier)
             .append_pair("client_secret", &NADEO_OAUTH_CLIENT_SECRET)
             .append_pair("code", &request.code)
-            .append_pair("redirect_uri", CONFIG.nadeo.oauth.redirect_url.as_str())
+            .append_pair("redirect_uri", CONFIG.oauth_redirect_url().as_str())
             .finish();
 
         let response = CLIENT
@@ -306,6 +306,20 @@ impl FromRequestParts<AppState> for NadeoAuthSession {
             Ok(session)
         } else {
             NadeoAuthSession::upgrade_with(random_state_session, tokens).await
+        }
+    }
+}
+
+impl OptionalFromRequestParts<AppState> for NadeoAuthSession {
+    type Rejection = ApiError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        match <Self as FromRequestParts<AppState>>::from_request_parts(parts, state).await {
+            Ok(auth) => Ok(Some(auth)),
+            Err(_) => Ok(None),
         }
     }
 }

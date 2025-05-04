@@ -1,16 +1,15 @@
+use serde::Serialize;
 use std::{net::SocketAddr, path::PathBuf, sync::LazyLock};
+use tera::Context;
 use url::Url;
 
 from_env::config!(
     "ACCEL_PEN",
+    debug_templates: bool,
     net {
-        domain: String,
-        #[serde(default)]
-        root: String,
+        url: Url,
         bind: SocketAddr,
         user_agent: String,
-        cors_host: String,
-        frontend_url: Url,
     },
     db {
         url: Url,
@@ -21,7 +20,6 @@ from_env::config!(
         oauth {
             identifier: String,
             secret_path: PathBuf,
-            redirect_url: Url,
         },
         ubi {
             username: String,
@@ -31,8 +29,28 @@ from_env::config!(
 );
 
 impl Config {
-    pub fn route_v1(&self, path: &str) -> String {
-        format!("{}/v1/{}", self.net.root, path)
+    pub fn route_api_v1(&self, path: &str) -> String {
+        format!("{}api/v1/{}", self.net.url.path(), path)
+    }
+
+    pub fn route(&self, path: &str) -> String {
+        format!("{}{}", self.net.url.path(), path)
+    }
+
+    pub fn oauth_start_route(&self) -> String {
+        self.route_api_v1("oauth/start")
+    }
+
+    pub fn oauth_finish_route(&self) -> String {
+        self.route_api_v1("oauth/finish")
+    }
+
+    pub fn oauth_logout_route(&self) -> String {
+        self.route_api_v1("oauth/logout")
+    }
+
+    pub fn oauth_redirect_url(&self) -> Url {
+        self.net.url.join(&self.oauth_finish_route()).unwrap()
     }
 }
 
@@ -66,3 +84,54 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
 
     config
 });
+
+pub static CONFIG_CONTEXT: LazyLock<Context> = LazyLock::new(|| {
+    let mut context = Context::new();
+
+    #[derive(Serialize)]
+    struct ConfigContext {
+        url: String,
+        root: &'static str,
+        login_path: String,
+        logout_path: String,
+    }
+
+    context.insert(
+        "config",
+        &ConfigContext {
+            url: CONFIG.net.url.as_str().to_owned(),
+            root: CONFIG.net.url.path(),
+            login_path: CONFIG.oauth_start_route(),
+            logout_path: CONFIG.oauth_logout_route(),
+        },
+    );
+
+    context
+});
+
+pub fn context_with_auth_session(auth: Option<&crate::nadeo::auth::NadeoAuthSession>) -> Context {
+    let mut context = CONFIG_CONTEXT.clone();
+
+    #[derive(Serialize)]
+    struct LoggedInUser<'auth> {
+        account_id: &'auth str,
+        display_name: &'auth str,
+        club_tag: &'auth str,
+        user_id: i32,
+    }
+
+    if let Some(auth) = auth {
+        // this clearly clones anyway hmmmmm
+        context.insert(
+            "user",
+            &Some(LoggedInUser {
+                account_id: auth.account_id(),
+                display_name: auth.display_name(),
+                club_tag: auth.club_tag(),
+                user_id: auth.user_id(),
+            }),
+        );
+    }
+
+    context
+}

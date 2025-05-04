@@ -1,0 +1,9 @@
+.mapHeader {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.mapAuthor {
+  justify-self: end;
+  align-self: center;
+}

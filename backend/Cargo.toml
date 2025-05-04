@@ -6,15 +6,17 @@ edition = "2021"
 [dependencies]
 gbx_rs = { path = "../gbx_rs" }
 from_env = { git = "https://github.com/zphixon/from_env" }
+tera = { git = "https://github.com/zphixon/tera", branch = "has_template", features = ["builtins"] }
 
 anyhow = { version = "1.0.97", features = ["backtrace"] }
 axum = { version = "0.8.1", features = ["query", "macros", "multipart"] }
-axum-extra = { version = "0.10.1", features = ["cookie", "typed-header"] }
+axum-extra = { version = "0.10.1", features = ["typed-header"] }
 base64 = "0.22.1"
 diesel = "2.2.10"
 form_urlencoded = "1.2.1"
 hex = "0.4.3"
 image = { version = "0.25.5", features = ["serde"] }
+notify = "8.0.0"
 random = "0.9.1"
 reqwest = { version = "0.12.15", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
@@ -25,7 +27,7 @@ thiserror = "2.0.12"
 time = { version = "0.3.41", features = ["serde"] }
 tokio = { version = "1.44.1", features = ["full"] }
 toml = "0.8.20"
-tower-http = { version = "0.6.2", features = ["cors", "limit"] }
+tower-http = { version = "0.6.2", features = ["cors", "limit", "fs"] }
 tower-sessions = { version = "0.14.0", features = ["signed", "private"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["tracing", "env-filter"] }

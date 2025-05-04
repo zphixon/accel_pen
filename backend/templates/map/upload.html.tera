@@ -1,0 +1,52 @@
+{% extends "layout.html.tera" %}
+
+{% block tabTitle -%}
+  {{ super() }} - Upload a map
+{%- endblock tabTitle %}
+
+{% block title -%}
+  {{ super() }} - Upload a map
+{%- endblock title %}
+
+{% block returnPath -%}
+  ?returnPath=/map/upload
+{%- endblock returnPath %}
+
+{% block content %}
+  {% if user %}
+    <script type="text/javascript">
+      async function uploadMap(form) {
+        try {
+          var response = await fetch(
+            "{{ config.url }}api/v1/map/upload",
+            {
+              signal: AbortSignal.timeout(5000),
+              mode: "cors",
+              credentials: "include",
+              method: "POST",
+              body: new FormData(form),
+            }
+          );
+        } catch (err) {
+          console.log("Could not post map:", err);
+        }
+        var text = "";
+        try {
+          text = await response.text();
+          var value = JSON.parse(text);
+        } catch (err) {
+          console.log("API response not JSON", err, text);
+        }
+        console.log(value);
+      }
+    </script>
+    <form onsubmit="uploadMap(this)" enctype="multipart/form-data">
+      <label for="mapData">Map file </label>
+      <input name="map_data" id="mapData" type="file" />
+      <button type="submit">Upload</button>
+    </form>
+    <div id="response"></div>
+  {% else %}
+    <p>Log in to upload</p>
+  {% endif %}
+{% endblock content %}

@@ -3,7 +3,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
-use std::{fmt::Display, ops::Deref};
+use std::{error::Error, fmt::Display, ops::Deref};
 use ts_rs::TS;
 
 #[derive(Debug, Serialize, thiserror::Error, strum::IntoStaticStr, TS)]
@@ -181,6 +181,14 @@ pub enum ApiErrorInner {
         #[from]
         error: time::error::Format,
     },
+
+    #[error("Could not parse templates: {error} {source:?}", source = .error.source())]
+    Tera {
+        #[ts(skip)]
+        #[serde(skip)]
+        #[from]
+        error: tera::Error,
+    },
 }
 
 impl From<(axum::http::StatusCode, &'static str)> for ApiErrorInner {
@@ -219,7 +227,8 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::AxumError { .. }
             | ApiErrorInner::ApiReturnedError { .. }
             | ApiErrorInner::UnexpectedResponse { .. }
-            | ApiErrorInner::Time { error: _ } => StatusCode::INTERNAL_SERVER_ERROR,
+            | ApiErrorInner::Tera { .. }
+            | ApiErrorInner::Time { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             ApiErrorInner::ApiFailed { error } => error.status().unwrap_or(StatusCode::BAD_GATEWAY),
 

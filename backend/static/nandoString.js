@@ -1,14 +1,16 @@
-import "./NandoString.css";
+function createNandoString(el) {
+  let result = document.createElement("span");
+  result.classList = el.classList;
 
-function NandoString({ string: tag }: { string: string }) {
-  let result = <></>;
+  let tag = el.innerText;
+
   let bold = false;
   let italic = false;
   let wide = false;
   let narrow = false;
   let uppercase = false;
   let shadow = false;
-  let color: string | undefined = undefined;
+  let color = undefined;
 
   let ptr = 0;
   while (ptr < tag.length) {
@@ -20,9 +22,11 @@ function NandoString({ string: tag }: { string: string }) {
       || 0xF0000 <= codepoint && codepoint <= 0xFFFFD
       || 0x100000 <= codepoint && codepoint <= 0x10FFFD
     ) {
-      part = <i className="fa-solid">{tag.charAt(ptr)}</i>;
+      part = document.createElement("i");
+      part.className = "fa-solid";
+      part.innerText = tag.charAt(ptr);
     } else {
-      part = <>{tag.charAt(ptr)}</>;
+      part = document.createTextNode(tag.charAt(ptr));
     }
 
     if (tag.charAt(ptr) == "$") {
@@ -84,32 +88,56 @@ function NandoString({ string: tag }: { string: string }) {
     }
 
     if (bold) {
-      part = <b>{part}</b>;
+      let inner = document.createElement("b");
+      inner.appendChild(part);
+      part = inner;
     }
     if (italic) {
-      part = <i>{part}</i>;
+      let inner = document.createElement("i");
+      inner.appendChild(part);
+      part = inner;
     }
     if (wide) {
-      part = <span className="textStretch">{part}</span>;
+      let inner = document.createElement("span");
+      inner.className = "textStretch";
+      inner.appendChild(part);
+      part = inner;
     }
     if (narrow) {
-      part = <span className="textShrink">{part}</span>;
+      let inner = document.createElement("span");
+      inner.className = "textShrink";
+      inner.appendChild(part);
+      part = inner;
     }
     if (uppercase) {
-      part = <span className="textUppercase">{part}</span>;
+      let inner = document.createElement("span");
+      inner.className = "textUppercase";
+      inner.appendChild(part);
+      part = inner;
     }
     if (shadow) {
-      part = <span className="textShadow">{part}</span>;
+      let inner = document.createElement("span");
+      inner.className = "textShadow";
+      inner.appendChild(part);
+      part = inner;
     }
     if (color != undefined) {
-      part = <span style={{ color: "#" + color }}>{part}</span>;
+      let inner = document.createElement("span");
+      inner.style = "color:#" + color;
+      inner.appendChild(part);
+      part = inner;
     }
 
-    result = <>{result}{part}</>;
+    result.appendChild(part)
     ptr += 1;
   }
 
-  return <span className="nandoString">{result}</span>;
+  return result;
 }
 
-export default NandoString
+window.addEventListener("load", (_) => {
+  let nandoStrings = document.querySelectorAll(".nandoString");
+  for (let el of nandoStrings) {
+    el.replaceWith(createNandoString(el));
+  }
+});
