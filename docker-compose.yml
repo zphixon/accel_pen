@@ -1,8 +1,12 @@
 name: accel_pen
 
 secrets:
-  db_root_password:
+  db_password:
     file: ${ACCEL_PEN_DB_PASSWORD_PATH}
+  nadeo_client_secret:
+    file: ${ACCEL_PEN_NADEO_AUTH_SECRET_PATH}
+  ubi_password:
+    file: ${ACCEL_PEN_NADEO_UBI_PASSWORD_PATH}
 
 volumes:
   database:
@@ -17,17 +21,20 @@ services:
     ports:
       - "2460:2460"
     secrets:
-      - db_root_password
+      - db_password
+      - nadeo_client_secret
+      - ubi_password
+    environment:
+      ACCEL_PEN_DB_PASSWORD_PATH: /run/secrets/db_password
+      ACCEL_PEN_NADEO_AUTH_SECRET_PATH: /run/secrets/nadeo_client_secret
+      ACCEL_PEN_NADEO_UBI_PASSWORD_PATH: /run/secrets/ubi_password
 
   database:
-    build:
-      context: ./backend
-      dockerfile: database.Dockerfile
-    restart: always
+    image: postgres:17.4-bookworm
     volumes:
       - database:/var/lib/mysql
     secrets:
-      - db_root_password
+      - db_password
     environment:
-      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_password
       MYSQL_DATABASE: accel_pen
