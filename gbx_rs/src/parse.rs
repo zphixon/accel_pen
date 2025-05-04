@@ -9,7 +9,7 @@ macro_rules! parser {
     (
         $(
             $class_id:literal $variant:ident {
-                $( $prop:ident : $ty:ty ),* $(,)?
+                $( $(#[ $ignore:meta ])? $prop:ident : $ty:ty ),* $(,)?
             } {
                 $( $chunk_id:literal => $handler:expr ),* $(,)?
             }
@@ -49,11 +49,15 @@ macro_rules! parser {
         }
 
         $(
-            #[derive(Default, Debug, Clone)]
+            #[derive(Default, derivative::Derivative, Clone)]
+            #[derivative(Debug)]
             #[non_exhaustive]
             pub struct $variant<'node> {
                 phantom: std::marker::PhantomData<&'node ()>,
-                $( pub $prop : $ty ,)*
+                $(
+                    $(#[ $ignore ])?
+                    pub $prop : $ty ,
+                )*
             }
 
             impl<'node> Parsable<'node> for $variant<'node> {
@@ -220,6 +224,14 @@ parser!(
         gold_time: Option<u32>,
         author_time: Option<u32>,
         cost: Option<u32>,
+        header_version: Option<u32>,
+        xml_data: Option<&'node str>,
+        #[derivative(Debug = "ignore")]
+        thumbnail_data: Option<&'node [u8]>,
+        author_login: Option<&'node str>,
+        author_nickname: Option<&'node str>,
+        author_zone: Option<&'node str>,
+        author_extra_info: Option<&'node str>,
     } {
         0x03043002 => |this: &mut CtnChallenge<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
             let version = cursor.read_u8().context("Reading map info 1 version")?;
@@ -279,6 +291,88 @@ parser!(
                 let _num_laps = cursor.read_u32::<LE>().context("Reading num laps")?;
             }
 
+            Ok(())
+        },
+
+        0x03043003 => |this: &mut CtnChallenge<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
+            let version = cursor.read_u8().context("Reading map info 2 version")?;
+
+            this.map_info = Some(cursor.read_meta().context("Reading map info 2 map info")?);
+            this.map_name = Some(cursor.read_string().context("Reading map info 2 map name")?);
+            let _map_kind = cursor.read_u8().context("Reading map info 2 map kind")?;
+
+            if version >= 1 {
+                let _unknown = cursor.read_u32::<LE>().context("Reading map info 2 unknown 1")?;
+                let _password = cursor.read_string().context("Reading map info 2 password")?;
+            }
+
+            if version >= 2 {
+                let _decoration = cursor.read_meta().context("Reading map info 2 decoration")?;
+            }
+
+            if version >= 3 {
+                let _map_coord_origin = cursor.read_vec2().context("Reading map info 2 map coord origin")?;
+            }
+
+            if version >= 4 {
+                let _map_coord_target = cursor.read_vec2().context("Reading map info 2 map coord target")?;
+            }
+
+            if version >= 5 {
+                let _pack_mask = cursor.read_u128::<LE>().context("Reading map info 2 pack mask")?;
+            }
+
+            if version >= 6 {
+                let _map_type = cursor.read_string().context("Reading map info 2 map type")?;
+                let _map_style = cursor.read_string().context("Reading map info 2 map style")?;
+            }
+
+            if version >= 8 {
+                let _lightmap_cache_uid = cursor.read_u64::<LE>().context("Reading map info 2 lightmap cache uid")?;
+            }
+
+            if version >= 9 {
+                let _lightmap_version = cursor.read_u8().context("Reading map info 2 lightmap version")?;
+            }
+
+            if version >= 11 {
+                let _title_id = cursor.read_lookback_string().context("Reading map info 2 title ID")?;
+            }
+
+            Ok(())
+        },
+
+        0x03043004 => |this: &mut CtnChallenge<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
+            this.header_version = Some(cursor.read_u32::<LE>().context("Reading header version")?);
+            Ok(())
+        },
+
+        0x03043005 => |this: &mut CtnChallenge<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
+            this.xml_data = Some(cursor.read_string().context("Reading XML data")?);
+            Ok(())
+        },
+
+        0x03043007 => |this: &mut CtnChallenge<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
+            let _version = cursor.read_u32::<LE>().context("Reading thumbnail version")?;
+            let thumbnail_size = cursor.read_u32::<LE>().context("Reading thumbnail size")? as usize;
+            let _thumbnail_start_tag = cursor.read_string_exact("<Thumbnail.jpg>".len()).context("Reading thumbnail start tag")?;
+            let position = cursor.position() as usize;
+            this.thumbnail_data = Some(&cursor.get_ref()[position..=position + thumbnail_size]);
+            cursor.seek_relative(thumbnail_size as i64).context("Seeking after reading thumbnail data")?;
+            let _thumbnail_end_tag = cursor.read_string_exact("</Thumbnail.jpg>".len()).context("Reading thumbnail end tag")?;
+            let _comments_start_tag = cursor.read_string_exact("<Comments>".len()).context("Reading comments start tag")?;
+            let _comments = cursor.read_string().context("Reading comments")?;
+            let _comments_end_tag = cursor.read_string_exact("</Comments>".len()).context("Reading comments end tag")?;
+            Ok(())
+        },
+
+        0x03043008 => |this: &mut CtnChallenge<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
+            let _version = cursor.read_u32::<LE>().context("Reading author information")?;
+            let _author_version = cursor.read_u32::<LE>().context("Reading author version")?;
+            this.author_login = Some(cursor.read_string().context("Reading author login")?);
+            this.author_nickname = Some(cursor.read_string().context("Reading author nickname")?);
+            this.author_zone = Some(cursor.read_string().context("Reading author zone")?);
+            this.author_extra_info = Some(cursor.read_string().context("Reading author extra info")?);
             Ok(())
         },
 

@@ -64,8 +64,7 @@ impl<'node> BodyCursor<'node> {
         }
     }
 
-    pub fn read_string(&mut self) -> Result<&'node str, GbxError> {
-        let count = self.read_u32::<LE>().context("Reading string length")?;
+    pub fn read_string_exact(&mut self, count: usize) -> Result<&'node str, GbxError> {
         let start = self.position() as usize;
         let end = start + count as usize;
 
@@ -78,6 +77,11 @@ impl<'node> BodyCursor<'node> {
         self.seek_relative(count as i64)
             .context("Seeking after reading string")?;
         Ok(str)
+    }
+
+    pub fn read_string(&mut self) -> Result<&'node str, GbxError> {
+        let count = self.read_u32::<LE>().context("Reading string length")?;
+        self.read_string_exact(count as usize)
     }
 
     pub fn read_meta(&mut self) -> Result<Meta<'node>, GbxError> {
@@ -183,6 +187,10 @@ impl<'node> BodyCursor<'node> {
 
     pub fn read_byte3(&mut self) -> Result<[u8; 3], GbxError> {
         Ok([self.read_u8()?, self.read_u8()?, self.read_u8()?])
+    }
+
+    pub fn read_vec2(&mut self) -> Result<[f32; 2], GbxError> {
+        Ok([self.read_f32::<LE>()?, self.read_f32::<LE>()?])
     }
 
     pub fn read_file_ref(&mut self) -> Result<&'node str, GbxError> {

@@ -313,6 +313,7 @@ impl Debug for Node<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Node")
             .field("header", &self.header)
+            .field("data", &"...")
             .field("body", &"...")
             .finish()
     }
