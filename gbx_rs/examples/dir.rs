@@ -46,6 +46,10 @@ fn main() -> Result<(), &'static str> {
                         .gold_time
                         .unwrap(),
                 );
+
+                if let Some(thumbnail) = map.thumbnail_data {
+                    println!("thumbnail format: {:?}", image::guess_format(thumbnail));
+                }
             } else {
                 println!("    not a map hmmm")
             }

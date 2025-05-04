@@ -17,27 +17,13 @@ fn main() -> Result<(), &'static str> {
     match gbx_rs::Node::read_from(&data) {
         Ok(node) => {
             println!("{:#?}", node);
-            //match node.to::<CGameCtnChallenge>() {
-            //    Ok(mut map) => match map.read_full() {
-            //        Ok(()) => {
-            //            println!("{:?}", map.map_name.unwrap());
-            //            println!(
-            //                "{:?}",
-            //                map.challenge_parameters.unwrap().author_time.unwrap()
-            //            );
-            //        }
-            //        Err(err) => {
-            //            println!("couldn't read map in full:\n{}", err);
-            //        }
-            //    },
-            //    Err(err) => {
-            //        println!("couldn't read as a map:\n{}", err);
-            //    }
-            //}
-
             match node.parse() {
                 Ok(gbx_rs::parse::CGame::CtnChallenge(map)) => {
                     println!("got a map: {:#?}", map);
+                    if let Some(thumbnail) = map.thumbnail_data {
+                        //let image = image::ImageReader::new(std::io::Cursor::new(thumbnail)).with_guessed_format().unwrap().decode().unwrap();
+                        println!("thumbnail format: {:?}", image::guess_format(thumbnail));
+                    }
                 }
                 Ok(_) => {
                     println!("didn't get a map??");
