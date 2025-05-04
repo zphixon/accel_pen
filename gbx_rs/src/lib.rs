@@ -303,12 +303,13 @@ fn parse_header<B: AsRef<[u8]>>(cursor: &mut Cursor<B>) -> Result<Header, GbxErr
     })
 }
 
-pub struct Node {
+pub struct Node<'data> {
     header: Header,
+    data: &'data [u8],
     body: Vec<u8>,
 }
 
-impl Debug for Node {
+impl Debug for Node<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Node")
             .field("header", &self.header)
@@ -317,8 +318,11 @@ impl Debug for Node {
     }
 }
 
-impl Node {
-    pub fn read_from<B: AsRef<[u8]> + std::panic::UnwindSafe>(data: B) -> Result<Node, GbxError> {
+impl<'data> Node<'data> {
+    pub fn read_from<B: AsRef<[u8]> + std::panic::UnwindSafe + 'data>(
+        data: &'data B,
+    ) -> Result<Node<'data>, GbxError> {
+        let data = data.as_ref();
         let mut cursor = Cursor::new(data);
         let header = parse_header(&mut cursor).context("Parsing header")?;
         if header.body_compression != Compression::Compressed {
@@ -332,30 +336,40 @@ impl Node {
         let compressed_size = cursor.read_u32::<LE>().context("Reading compressed size")?;
         tracing::debug!("compressed size {}", compressed_size);
 
-        let Ok(body) = std::panic::catch_unwind(move || {
-            let mut cursor = cursor;
+        let body = lzokay_native::decompress(&mut cursor, None).context("Decompressing body")?;
+        //let Ok(body) = std::panic::catch_unwind(move || {
+        //    let mut cursor = cursor;
 
-            #[allow(unexpected_cfgs)]
-            if cfg!(fuzzing) {
-                let position = cursor.position() as usize;
-                let inner: B = cursor.into_inner();
-                Ok(Vec::from(&inner.as_ref()[position..]))
-            } else {
-                lzokay_native::decompress(&mut cursor, None).context("Decompressing body")
-            }
-        }) else {
-            return Err(GbxErrorInner::Lzo(lzokay_native::Error::Unknown).into());
-        };
+        //    #[allow(unexpected_cfgs)]
+        //    if cfg!(fuzzing) {
+        //        let position = cursor.position() as usize;
+        //        let inner: B = cursor.into_inner();
+        //        Ok(Vec::from(&inner.as_ref()[position..]))
+        //    } else {
+        //        lzokay_native::decompress(&mut cursor, None).context("Decompressing body")
+        //    }
+        //}) else {
+        //    return Err(GbxErrorInner::Lzo(lzokay_native::Error::Unknown).into());
+        //};
 
-        let body = body?;
-        Ok(Node { header, body })
+        //let body = body?;
+        Ok(Node { header, data, body })
     }
 
     pub fn parse(&self) -> Result<parse::CGame, GbxError> {
-        parse::CGame::parse(
+        let mut this = parse::CGame::parse(
             &mut BodyCursor::new(Cursor::new(&self.body)),
             self.header.class_id,
-        )
+        )?;
+
+        let mut cursor = BodyCursor::new(Cursor::new(self.data));
+        for header_chunk in self.header.chunks.iter() {
+            tracing::trace!("Parsing header chunk {:08x}", header_chunk.id);
+            cursor.set_position(header_chunk.data_start);
+            this.parse_one(&mut cursor, self.header.class_id | header_chunk.id)?;
+        }
+
+        Ok(this)
     }
 }
 

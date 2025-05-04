@@ -22,8 +22,9 @@ macro_rules! parser {
         }
 
         impl<'node> CGame<'node> {
-            pub fn supports(class_id: u32) -> bool {
-                [$($variant::CLASS_ID,)*].contains(&class_id)
+            pub fn supports(chunk_id: u32) -> bool {
+                [$($variant::CLASS_ID,)*].contains(&chunk_id)
+                $(|| $variant::supports(chunk_id))*
             }
 
             pub(crate) fn parse(cursor: &mut BodyCursor<'node>, class_id: u32) -> Result<CGame<'node>, GbxError> {
@@ -31,6 +32,13 @@ macro_rules! parser {
                     $($class_id => Ok(CGame::$variant($variant::parse_full(cursor)?)),)*
                     _ => Err(GbxErrorInner::InvalidClass(class_id).into())
                 }
+            }
+
+            pub(crate) fn parse_one(&mut self, cursor: &mut BodyCursor<'node>, full_chunk_id: u32) -> Result<(), GbxError> {
+                match self {
+                    $(CGame::$variant(inner) => $variant::parse_one(cursor, inner, full_chunk_id)?,)*
+                };
+                Ok(())
             }
 
             pub fn class_id(&self) -> u32 {
@@ -94,6 +102,8 @@ macro_rules! parser {
     };
 }
 
+const LAST_CHUNK_ID: u32 = 0xfacade01;
+
 pub(crate) trait Parsable<'node>: Sized + Default {
     const CLASS_ID: u32;
 
@@ -109,57 +119,70 @@ pub(crate) trait Parsable<'node>: Sized + Default {
         wrapped_chunk_id: u32,
     ) -> Result<(), GbxError>;
 
-    fn parse_full(cursor: &mut BodyCursor<'node>) -> Result<Self, GbxError> {
-        let mut this = Self::default();
+    fn parse_one(
+        cursor: &mut BodyCursor<'node>,
+        this: &mut Self,
+        full_chunk_id: u32,
+    ) -> Result<(), GbxError> {
+        let class_id = class_wrap(full_chunk_id & 0xffff_f000);
+        let wrapped_chunk_id = class_id + (full_chunk_id & 0xfff);
 
-        loop {
-            let full_chunk_id = cursor.read_u32::<LE>().context("Reading full chunk ID")?;
-            if full_chunk_id == 0xfacade01 {
-                break;
-            }
+        tracing::trace!(
+            "full chunk ID: {:08x}; wrapped chunk ID {:08x}",
+            full_chunk_id,
+            wrapped_chunk_id
+        );
+        tracing::trace!(
+            "class ID: {:08x}; type class ID: {:08x}",
+            class_id,
+            Self::CLASS_ID
+        );
 
-            let class_id = class_wrap(full_chunk_id & 0xffff_f000);
-            let wrapped_chunk_id = class_id + (full_chunk_id & 0xfff);
+        if cursor
+            .peek_u32_le()
+            .context("Peeking for skippable chunk")?
+            == 0x53_4b_49_50
+        {
+            tracing::trace!("skippable");
+            let _skip = cursor.read_u32::<LE>().context("Reading SKIP bytes")?;
+            let chunk_data_size = cursor
+                .read_u32::<LE>()
+                .context("Reading skippable data size")?;
 
-            tracing::trace!(
-                "full chunk ID: {:08x}; wrapped chunk ID {:08x}",
-                full_chunk_id,
-                wrapped_chunk_id
-            );
-            tracing::trace!(
-                "class ID: {:08x}; type class ID: {:08x}",
-                class_id,
-                Self::CLASS_ID
-            );
-
-            if cursor
-                .peek_u32_le()
-                .context("Peeking for skippable chunk")?
-                == 0x53_4b_49_50
-            {
-                tracing::trace!("skippable");
-                let _skip = cursor.read_u32::<LE>().context("Reading SKIP bytes")?;
-                let chunk_data_size = cursor
-                    .read_u32::<LE>()
-                    .context("Reading skippable data size")?;
-                tracing::warn!("TODO: check if skippable chunks supported");
-                tracing::trace!("skipping {} bytes", chunk_data_size);
+            if !CGame::supports(full_chunk_id) {
+                tracing::warn!(
+                    "Unsupported: class {:08x} chunk id {:08x}",
+                    class_id,
+                    wrapped_chunk_id
+                );
                 cursor
                     .seek_relative(chunk_data_size as i64)
                     .context("Skipping skippable chunk")?;
-                continue;
+                return Ok(());
             }
-
-            this.handle_chunk(cursor, wrapped_chunk_id)
-                .with_context(|| {
-                    format!(
-                        "Handling chunk {:08x} for class {:08x}",
-                        wrapped_chunk_id,
-                        Self::CLASS_ID
-                    )
-                })?;
         }
 
+        this.handle_chunk(cursor, wrapped_chunk_id)
+            .with_context(|| {
+                format!(
+                    "Handling chunk {:08x} for class {:08x}",
+                    wrapped_chunk_id,
+                    Self::CLASS_ID
+                )
+            })?;
+
+        Ok(())
+    }
+
+    fn parse_full(cursor: &mut BodyCursor<'node>) -> Result<Self, GbxError> {
+        let mut this = Self::default();
+        loop {
+            let full_chunk_id = cursor.read_u32::<LE>().context("Reading full chunk ID")?;
+            if full_chunk_id == LAST_CHUNK_ID {
+                break;
+            }
+            Self::parse_one(cursor, &mut this, full_chunk_id)?;
+        }
         Ok(this)
     }
 }
@@ -192,7 +215,73 @@ parser!(
         map_info: Option<Meta<'node>>,
         decoration: Option<Meta<'node>>,
         size: Option<[u32; 3]>,
+        bronze_time: Option<u32>,
+        silver_time: Option<u32>,
+        gold_time: Option<u32>,
+        author_time: Option<u32>,
+        cost: Option<u32>,
     } {
+        0x03043002 => |this: &mut CtnChallenge<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
+            let version = cursor.read_u8().context("Reading map info 1 version")?;
+
+            if version <= 2 {
+                this.map_info = Some(cursor.read_meta().context("Reading map info 1 map info")?);
+                this.map_name = Some(cursor.read_string().context("Reading map info 1 map name")?);
+            }
+
+            let _unknown = cursor.read_u32::<LE>().context("Reading map info 1 unknown 1");
+
+            if version >= 1 {
+                this.bronze_time = Some(cursor.read_u32::<LE>().context("Reading map info 1 bronze time")?);
+                this.silver_time = Some(cursor.read_u32::<LE>().context("Reading map info 1 silver time")?);
+                this.gold_time = Some(cursor.read_u32::<LE>().context("Reading map info 1 gold time")?);
+                this.author_time = Some(cursor.read_u32::<LE>().context("Reading map info 1 author time")?);
+            }
+
+            if version == 2 {
+                let _unknown = cursor.read_u8().context("Reading map info 1 unknown 2");
+            }
+
+            if version >= 4 {
+                this.cost = Some(cursor.read_u32::<LE>().context("Reading map info 1 cost (coppers (riolu LOL XD XD XD XD)")?);
+            }
+
+            if version >= 5 {
+                let _is_lap_race = cursor.read_u32::<LE>().context("Reading lap race")?;
+            }
+
+            if version == 6 {
+                let _is_multilap = cursor.read_u32::<LE>().context("Reading is multilap")?;
+            }
+
+            if version >= 7 {
+                let _play_mode = cursor.read_u32::<LE>().context("Reading play mode")?;
+            }
+
+            if version >= 9 {
+                let _unknown = cursor.read_u32::<LE>().context("Reading map info 1 unknown 3")?;
+            }
+
+            if version >= 10 {
+                let _author_score = cursor.read_u32::<LE>().context("Reading map info 1 author score")?;
+            }
+
+            if version >= 11 {
+                let _editor_mode = cursor.read_u32::<LE>().context("Reading editor mode")?;
+            }
+
+            if version >= 12 {
+                let _unknown = cursor.read_u32::<LE>().context("Reading map info 1 unknown 4")?;
+            }
+
+            if version >= 13 {
+                let _num_checkpoints = cursor.read_u32::<LE>().context("Reading num checkpoints")?;
+                let _num_laps = cursor.read_u32::<LE>().context("Reading num laps")?;
+            }
+
+            Ok(())
+        },
+
         0x0304300d => |this: &mut CtnChallenge<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
             this.vehicle_model = Some(cursor.read_meta().context("Reading vehicle model")?);
             Ok(())
