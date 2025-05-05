@@ -320,7 +320,7 @@ impl Debug for Node<'_> {
 }
 
 impl<'data> Node<'data> {
-    pub fn read_from<B: AsRef<[u8]> + std::panic::UnwindSafe + 'data>(
+    pub fn read_from<B: AsRef<[u8]> + 'data>(
         data: &'data B,
     ) -> Result<Node<'data>, GbxError> {
         let data = data.as_ref();
