@@ -8,6 +8,7 @@ use axum::{
     Json, Router,
 };
 use axum_extra::extract::WithRejection;
+use base64::Engine;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -362,7 +363,8 @@ async fn get_map_page(
     let map = match sqlx::query!(
         "
             SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
-                map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id
+                map.author, map.thumbnail, ap_user.display_name, ap_user.user_id,
+                ap_user.account_id
             FROM map JOIN ap_user ON map.author = ap_user.user_id
             WHERE map.ap_id = $1
         ",
@@ -389,6 +391,7 @@ async fn get_map_page(
         votes: i32,
         uploaded: String,
         author: UserResponse,
+        thumbnail: String,
     }
 
     if let Some(map) = map {
@@ -419,6 +422,7 @@ async fn get_map_page(
                     user_id: map.user_id,
                     club_tag: club_tag.club_tag,
                 },
+                thumbnail: base64::engine::general_purpose::STANDARD.encode(map.thumbnail),
             },
         );
     } else {
@@ -520,12 +524,16 @@ async fn post_map_upload(
         return Err(ApiErrorInner::MissingFromMultipart { error: "Map name" }.into());
     };
 
+    let Some(thumbnail) = map.thumbnail_data else {
+        return Err(ApiErrorInner::MissingFromMultipart { error: "Thumbnail" }.into());
+    };
+
     let buffer = map_data.to_vec();
 
     match sqlx::query!(
         "
-            INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created)
-            VALUES ($1, $2, $3, $4, NOW())
+            INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created, thumbnail)
+            VALUES ($1, $2, $3, $4, NOW(), $5)
             ON CONFLICT DO NOTHING
             RETURNING ap_id
         ",
@@ -533,6 +541,7 @@ async fn post_map_upload(
         buffer,
         map_name,
         session.user_id(),
+        thumbnail,
     )
     .fetch_optional(&state.pool)
     .await

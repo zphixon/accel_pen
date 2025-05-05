@@ -1,0 +1,6 @@
+{% macro user_summary(user, class="") -%}
+  <span class="userSummary {{ class }}">
+    <span class="nandoString">{{ user.club_tag }}</span>
+    {{ user.display_name }}
+  </span>
+{%- endmacro user_summary %}

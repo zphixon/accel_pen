@@ -17,6 +17,7 @@ CREATE TABLE map (
     votes INTEGER NOT NULL DEFAULT 1,
     uploaded TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
     created TIMESTAMP WITH TIME ZONE NOT NULL,
+    thumbnail BYTEA NOT NULL,
 
     CONSTRAINT pk_map PRIMARY KEY (ap_id, gbx_mapuid),
     CONSTRAINT fk_map_author FOREIGN KEY (author)

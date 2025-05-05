@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,\n                map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id\n            FROM map JOIN ap_user ON map.author = ap_user.user_id\n            WHERE map.ap_id = $1\n        ",
+  "query": "\n            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,\n                map.author, map.thumbnail, ap_user.display_name, ap_user.user_id,\n                ap_user.account_id\n            FROM map JOIN ap_user ON map.author = ap_user.user_id\n            WHERE map.ap_id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -35,16 +35,21 @@
       },
       {
         "ordinal": 6,
+        "name": "thumbnail",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 7,
         "name": "display_name",
         "type_info": "Text"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "user_id",
         "type_info": "Int4"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "account_id",
         "type_info": "Text"
       }
@@ -63,8 +68,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "34af187d58d9b98d72c3b8a2e09cf8b2a6a5c7b0ead6fb6a02eac2be17439cd5"
+  "hash": "32c838289e630e4785411d4b734c58db3ecee15d6f296a1687de7137301693f3"
 }

@@ -1,9 +1,21 @@
 .mapHeader {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  display: grid;
+  grid-auto-flow: column;
 }
 
-.mapAuthor {
-  justify-self: end;
+.mapAuthor, .manageMap {
   align-self: center;
+  justify-self: end;
+}
+
+img.mapThumbnail {
+  transform: scaleY(-1);
+  max-width: 100%;
+}
+
+.mapDetails {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1em;
+  margin: 1em;
 }
