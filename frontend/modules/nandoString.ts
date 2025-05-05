@@ -1,6 +1,6 @@
-function createNandoString(el) {
-  let result = document.createElement("span");
-  result.classList = el.classList;
+function createNandoString(el: HTMLElement) {
+  let result: HTMLElement = document.createElement("span");
+  result.classList.add(...el.classList);
 
   let tag = el.innerText;
 
@@ -138,6 +138,10 @@ function createNandoString(el) {
 window.addEventListener("load", (_) => {
   let nandoStrings = document.querySelectorAll(".nandoString");
   for (let el of nandoStrings) {
-    el.replaceWith(createNandoString(el));
+    if (el instanceof HTMLElement) {
+      el.replaceWith(createNandoString(el));
+    } else {
+      console.log("Not an HTML element");
+    }
   }
 });

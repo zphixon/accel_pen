@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Bind on {}", CONFIG.net.bind);
 
-    let tera = Tera::new("templates/**/*").context("Reading templates")?;
+    let tera = Tera::new("frontend/templates/**/*").context("Reading templates")?;
     tracing::debug!("Template names:");
     for template_name in tera.get_template_names() {
         tracing::debug!("  {}", template_name);
@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
             let mut watcher = notify::recommended_watcher(tx).unwrap();
             watcher
                 .watch(
-                    &PathBuf::from("templates"),
+                    &PathBuf::from("frontend/templates"),
                     notify::RecursiveMode::Recursive,
                 )
                 .unwrap();
@@ -142,7 +142,7 @@ async fn main() -> anyhow::Result<()> {
             .route(&CONFIG.oauth_start_route(), get(oauth_start))
             .route(&CONFIG.oauth_finish_route(), get(oauth_finish))
             .route(&CONFIG.oauth_logout_route(), get(oauth_logout))
-            .nest_service(&CONFIG.route("static"), ServeDir::new("static"))
+            .nest_service(&CONFIG.route("static"), ServeDir::new("frontend/static"))
             .with_state(AppState { pool, tera })
             .layer(session_layer)
             .layer(DefaultBodyLimit::disable())

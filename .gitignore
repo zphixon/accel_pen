@@ -10,3 +10,5 @@
 *.sw?
 **/*secret*
 target/
+node_modules
+frontend/static/js
