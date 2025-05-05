@@ -473,8 +473,6 @@ dependencies = [
 [[package]]
 name = "lzokay-native"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "792ba667add2798c6c3e988e630f4eb921b5cbc735044825b7111ef1582c8730"
 dependencies = [
  "byteorder",
  "thiserror 1.0.69",
