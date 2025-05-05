@@ -5,8 +5,8 @@ use std::{
 };
 
 fn main() {
-    let _ = fs::create_dir("frontend/bindings");
-    let exports: Vec<_> = fs::read_dir("frontend/bindings")
+    let _ = fs::create_dir("frontend/modules/src/bindings");
+    let exports: Vec<_> = fs::read_dir("frontend/modules/src/bindings")
         .expect("read dir")
         .filter_map(Result::ok)
         .filter_map(|p| {
@@ -20,6 +20,6 @@ fn main() {
         .map(|f| format!("export * from \"./{}\"", f))
         .collect();
 
-    let mut file = File::create("frontend/bindings/index.ts").unwrap();
+    let mut file = File::create("frontend/modules/src/bindings/index.ts").unwrap();
     file.write_all(exports.join("\n").as_bytes()).unwrap();
 }
