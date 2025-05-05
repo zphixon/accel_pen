@@ -35,7 +35,7 @@
     </div>
 
     <div class="mapDetails">
-      <img class="mapThumbnail" src="data:image/jpeg;base64, {{ map.thumbnail }}" />
+      <img class="mapThumbnail" src="{{ config.root }}api/v1/map/{{ map.id }}/thumbnail" />
       <p>
         Uploaded <span class="uploadDate">{{ map.uploaded }}</span>
       </p>

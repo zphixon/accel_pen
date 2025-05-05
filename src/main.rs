@@ -128,6 +128,10 @@ async fn main() -> anyhow::Result<()> {
         let app = Router::new()
             .route(&CONFIG.route(""), get(index))
             .route(&CONFIG.route("map/{map_id}"), get(get_map_page))
+            .route(
+                &CONFIG.route_api_v1("map/{map_id}/thumbnail"),
+                get(get_map_thumbnail),
+            )
             .route(&CONFIG.route("map/upload"), get(get_map_upload))
             .route(&CONFIG.route_api_v1("map/upload"), post(post_map_upload))
             .route(&CONFIG.oauth_start_route(), get(oauth_start))
@@ -363,8 +367,7 @@ async fn get_map_page(
     let map = match sqlx::query!(
         "
             SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
-                map.author, map.thumbnail, ap_user.display_name, ap_user.user_id,
-                ap_user.account_id
+                map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id
             FROM map JOIN ap_user ON map.author = ap_user.user_id
             WHERE map.ap_id = $1
         ",
@@ -391,7 +394,6 @@ async fn get_map_page(
         votes: i32,
         uploaded: String,
         author: UserResponse,
-        thumbnail: String,
     }
 
     if let Some(map) = map {
@@ -422,7 +424,6 @@ async fn get_map_page(
                     user_id: map.user_id,
                     club_tag: club_tag.club_tag,
                 },
-                thumbnail: base64::engine::general_purpose::STANDARD.encode(map.thumbnail),
             },
         );
     } else {
@@ -439,6 +440,21 @@ async fn get_map_page(
         Ok(page) => Html(page).into_response(),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
     }
+}
+
+async fn get_map_thumbnail(
+    State(state): State<AppState>,
+    Path(map_id): Path<i32>,
+) -> Result<Response, ApiError> {
+    Ok((
+        [("Content-Type", "image/jpeg")],
+        sqlx::query!("SELECT thumbnail FROM map WHERE ap_id = $1", map_id)
+            .fetch_one(&state.pool)
+            .await
+            .context("Reading thumbnail from database")?
+            .thumbnail,
+    )
+        .into_response())
 }
 
 async fn get_map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
