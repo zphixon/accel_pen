@@ -2,13 +2,12 @@ use std::{path::PathBuf, sync::Arc};
 
 use axum::{
     extract::{DefaultBodyLimit, Multipart, Path, Query, State},
-    http::{HeaderValue, Method, StatusCode, Uri},
+    http::{HeaderValue, Method, StatusCode},
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Json, Router,
 };
 use axum_extra::extract::WithRejection;
-use base64::Engine;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -35,7 +34,7 @@ mod ubi;
 use config::CONFIG;
 use error::{ApiError, ApiErrorInner, Context};
 use nadeo::{
-    api::{NadeoClubTag, NadeoFavoriteMaps, NadeoUser},
+    api::NadeoClubTag,
     auth::{NadeoAuthSession, NadeoOauthFinishRequest, RandomStateSession},
 };
 use ubi::UbiTokens;
