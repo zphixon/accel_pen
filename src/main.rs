@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use axum::{
     extract::{DefaultBodyLimit, Multipart, Path, Query, State},
-    http::{HeaderValue, Method, StatusCode},
+    http::{header, HeaderValue, Method, StatusCode},
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Json, Router,
@@ -17,6 +17,7 @@ use tower_http::{
     cors::{AllowMethods, CorsLayer},
     limit::RequestBodyLimitLayer,
     services::ServeDir,
+    set_header::SetResponseHeaderLayer,
 };
 use tower_sessions::{
     cookie::{time::Duration, Key, SameSite},
@@ -124,12 +125,17 @@ async fn main() -> anyhow::Result<()> {
             .with_http_only(true)
             .with_private(Key::generate());
 
+        let long_cache = SetResponseHeaderLayer::overriding(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("max-age=604800"),
+        );
+
         let app = Router::new()
             .route(&CONFIG.route(""), get(index))
             .route(&CONFIG.route("map/{map_id}"), get(get_map_page))
             .route(
                 &CONFIG.route_api_v1("map/{map_id}/thumbnail"),
-                get(get_map_thumbnail),
+                get(get_map_thumbnail).layer(long_cache),
             )
             .route(&CONFIG.route("map/upload"), get(get_map_upload))
             .route(&CONFIG.route_api_v1("map/upload"), post(post_map_upload))
@@ -166,6 +172,16 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Serialize)]
+struct MapContext<'auth> {
+    id: i32,
+    gbx_uid: &'auth str,
+    name: &'auth str,
+    votes: i32,
+    uploaded: String,
+    author: UserResponse,
+}
+
 async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
     let mut context = config::context_with_auth_session(auth.as_ref());
 
@@ -183,15 +199,6 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
         .await
         {
             Ok(my_maps) => {
-                #[derive(Serialize)]
-                struct MapContext<'auth> {
-                    id: i32,
-                    gbx_uid: &'auth str,
-                    name: &'auth str,
-                    votes: i32,
-                    uploaded: time::OffsetDateTime,
-                }
-
                 let mut maps_context = Vec::new();
                 for map in my_maps.iter() {
                     maps_context.push(MapContext {
@@ -199,14 +206,83 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                         gbx_uid: &map.gbx_mapuid,
                         name: &map.mapname,
                         votes: map.votes,
-                        uploaded: map.uploaded,
+                        uploaded: map
+                            .uploaded
+                            .format(
+                                &time::format_description::well_known::Iso8601::DATE_TIME_OFFSET,
+                            )
+                            .context("Formatting map upload time")
+                            .expect(
+                                "this is why i wanted to use regular Results for error handling",
+                            ),
+                        author: UserResponse {
+                            display_name: auth.display_name().to_owned(),
+                            account_id: auth.account_id().to_owned(),
+                            user_id: auth.user_id(),
+                            club_tag: auth.club_tag().to_owned(),
+                        },
                     });
                 }
-                context.insert("maps", &maps_context);
+                context.insert("my_maps", &maps_context);
             }
             Err(err) => {
                 return (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response()
             }
+        }
+    }
+
+    match sqlx::query!(
+        "
+            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author,
+                ap_user.display_name, ap_user.user_id, ap_user.account_id
+            FROM map JOIN ap_user ON map.author = ap_user.user_id
+            ORDER BY map.ap_id DESC
+            LIMIT 10
+        ",
+    )
+    .fetch_all(&state.pool)
+    .await
+    {
+        Ok(recent_rows) => {
+            let mut recent_maps = Vec::new();
+            for map in recent_rows.iter() {
+                let Ok(club_tag) = NadeoClubTag::get(&map.account_id)
+                    .await
+                    .context("Getting club tag for map data author")
+                else {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Getting club tag for map author",
+                    )
+                        .into_response();
+                };
+
+                recent_maps.push(MapContext {
+                    id: map.ap_id,
+                    gbx_uid: &map.gbx_mapuid,
+                    name: &map.mapname,
+                    votes: map.votes,
+                    uploaded: map
+                        .uploaded
+                        .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+                        .context("Formatting map upload time")
+                        .expect("this is why i wanted to use regular Results for error handling"),
+                    author: UserResponse {
+                        display_name: map.display_name.clone(),
+                        account_id: map.account_id.clone(),
+                        user_id: map.user_id,
+                        club_tag: club_tag.club_tag,
+                    },
+                });
+            }
+            context.insert("recent_maps", &recent_maps);
+        }
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Couldn't get recent maps: {}", err),
+            )
+                .into_response()
         }
     }
 
@@ -385,16 +461,6 @@ async fn get_map_page(
         }
     };
 
-    #[derive(Serialize)]
-    struct MapContext<'auth> {
-        id: i32,
-        gbx_uid: &'auth str,
-        name: &'auth str,
-        votes: i32,
-        uploaded: String,
-        author: UserResponse,
-    }
-
     if let Some(map) = map {
         let Ok(club_tag) = NadeoClubTag::get(&map.account_id)
             .await
@@ -434,7 +500,7 @@ async fn get_map_page(
         .read()
         .unwrap()
         .render("map/page.html.tera", &context)
-        .context("Rendering index template")
+        .context("Rendering map page template")
     {
         Ok(page) => Html(page).into_response(),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
@@ -446,7 +512,7 @@ async fn get_map_thumbnail(
     Path(map_id): Path<i32>,
 ) -> Result<Response, ApiError> {
     Ok((
-        [("Content-Type", "image/jpeg")],
+        [(header::CONTENT_TYPE, "image/jpeg")],
         sqlx::query!("SELECT thumbnail FROM map WHERE ap_id = $1", map_id)
             .fetch_one(&state.pool)
             .await
@@ -463,7 +529,7 @@ async fn get_map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSes
         .read()
         .unwrap()
         .render("map/upload.html.tera", &context)
-        .context("Rendering index template")
+        .context("Rendering map upload template")
     {
         Ok(page) => Html(page).into_response(),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),

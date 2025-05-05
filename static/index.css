@@ -28,3 +28,31 @@ body {
 a {
   color: rgb(68, 68, 183);
 }
+
+img.mapThumbnail {
+  transform: scaleY(-1);
+  max-width: 100%;
+}
+
+.mapThumbnail.smallThumbnail {
+  max-width: 10em;
+}
+
+.mapTiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  row-gap: 2em;
+}
+
+.mapTile {
+  justify-self: center;
+  display: grid;
+  grid-auto-flow: row;
+  justify-items: center;
+}
+
+.mapTileData {
+  display: grid;
+  grid-auto-flow: row;
+  justify-items: center;
+}

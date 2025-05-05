@@ -35,7 +35,7 @@
     </div>
 
     <div class="mapDetails">
-      <img class="mapThumbnail" src="{{ config.root }}api/v1/map/{{ map.id }}/thumbnail" />
+      {{ macros::map_thumbnail(map=map) }}
       <p>
         Uploaded <span class="uploadDate">{{ map.uploaded }}</span>
       </p>

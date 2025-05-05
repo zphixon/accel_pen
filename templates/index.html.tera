@@ -1,24 +1,38 @@
 {% extends "layout.html.tera" %}
+{% import "macros.tera" as macros %}
 
 {% block content %}
   {% if user %}
     <h3>My maps
-      {% if maps | first != "" -%}
+      {% if my_maps | first != "" -%}
       - <a href="{{ config.root }}map/upload">Upload more</a>
       {%- endif -%}
     </h3>
-    {% for map in maps %}
-      <p>
+    {% for map in my_maps %}
+      <p style="margin-left: 1em;">
         <a href="{{ config.root }}map/{{ map.id }}">
           <span class="nandoString">{{ map.name }}</span>
         </a>
       </p>
     {% endfor %}
-    {% if maps | first == "" %}
+    {% if my_maps | first == "" %}
       <p>
         No maps! Why not
         <a href="{{ config.root }}map/upload">upload some?</a>
       </p>
     {% endif %}
   {% endif %}
+
+  <h3>Recently uploaded maps</h3>
+  <div class="mapTiles">
+    {% for map in recent_maps %}
+      <div class="mapTile">
+        <a href="{{ config.root }}map/{{ map.id }}">{{ macros::map_thumbnail(map=map, class="smallThumbnail") }}</a>
+        <div class="mapTileData">
+          <div class="mapTileName"><span class="nandoString">{{ map.name }}</div>
+          <div class="mapTileAuthor">by {{ macros::user_summary(user=map.author) }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 {% endblock content %}

@@ -4,3 +4,7 @@
     {{ user.display_name }}
   </span>
 {%- endmacro user_summary %}
+
+{% macro map_thumbnail(map, class="") %}
+  <img class="mapThumbnail {{ class }}" src="{{ config.root }}api/v1/map/{{ map.id }}/thumbnail" />
+{% endmacro map_thumbnail %}

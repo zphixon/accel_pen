@@ -27,7 +27,7 @@ thiserror = "2.0.12"
 time = { version = "0.3.41", features = ["serde"] }
 tokio = { version = "1.44.1", features = ["full"] }
 toml = "0.8.20"
-tower-http = { version = "0.6.2", features = ["cors", "limit", "fs"] }
+tower-http = { version = "0.6.2", features = ["cors", "limit", "fs", "set-header"] }
 tower-sessions = { version = "0.14.0", features = ["signed", "private"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["tracing", "env-filter"] }
