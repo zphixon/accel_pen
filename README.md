@@ -1,131 +1,293 @@
 # Accel Pen
 
-the trackmania map corral
+*The TrackMania map corral*
 
-- map packs
-  - map pack administrators
-  - list of maps
-  - submission approval
-- map uploads
-  - tags
-    * tag voting
-    * tag janitors?
-  * like reddit but for maps
-    * new/hot tabs, sortable by tag
-  - link back to map pack
-  - multiple authors
-  - comments
-  - awards
-  - leaderboards
-  - unlisted maps
-  * links to ecircuitmania?
-- daily featured maps
-  - totd tie-in
-- forums?
-- ubi login
-
-
-## deploying
-
-https://stackoverflow.com/a/68916787/18270160
-
-Set the environment variable ACCEL_PEN_DB_ROOT_PASSWORD_FILE to the path of a file containing the root
-password for MySQL. Run `docker compose -f docker-compose.yml up` and that should be it.
-
-## developing
-
-1. Create a MySQL database root password by creating a file `secret_root_pw.txt` in the repo root.
-2. Run `docker compose -f docker-compose.yml -f dev.docker-compose.yml up --build` to run the project in dev mode.
-3. If you're planning on changing any queries in the backend:
-  1. Run the project in a clean working tree. The database should be online while you make these changes.
-  2. Set the DATABASE_URL environment variable to point to the database container. Add the `root`
-     user and password from the password file to the URL. For example:
-     `mysql://root:$(cat ../secret_root_pw.txt)@localhost:3306/accel_pen`
-     If you're using WSL, get the IP from `wsl hostname -I`. 
-  3. Once you're happy with the new queries, run `cargo sqlx prepare` in the `backend` directory to
-     update the `.sqlx` directory.
-  4. Commit changes to the `.sqlx` directory.
-4. If you're planning on changing the database schema:
-  1. For now, delete the database volume and re-build the compose project. Kind of annoying :/
+- [ ] map packs
+  - [ ] list of maps
+  - [ ] map pack administrators
+  - [ ] submission approval
+- [ ] map uploads
+  - [ ] tags
+    * [ ] tag voting
+    * [ ] tag janitors?
+  * [ ] like reddit but for maps
+    * [ ] new/hot tabs, sortable by tag
+  - [ ] link back to map pack
+  - [ ] multiple authors
+  - [ ] threaded comments
+  - [ ] awards
+  - [ ] leaderboards
+  - [ ] unlisted maps
+  * [ ] links to ecircuitmania?
+- [ ] daily featured maps
+  - [ ] totd tie-in
+- [ ] forums?
+- [ ] ~~ubi login~~ nadeo login
 
 
-## auth dings
+## Deploying
 
-- frontend
-  - set window.location to backend `oauth_start` endpoint
-- backend
-  - set httpOnly cookie to a session ID
-  - redirect to third party
-- third party
-  - user authenticates and authorizes the app
-  - redirects to backend `oauth_finish` endpoint
-- backend
-  - check session ID cookie exists
-  - get access+refresh token
-  - create CSRF token
-  - redirect to frontend with CSRF token in params
-- frontend
-  - receive CSRF token
+- [ ] Regular Dockerfile
+- [ ] Docker compose support incoming
+
+### Configuration
+
+TODO docs
 
 
-then
-- frontend
-  - send session ID cookie and CSRF token
-- backend
-  - check session ID cookie corresponds with CSRF token
+## Developing
+
+To build for the first time:
+
+- Clone: `git clone https://github.com/zphixon/accel_pen --recurse-submodules`
+
+- Install build dependencies
+  - Node 23.11 (through node version manager is easiest)
+  - [SQLx CLI](https://github.com/launchbadge/sqlx/blob/6b2e0247d47d020d91dc6f7402d42e4e6131af11/sqlx-cli/README.md)
+  - Postgres (alternatively, `docker compose -f dev.docker-compose.yml up --build` will bring up a containerized installation)
+
+- Build the backend, and typescript bindings for the frontend
+  ```shell
+  # Test first - the build.rs script combines the generated bindings files
+  cargo t && cargo b
+  ```
+
+- Build the frontend
+  ```shell
+  cd frontend
+  ./node_modules/.bin/tsc
+  ```
+
+- Start the postgres database (Docker is recommended)
+
+- Run the project. Open in the browser at `localhost:2460`
+  ```shell
+  RUST_LOG='trace,notify=info,globset=info' cargo r -- dev.accel_pen.toml
+  ```
 
 
-# React + TypeScript + Vite
+### Adding Typescript modules
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Create your *.ts* file in *frontend/modules/src*.
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```ts
+import * as api from './api.js'; // .js extension required for modules to work
+import * as types from './bindings/index'; // no extension necessary, doesn't contain module exports
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Build it with the same command from earlier. The compiled JS will be placed in
+*frontend/static/js*. Use it in a page:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+```html
+<script type="module" src="{{ config.root }}static/js/myNewModule.js"></script>
 ```
+
+Note that since it's a module, it can't interact with other `script` elements.
+Write anything you need to run on page load directly in the *.ts* file.
+
+
+### Adding SSR pages
+
+Template files are automatically registered by a `Tera` instance if they are
+placed in *frontend/templates*. There is a *layout.html.tera* template with some
+common blocks that you might want, fontawesome support for club tags, and
+[ManiaPlanet-formatted strings](https://wiki.trackmania.io/en/content-creation/text-styling);
+as well as a macros file; otherwise it's pretty free-form. (Once I get annoyed
+by this aspect I will switch to [askama](https://lib.rs/crates/askama))
+
+The `Tera` instance is stored in a `RwLock`, allowing it to refresh templates
+when changes are discovered (enabled by [notify](https://lib.rs/crates/notify)).
+Set the top-level config value `debug_templates = true` to allow live template
+reloading. Still requires an F5 though.
+
+They are not automatically served however. Add a `.route()` call to the `Router`:
+
+```rust
+    let app = Router::new()
+        ...
+        .route(&CONFIG.route("map/{map_id}"), get(get_map_page))
+        ...
+```
+
+Define the handler:
+
+```rust
+async fn get_map_page(
+    // AppState contains the database connection pool
+    State(state): State<AppState>,
+
+    // Contains cookie-based server-side Nadeo OAuth API tokens which are
+    // automatically refreshed when an authenticated user connects to this
+    // endpoint. The cookie is just an index into the server-side storage,
+    // so no oauth tokens are transmitted to the client.
+    auth: Option<NadeoAuthSession>,
+
+    // Other extractors defined in the call to `route`
+    Path(map_id): Path<i32>,
+) -> Response {
+
+    // Get a Tera context containing information about the authenticated
+    // user, if there was one
+    let mut context = config::context_with_auth_session(auth.as_ref());
+
+    // Gather more information to put in `context` - do DB queries, make
+    // requests to the Nadeo OAuth API or web services API...
+
+    // Render and return the page
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("map/page.html.tera", &context)
+        .context("Rendering map page template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
+}
+```
+
+Finally, write your new template *.html.tera* file. See [the Tera docs](https://keats.github.io/tera/docs/)
+for more info.
+
+
+### Adding API routes
+
+A little simpler. Add a route:
+
+```rust
+    let app = Router::new()
+        ...
+        .route(&CONFIG.route_api_v1("map/upload"), post(post_map_upload))
+        ...
+```
+
+Define the handler:
+
+```rust
+// Create types for the request and response. This example handler doesn't have
+// a separate request type since it's using multipart, but requests are defined
+// exactly the same way, except with Deserialize instead of Serialize.
+
+#[derive(Serialize, TS)] // Make the type serializable, and definable in typescript
+#[ts(export)] // Export the type to *frontend/modules/src/bindigs*
+#[serde(tag = "type")] // Add a .type property to allow introspection in TS
+struct MapUploadResponse {
+    map_id: i32,
+}
+
+async fn post_map_upload(
+    State(state): State<AppState>,
+
+    // Not optional now - require that a user interacting with this endpoint is
+    // authenticated by OAuth, and has the relevant server-side session state
+    session: NadeoAuthSession,
+
+    // Perhaps other extractors, like Json(...). Use `WithRejection` to wrap the
+    // extractor's rejection error in an ApiError, if for example the request
+    // sends invalid multipart data or JSON objects.
+    WithRejection(mut multipart, _): WithRejection<Multipart, ApiError>,
+
+    // ApiError will serialize into JSON as a TsApiError in the bindings folder.
+    // This also applies to any rejections using WithRejection.
+) -> Result<Json<MapUploadResponse>, ApiError> {
+    ...
+}
+```
+
+
+### Adding static resources
+
+Add images, CSS, or plain JS files to *frontend/static*. They are served by a
+`ServeDir` service under the web path */static*.
+
+
+### Creating a new migration
+
+```shell
+sqlx migrate add -rs $migration_name
+# edit migration up/down
+sqlx migrate run
+```
+
+We prefer revertable migrations with sequential names (rather than date-based
+ones). Theoretically you should be able to `revert`, edit the migration, and
+`run` it again but I haven't tried this. If you screw up then GG, you might need
+to restart from scratch lol
+
+
+### Modifying an existing schema
+
+Kind of annoying, but preferable compared to having a billion migration scripts
+and not having a full view of the database schema. If [this issue](https://github.com/launchbadge/sqlx/issues/2066)
+ever gets traction then maybe we could just add migrations and consolidate when
+we feel like it.
+
+
+#### Method 1 (ideal but not sure if it actually works)
+
+```shell
+sqlx migrate revert --target-version 0
+# edit migration up/down
+sqlx migrate run
+```
+
+
+#### Method 2 (not ideal but does what I need it to do)
+
+```shell
+sudo docker container rm dev_accel_pen-database-1
+sudo docker volume rm dev_accel_pen_database
+# edit migration up/down
+sudo docker compose -f dev.docker-compose.yml up --build
+```
+
+### Adding new queries or modifying existing ones
+
+Edit the `query!` macro invocation, then run
+
+```shell
+cargo sqlx prepare -D "postgres://$user:$pass@$address/accel_pen"
+```
+
+Probably also restart rust_analyzer (in VS Code at least). Once you're happy,
+don't forget to include changes to the *.sqlx* directory in your commit.
+
+
+## Architecture
+
+The backend (*src*) is an [Axum](https://lib.rs/crates/axum) web and API server
+connected to a postgres database. The types for API requests and responses are
+generated by [ts-rs](https://lib.rs/crates/ts-rs) for consumption by the
+frontend.
+
+Accel Pen users correspond directly with Ubisoft accounts. An Accel Pen user
+instance is created when authenticating through OAuth for the first time, and
+returned on subsequent logins.
+
+The frontend (*frontend*) is a series of [Tera](https://lib.rs/crates/tera)
+templates rendered by the backend, using data filled in from the postgres
+database, the Nadeo OAuth API, or the Nadeo Ubisoft-credentialed API.
+
+This is a little cursed because I want server-side rendering without a
+framework. Dioxus and Next.JS exist and are probably pretty nice, but they seem
+too magical. I also want Typescript for the few cases where I need to add some
+light interactivity. Doing it this way affords me more control, and still allows
+me to add React down the line if I really need it.
+
+
+### Gamebox file support (*gbx_rs*)
+
+A normal Rust library. Fuzzing is supported with
+[cargo-fuzz](https://lib.rs/crates/cargo-fuzz).
+
+
+### LZO decompression (*lzokay-native-rs*)
+
+Forked from https://github.com/arma-tools/lzokay-native-rs due to some issues discovered in fuzzing.
+
+
+### Configuration with environment variables (*from_env*)
+
+Enables overriding config file values with structured environment variable names.
+
