@@ -1,3 +1,6 @@
 [submodule "from_env"]
 	path = from_env
 	url = git@github.com:zphixon/from_env
+[submodule "lzokay-native-rs"]
+	path = lzokay-native-rs
+	url = git@github.com:zphixon/lzokay-native-rs
