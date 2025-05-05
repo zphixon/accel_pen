@@ -256,7 +256,7 @@ impl IntoResponse for ApiError {
 
         let message = self.to_string();
         match serde_json::to_string(&TsApiError {
-            error: self.inner(),
+            error: self.into_inner(),
             status: status_code.as_u16(),
             message,
         }) {
@@ -350,7 +350,14 @@ impl Display for ApiError {
 }
 
 impl ApiError {
-    fn inner(self) -> ApiErrorInner {
+    pub fn into_inner(self) -> ApiErrorInner {
+        match self {
+            ApiError::Root(api_error_inner) => api_error_inner,
+            ApiError::Context { inner, .. } => inner.into_inner(),
+        }
+    }
+
+    pub fn inner(&self) -> &ApiErrorInner {
         match self {
             ApiError::Root(api_error_inner) => api_error_inner,
             ApiError::Context { inner, .. } => inner.inner(),

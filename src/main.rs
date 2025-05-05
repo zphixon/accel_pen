@@ -463,14 +463,6 @@ async fn post_map_upload(
     session: NadeoAuthSession,
     WithRejection(mut multipart, _): WithRejection<Multipart, ApiError>,
 ) -> Result<Json<MapUploadResponse>, ApiError> {
-    let user_id = sqlx::query!(
-        "SELECT user_id FROM ap_user WHERE account_id = $1",
-        session.account_id()
-    )
-    .fetch_one(&state.pool)
-    .await
-    .context("Reading numeric user ID from database")?;
-
     let mut map_data = None;
 
     while let Some(field) = multipart
@@ -524,40 +516,38 @@ async fn post_map_upload(
         return Err(ApiErrorInner::NotYourMap.into());
     }
 
-    let maybe_map = sqlx::query!(
-        "SELECT ap_id, gbx_mapuid FROM map WHERE gbx_mapuid = $1",
-        map_info.id
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .context("Trying to find a map that might already exist")?;
-
-    if let Some(exists_map) = maybe_map {
-        // hmmmmmmmmm
-        return Err(ApiErrorInner::AlreadyUploaded {
-            map_id: exists_map.ap_id,
-        }
-        .into());
-    }
-
     let Some(map_name) = map.map_name else {
         return Err(ApiErrorInner::MissingFromMultipart { error: "Map name" }.into());
     };
 
     let buffer = map_data.to_vec();
-    sqlx::query!("INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created, uploaded) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+
+    match sqlx::query!(
+        "
+            INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created)
+            VALUES ($1, $2, $3, $4, NOW())
+            ON CONFLICT DO NOTHING
+            RETURNING ap_id
+        ",
         map_info.id,
         buffer,
         map_name,
-        user_id.user_id,
-    ).execute(&state.pool).await.context("Adding map to database")?;
-
-    let ap_id = sqlx::query!("SELECT ap_id FROM map WHERE gbx_mapuid = $1", map_info.id)
-        .fetch_one(&state.pool)
-        .await
-        .context("Retrieving ID of newly uploaded map")?;
-
-    Ok(Json(MapUploadResponse {
-        map_id: ap_id.ap_id,
-    }))
+        session.user_id(),
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .context("Adding map to database")?
+    {
+        Some(row) => Ok(Json(MapUploadResponse { map_id: row.ap_id })),
+        None => {
+            let map_id = sqlx::query!("SELECT ap_id FROM map WHERE gbx_mapuid = $1", map_info.id)
+                .fetch_one(&state.pool)
+                .await
+                .context("Fetching map ID for existing map")?;
+            Err(ApiErrorInner::AlreadyUploaded {
+                map_id: map_id.ap_id,
+            }
+            .into())
+        }
+    }
 }

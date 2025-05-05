@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created)\n            VALUES ($1, $2, $3, $4, NOW())\n            ON CONFLICT DO NOTHING\n            RETURNING ap_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ap_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bytea",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d8cd6b855ad3f876a766c6ddbe5fafdb7bfa58d34de8fc7fe7772738c58479f1"
+}
