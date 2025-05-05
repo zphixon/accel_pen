@@ -1,15 +1,24 @@
-import * as types from '../bindings/index';
-
-const API_URL_DEV = new URL("http://localhost:2460/v1");
-const API_URL = new URL("https://api.xdd.farm/v1");
+import * as types from './bindings/index';
 
 const DEV: boolean = window.location.hostname == "localhost";
 
+const API_URL = new URL("https://xdd.farm/api/v1");
+const API_URL_DEV = new URL("http://localhost:2460/api/v1");
 export function apiUrl(): URL {
   if (DEV) {
     return API_URL_DEV;
   } else {
     return API_URL;
+  }
+}
+
+const WEB_URL = new URL("https://xdd.farm/");
+const WEB_URL_DEV = new URL("http://localhost:2460/");
+export function webUrl(): URL {
+  if (DEV) {
+    return WEB_URL_DEV;
+  } else {
+    return WEB_URL;
   }
 }
 

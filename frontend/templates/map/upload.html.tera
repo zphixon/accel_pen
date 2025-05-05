@@ -14,59 +14,10 @@
 
 {% block content %}
   {% if user %}
-    <script type="text/javascript">
-      async function uploadMap() {
-        let mapData = document.getElementById("mapData");
-        let data = new FormData();
-        data.append("map_data", mapData.files[0]);
-
-        try {
-          var response = await fetch(
-            "{{ config.url }}api/v1/map/upload",
-            {
-              signal: AbortSignal.timeout(5000),
-              mode: "cors",
-              credentials: "include",
-              method: "POST",
-              body: data,
-            }
-          );
-        } catch (err) {
-          console.log("Could not post map:", err);
-        }
-        var text = "";
-        try {
-          text = await response.text();
-          var value = JSON.parse(text);
-        } catch (err) {
-          console.log("API response not JSON", err, text);
-        }
-
-        let responseElement = document.getElementById("response");
-        responseElement.textContent = "";
-        if (value.type == "MapUploadResponse") {
-          let link = document.createElement("a");
-          link.href = "{{ config.url }}map/" + value.map_id;
-          link.innerText = "Uploaded!";
-          responseElement.appendChild(link);
-        } else if (value.error.type == "AlreadyUploaded") {
-          let link = document.createElement("a");
-          link.href = "{{ config.url }}map/" + value.error.map_id;
-          link.innerText = "Already uploaded";
-          responseElement.appendChild(link);
-        } else {
-          responseElement.appendChild(
-            document.createTextNode("Could not upload map: " + value.message)
-          );
-        }
-
-        console.log(value);
-      }
-    </script>
-
+    <script type="module" src="{{ config.root }}static/js/uploadMap.js"></script>
     <label for="mapData">Map file </label>
-    <input name="map_data" id="mapData" type="file" />
-    <button onclick="uploadMap()">Upload</button>
+    <input id="mapData" type="file" />
+    <button id="uploadButton">Upload</button>
     <div id="response"></div>
   {% else %}
     <p>Log in to upload</p>
