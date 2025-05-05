@@ -25,6 +25,12 @@ body {
   align-self: center;
 }
 
+.footerInfo {
+  margin-top: 3em;
+  display: grid;
+  justify-items: center;
+}
+
 a {
   color: rgb(68, 68, 183);
 }

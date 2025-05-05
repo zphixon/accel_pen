@@ -10,6 +10,7 @@
 
     <script defer src="{{ config.root }}static/fontawesome/fontawesome.min.js"></script>
     <script defer src="{{ config.root }}static/fontawesome/solid.min.js"></script>
+    <script defer src="{{ config.root }}static/fontawesome/brands.min.js"></script>
     <title>
       {%- block tabTitle -%}
         Accel Pen
@@ -45,6 +46,12 @@
       {% block content %}
       <p>This template is empty. Hmmm</p>
       {% endblock content %}
+      <div class="footerInfo">
+        <div>
+          <a href="https://github.com/zphixon/accel_pen"><i class="fa-brands fa-github"></i> Accel Pen</a>
+          by <a href="https://grape.surgery/">zack</a>
+        </div>
+      </div>
     </div>
     <div id="R"></div>
   </body>
