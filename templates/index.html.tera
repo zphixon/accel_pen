@@ -2,7 +2,7 @@
 
 {% block content %}
   {% if user %}
-    <h3>My maps</h3>
+    <h3>My maps - <a href="{{ config.root }}map/upload">Upload more</a></h3>
     {% for map in maps %}
       <p>
         <a href="{{ config.root }}map/{{ map.id }}">
