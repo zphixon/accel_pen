@@ -1,4 +1,4 @@
-debug_templates = true
+dev_reload = true
 
 [net]
 url = "http://localhost:2460"

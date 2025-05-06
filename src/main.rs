@@ -28,6 +28,7 @@ use ts_rs::TS;
 use uuid::Uuid;
 
 mod config;
+mod dev;
 mod error;
 mod nadeo;
 mod ubi;
@@ -63,44 +64,8 @@ async fn main() -> anyhow::Result<()> {
     }
     let tera = Arc::new(std::sync::RwLock::new(tera));
 
-    if CONFIG.debug_templates {
-        let tera = Arc::clone(&tera);
-        std::thread::spawn(move || {
-            let (tx, rx) = std::sync::mpsc::channel();
-            let mut watcher = notify::recommended_watcher(tx).unwrap();
-            watcher
-                .watch(
-                    &PathBuf::from("frontend/templates"),
-                    notify::RecursiveMode::Recursive,
-                )
-                .unwrap();
-            while let Ok(event) = rx.recv() {
-                match event {
-                    Ok(notify::Event {
-                        kind: notify::EventKind::Modify(_),
-                        paths,
-                        ..
-                    }) => {
-                        tracing::debug!("Reloading templates - {:?}", paths);
-                        match tera.write().unwrap().full_reload() {
-                            Ok(_) => {}
-                            Err(err) => {
-                                use std::error::Error;
-                                tracing::error!(
-                                    "Couldn't reload templates: {} {:?}",
-                                    err,
-                                    err.source()
-                                );
-                            }
-                        }
-                    }
-                    Err(err) => {
-                        tracing::error!("template watcher error: {}", err)
-                    }
-                    _ => {}
-                }
-            }
-        });
+    if CONFIG.dev_reload {
+        dev::reload_task(Arc::clone(&tera));
     }
 
     let ubi_auth_task = tokio::spawn(UbiTokens::auth_task());

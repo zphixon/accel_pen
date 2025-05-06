@@ -5,7 +5,7 @@ use url::Url;
 
 from_env::config!(
     "ACCEL_PEN",
-    debug_templates: bool,
+    dev_reload: bool,
     net {
         url: Url,
         bind: SocketAddr,

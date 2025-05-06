@@ -16,7 +16,7 @@ async function uploadMap() {
     if (response.error.type == "AlreadyUploaded") {
       let link = document.createElement("a");
       link.innerText = "Map already uploaded";
-      link.href = api.webUrl() + "/map/" + response.error.map_id;
+      link.href = api.webUrl() + "map/" + response.error.map_id;
       responseElement.appendChild(link);
     } else {
       responseElement.appendChild(document.createTextNode("Could not upload: " + response.message));
