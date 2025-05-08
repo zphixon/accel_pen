@@ -521,7 +521,35 @@ async fn get_map_thumbnail(
 }
 
 async fn get_map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
-    let context = config::context_with_auth_session(auth.as_ref());
+    let mut context = config::context_with_auth_session(auth.as_ref());
+
+    let tag_names = match sqlx::query!("SELECT tag_id, tag_name, tag_kind FROM tag_name")
+        .fetch_all(&state.pool)
+        .await
+    {
+        Ok(tag_names) => tag_names,
+        Err(_) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Getting names of tags").into_response()
+        }
+    };
+
+    #[derive(Serialize)]
+    struct TagInfo {
+        id: i32,
+        name: String,
+        kind: String,
+    }
+
+    let tag_names = tag_names
+        .into_iter()
+        .map(|row| TagInfo {
+            id: row.tag_id,
+            name: row.tag_name,
+            kind: row.tag_kind,
+        })
+        .collect::<Vec<TagInfo>>();
+    context.insert("tags", &tag_names);
+
     match state
         .tera
         .read()

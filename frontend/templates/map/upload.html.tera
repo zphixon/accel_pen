@@ -1,5 +1,9 @@
 {% extends "layout.html.tera" %}
 
+{% block head %}
+  <link rel="stylesheet" href="{{ config.root }}static/mapUpload.css">
+{% endblock head %}
+
 {% block tabTitle -%}
   {{ super() }} - Upload a map
 {%- endblock tabTitle %}
@@ -15,9 +19,28 @@
 {% block content %}
   {% if user %}
     <script type="module" src="{{ config.root }}static/js/uploadMap.js"></script>
-    <label for="mapData">Map file </label>
-    <input id="mapData" type="file" />
-    <button id="uploadButton">Upload</button>
+    <p>
+      <label for="mapData">Map file: </label>
+      <input id="mapData" type="file" />
+    </p>
+    <div id="selectedTagsMenu">
+      <div id="selectedTagList">Selected tags:</div>
+      <button id="resetTags">Reset tags</button>
+    </div>
+    <hr>
+    <div class="tagList">
+      {% for tag in tags | sort(attribute="id") %}
+        <div class="uploadContainer">
+          <div class="uploadTag {{ tag.kind }} {{ tag.name }}">
+            <input hidden class="checkbox" type="checkbox" id="{{ tag.name }}">
+            <label for="{{ tag.name }}" class="{{ tag.kind }}"> {{ tag.name }}</label>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <div>
+      <button id="uploadButton">Upload</button>
+    </div>
     <div id="response"></div>
   {% else %}
     <p>Log in to upload</p>

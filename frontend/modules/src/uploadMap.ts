@@ -2,9 +2,17 @@ import * as api from './api.js';
 
 async function uploadMap() {
   let mapData = document.getElementById("mapData")! as HTMLInputElement;
+
+  let tags = [];
+  for (let tagbox of tagCheckboxes) {
+    if (tagbox.checked) {
+      tags.push(tagbox.id);
+    }
+  }
+
   let response = await api.uploadMap(mapData.files![0], {
     'type': 'MapUploadMeta',
-    'tags': ['Race'],
+    tags,
   });
 
   let responseElement = document.getElementById("response")!;
@@ -30,3 +38,26 @@ let uploadButton = document.getElementById("uploadButton");
 if (uploadButton) {
   uploadButton.onclick = _ => uploadMap();
 }
+
+let tagList = document.getElementById("selectedTagList")!;
+let tagCheckboxes: NodeListOf<HTMLInputElement> = document.querySelectorAll(".checkbox");
+for (let checkbox of tagCheckboxes) {
+  checkbox.checked = false;
+  let label = checkbox.parentElement!;
+  let container = label.parentElement!;
+  checkbox.onchange = _ => {
+    if (checkbox.checked) {
+      tagList.appendChild(label);
+    } else {
+      container.appendChild(label);
+    }
+  };
+}
+
+document.getElementById("resetTags")!.onclick = _ => {
+  for (let checkbox of tagCheckboxes) {
+    checkbox.checked = false;
+    let event = new Event("change");
+    checkbox.dispatchEvent(event);
+  }
+};
