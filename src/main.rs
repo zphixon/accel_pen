@@ -456,6 +456,8 @@ async fn get_map_page(
             FROM tag_name
             JOIN tag ON tag.tag_id = tag_name.tag_id
             JOIN map ON tag.ap_map_id = $1
+            GROUP BY tag_name.tag_id
+            ORDER BY tag_name.tag_id ASC
         ",
             map.ap_map_id
         )
