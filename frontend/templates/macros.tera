@@ -43,6 +43,6 @@
       </div>
     </div>
     <hr>
-    {{ self::tag_list(tags=tags, class="tagGrid") }}
+    {{ self::tag_list(tags=tags, class="tagSelectGrid") }}
   </div>
 {% endmacro tag_select %}

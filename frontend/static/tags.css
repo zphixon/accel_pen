@@ -21,9 +21,14 @@
     display: flex;
 }
 
-.tagList.tagGrid {
+.tagList.tagSelectGrid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
+}
+
+.tagSelectGrid.fullSelection .tagName {
+    color: grey;
+    background-color: lightgrey;
 }
 
 .tagName {
