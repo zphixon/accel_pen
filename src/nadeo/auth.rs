@@ -81,9 +81,9 @@ impl Deref for NadeoAuthSessionInner {
 }
 
 impl NadeoAuthSessionInner {
-    async fn from_inner(token_pair: NadeoTokensInner, state: &AppState) -> Result<Self, ApiError> {
+    async fn from_inner(inner: NadeoTokensInner, state: &AppState) -> Result<Self, ApiError> {
         let issued = time::OffsetDateTime::now_utc();
-        let user = NadeoUser::get_self(&token_pair).await?;
+        let user = NadeoUser::get_self(&inner).await?;
 
         let user_id = sqlx::query!(
             "
@@ -105,7 +105,7 @@ impl NadeoAuthSessionInner {
             .context("Get self club tag")?;
 
         Ok(NadeoAuthSessionInner {
-            inner: token_pair,
+            inner,
             user,
             club_tag: club_tag.club_tag,
             user_id: user_id.user_id,
@@ -201,11 +201,11 @@ impl NadeoAuthSessionInner {
             .context("Sending request for refresh token")?;
 
         if response.status().is_success() {
-            let token_pair: NadeoTokensInner = response
+            let inner: NadeoTokensInner = response
                 .json()
                 .await
                 .context("Parsing oauth tokens from Nadeo")?;
-            NadeoAuthSessionInner::from_inner(token_pair, state).await
+            NadeoAuthSessionInner::from_inner(inner, state).await
         } else {
             let json_error: serde_json::Value = response.json().await?;
             Err(ApiErrorInner::ApiReturnedError { error: json_error }.into())
@@ -233,29 +233,29 @@ impl NadeoAuthSession {
         random_state_session: RandomStateSession,
         request: NadeoOauthFinishRequest,
     ) -> Result<NadeoAuthSession, ApiError> {
-        let token_pair = NadeoAuthSessionInner::from_random_state_session(
+        let inner = NadeoAuthSessionInner::from_random_state_session(
             &state,
             &random_state_session,
             request,
         )
         .await?;
 
-        Self::upgrade_with(random_state_session, token_pair).await
+        Self::upgrade_with(random_state_session, inner).await
     }
 
     async fn upgrade_with(
         random_state_session: RandomStateSession,
-        token_pair: NadeoAuthSessionInner,
+        inner: NadeoAuthSessionInner,
     ) -> Result<Self, ApiError> {
         random_state_session
             .session
-            .insert(Self::KEY, token_pair.clone())
+            .insert(Self::KEY, inner.clone())
             .await
             .context("Writing tokens to session")?;
 
         Ok(NadeoAuthSession {
             random_state_session,
-            inner: Arc::new(token_pair),
+            inner: Arc::new(inner),
         })
     }
 

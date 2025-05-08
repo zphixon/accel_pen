@@ -138,7 +138,6 @@ impl NadeoFavoriteMaps {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct NadeoClubTag {
     pub club_tag: String,
 }
