@@ -87,14 +87,15 @@ impl NadeoAuthSessionInner {
 
         let user_id = sqlx::query!(
             "
-                INSERT INTO ap_user (nadeo_display_name, nadeo_id, registered)
-                VALUES ($1, $2, NOW())
+                INSERT INTO ap_user (nadeo_display_name, nadeo_id, nadeo_login, registered)
+                VALUES ($1, $2, $3, NOW())
                 ON CONFLICT (nadeo_id) DO UPDATE
                     SET nadeo_display_name=excluded.nadeo_display_name
                 RETURNING ap_user_id
             ",
             user.display_name,
-            user.account_id,
+            &user.account_id,
+            super::account_id_to_login(&user.account_id)?,
         )
         .fetch_one(&state.pool)
         .await
@@ -384,11 +385,4 @@ impl FromRequestParts<AppState> for RandomStateSession {
             inner: data,
         })
     }
-}
-
-pub fn login_to_uid(login: &str) -> Result<String, ApiError> {
-    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(login)?;
-    let hex_string = hex::encode(bytes);
-    let uuid = Uuid::try_parse(&hex_string)?;
-    Ok(uuid.hyphenated().to_string())
 }

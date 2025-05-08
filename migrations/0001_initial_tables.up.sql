@@ -2,6 +2,7 @@ CREATE TABLE ap_user (
     ap_user_id SERIAL UNIQUE NOT NULL,
     nadeo_display_name TEXT NOT NULL,
     nadeo_id TEXT UNIQUE NOT NULL,
+    nadeo_login TEXT UNIQUE NOT NULL,
     site_admin BOOLEAN NOT NULL DEFAULT FALSE,
     registered TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
 

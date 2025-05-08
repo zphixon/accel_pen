@@ -562,7 +562,7 @@ async fn post_map_upload(
         .into());
     };
 
-    let author = nadeo::auth::login_to_uid(map_info.author).context("Parsing map author")?;
+    let author = nadeo::login_to_account_id(map_info.author).context("Parsing map author")?;
     if session.account_id() != author {
         return Err(ApiErrorInner::NotYourMap.into());
     }
