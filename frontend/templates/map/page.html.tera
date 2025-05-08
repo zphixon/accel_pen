@@ -23,7 +23,7 @@
 {% block content %}
   {% if map %}
     <div class="mapHeader">
-      <h2 class="mapName"><span class="nandoString">{{ map.name }}</span></h2>
+      <h2 class="mapName">{{ macros::nando_string(text=map.name) }}</h2>
       {% if user and user.user_id == map.author.user_id %}
         <div class="manageMap">
           <button>Edit</button>

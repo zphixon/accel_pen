@@ -11,7 +11,7 @@
     {% for map in my_maps %}
       <p style="margin-left: 1em;">
         <a href="{{ config.root }}map/{{ map.id }}">
-          <span class="nandoString">{{ map.name }}</span>
+          {{ macros::nando_string(text=map.name) }}
         </a>
       </p>
     {% endfor %}
@@ -29,7 +29,7 @@
       <div class="mapTile">
         <a href="{{ config.root }}map/{{ map.id }}">{{ macros::map_thumbnail(map=map, class="smallThumbnail") }}</a>
         <div class="mapTileData">
-          <div class="mapTileName"><span class="nandoString">{{ map.name }}</span></div>
+          {{ macros::nando_string(text=map.name, class="mapTileName") }}
           <div class="mapTileAuthor">by {{ macros::user_summary(user=map.author) }}</div>
         </div>
       </div>

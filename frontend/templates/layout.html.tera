@@ -1,3 +1,5 @@
+{%- import "macros.tera" as macros -%}
+
 <!doctype HTML>
 <html lang="en">
   <head>
@@ -33,8 +35,7 @@
         </span>
         {% if user -%}
         <span class="userHeader">
-          <span class="userClubTag nandoString">{{ user.club_tag }}</span>
-          <span class="userDisplayName">{{ user.display_name }}</span>
+          {{ macros::user_summary(user=user) }}
           <a href="{{ config.logout_path }}">Log out</a>
         </span>
         {%- else -%}

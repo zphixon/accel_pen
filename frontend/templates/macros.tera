@@ -1,7 +1,11 @@
+{% macro nando_string(text, class="") %}
+  <span class="nandoString {{ class }}">{{ text }}</span>
+{% endmacro nando_string %}
+
 {% macro user_summary(user, class="") -%}
   <span class="userSummary {{ class }}">
     {%- if user.club_tag -%}
-      <span class="nandoString">{{ user.club_tag }}</span>
+      {{ self::nando_string(text=user.club_tag, class="clubTag") }}
     {%- endif %}
     {{ user.display_name }}
   </span>
