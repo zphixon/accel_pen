@@ -99,17 +99,17 @@ impl UbiTokens {
             .clone()
     }
 
-    pub async fn nadeo_live_services() -> String {
-        UbiTokens::ensure_tokens().await;
-        UBI_TOKENS
-            .read()
-            .await
-            .as_ref()
-            .unwrap()
-            .nadeo_live_services
-            .access_token
-            .clone()
-    }
+    //pub async fn nadeo_live_services() -> String {
+    //    UbiTokens::ensure_tokens().await;
+    //    UBI_TOKENS
+    //        .read()
+    //        .await
+    //        .as_ref()
+    //        .unwrap()
+    //        .nadeo_live_services
+    //        .access_token
+    //        .clone()
+    //}
 
     async fn ensure_tokens() {
         while UBI_TOKENS.read().await.is_none() {

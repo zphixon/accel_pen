@@ -6,10 +6,9 @@ use axum::{
     Json, Router,
 };
 use axum_extra::extract::WithRejection;
-use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use tera::Tera;
 use tokio::net::TcpListener;
 use tower_http::{
@@ -34,10 +33,7 @@ mod ubi;
 
 use config::CONFIG;
 use error::{ApiError, ApiErrorInner, Context};
-use nadeo::{
-    api::NadeoClubTag,
-    auth::{NadeoAuthSession, NadeoOauthFinishRequest, RandomStateSession},
-};
+use nadeo::auth::{NadeoAuthSession, NadeoOauthFinishRequest, RandomStateSession};
 use ubi::UbiTokens;
 
 #[derive(Clone)]
@@ -324,64 +320,64 @@ struct UserResponse {
     club_tag: Option<String>,
 }
 
-#[derive(Deserialize, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-struct MapDataRequest {
-    map_id: i32,
-}
-
-#[derive(Serialize, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-struct MapDataResponse {
-    name: String,
-    author: UserResponse,
-    uploaded: String,
-    map_id: i32,
-    uid: String,
-}
-
-async fn map_data(
-    State(state): State<AppState>,
-    WithRejection(Query(request), _): WithRejection<Query<MapDataRequest>, ApiError>,
-) -> Result<Json<MapDataResponse>, ApiError> {
-    let row = sqlx::query!(
-        "
-            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
-                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag
-            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-            WHERE map.ap_map_id = $1
-        ",
-        request.map_id
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .with_context(|| format!("Fetching map {} from database", request.map_id))?;
-
-    if let Some(row) = row {
-        Ok(Json(MapDataResponse {
-            name: row.mapname,
-            author: UserResponse {
-                display_name: row.nadeo_display_name,
-                account_id: row.nadeo_id,
-                user_id: row.ap_user_id,
-                club_tag: row.nadeo_club_tag,
-            },
-            uploaded: row
-                .uploaded
-                .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
-                .context("Formatting map upload time")?,
-            map_id: row.ap_map_id,
-            uid: row.gbx_mapuid,
-        }))
-    } else {
-        Err(ApiErrorInner::MapNotFound {
-            map_id: request.map_id,
-        }
-        .into())
-    }
-}
+//#[derive(Deserialize, TS)]
+//#[ts(export)]
+//#[serde(tag = "type")]
+//struct MapDataRequest {
+//    map_id: i32,
+//}
+//
+//#[derive(Serialize, TS)]
+//#[ts(export)]
+//#[serde(tag = "type")]
+//struct MapDataResponse {
+//    name: String,
+//    author: UserResponse,
+//    uploaded: String,
+//    map_id: i32,
+//    uid: String,
+//}
+//
+//async fn map_data(
+//    State(state): State<AppState>,
+//    WithRejection(Query(request), _): WithRejection<Query<MapDataRequest>, ApiError>,
+//) -> Result<Json<MapDataResponse>, ApiError> {
+//    let row = sqlx::query!(
+//        "
+//            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
+//                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag
+//            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+//            WHERE map.ap_map_id = $1
+//        ",
+//        request.map_id
+//    )
+//    .fetch_optional(&state.pool)
+//    .await
+//    .with_context(|| format!("Fetching map {} from database", request.map_id))?;
+//
+//    if let Some(row) = row {
+//        Ok(Json(MapDataResponse {
+//            name: row.mapname,
+//            author: UserResponse {
+//                display_name: row.nadeo_display_name,
+//                account_id: row.nadeo_id,
+//                user_id: row.ap_user_id,
+//                club_tag: row.nadeo_club_tag,
+//            },
+//            uploaded: row
+//                .uploaded
+//                .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+//                .context("Formatting map upload time")?,
+//            map_id: row.ap_map_id,
+//            uid: row.gbx_mapuid,
+//        }))
+//    } else {
+//        Err(ApiErrorInner::MapNotFound {
+//            map_id: request.map_id,
+//        }
+//        .into())
+//    }
+//}
 
 async fn get_map_page(
     State(state): State<AppState>,

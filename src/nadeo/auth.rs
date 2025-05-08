@@ -8,7 +8,6 @@ use axum::{
     extract::{FromRequestParts, OptionalFromRequestParts},
     http::{request::Parts, StatusCode},
 };
-use base64::Engine;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -130,9 +129,9 @@ impl NadeoAuthSessionInner {
         self.user_id
     }
 
-    pub fn oauth_access_token(&self) -> &str {
-        &self.inner.access_token
-    }
+    //pub fn oauth_access_token(&self) -> &str {
+    //    &self.inner.access_token
+    //}
 
     pub fn expired(&self) -> bool {
         let margin = time::Duration::seconds(self.inner.expires_in.saturating_sub(30) as i64);

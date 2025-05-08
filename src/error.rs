@@ -357,10 +357,10 @@ impl ApiError {
         }
     }
 
-    pub fn inner(&self) -> &ApiErrorInner {
-        match self {
-            ApiError::Root(api_error_inner) => api_error_inner,
-            ApiError::Context { inner, .. } => inner.inner(),
-        }
-    }
+    //pub fn inner(&self) -> &ApiErrorInner {
+    //    match self {
+    //        ApiError::Root(api_error_inner) => api_error_inner,
+    //        ApiError::Context { inner, .. } => inner.inner(),
+    //    }
+    //}
 }
