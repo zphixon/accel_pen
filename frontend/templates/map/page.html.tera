@@ -39,7 +39,6 @@
       {{ macros::map_thumbnail(map=map) }}
       <div class="mapSideText">
         <p>Uploaded <span class="uploadDate">{{ map.uploaded }}</span></p>
-        <p>Tags:</p>
         {{ macros::tag_list(tags=map.tags) }}
       </div>
     </div>

@@ -11,15 +11,34 @@
   <img class="mapThumbnail {{ class }}" src="{{ config.root }}api/v1/map/{{ map.id }}/thumbnail" />
 {% endmacro map_thumbnail %}
 
-{% macro tag_list(tags, list_class="", container_class="tagContainer") %}
-  <div class="tagList {{ list_class }}">
+{% macro tag_badge(tag) %}
+  <div class="tagContainer">
+    <div class="{{ tag.kind }} {{ tag.name }}">
+      <input hidden class="tagCheckbox" type="checkbox" id="{{ tag.name }}">
+      <label for="{{ tag.name }}" class="tagName {{ tag.kind }}">{{ tag.name }}</label>
+    </div>
+  </div>
+{% endmacro tag_badge %}
+
+{% macro tag_list(tags, class="") %}
+  <div class="tagList {{ class }}">
     {% for tag in tags | sort(attribute="id") %}
-      <div class="{{ container_class }}">
-        <div class="{{ tag.kind }} {{ tag.name }}">
-          <input hidden class="checkbox" type="checkbox" id="{{ tag.name }}">
-          <label for="{{ tag.name }}" class="tagName {{ tag.kind }}"> {{ tag.name }}</label>
-        </div>
-      </div>
+      {{ self::tag_badge(tag=tag) }}
     {% endfor %}
   </div>
 {% endmacro tag_list %}
+
+{% macro tag_select(tags) %}
+  <div id="tagSelect">
+    <div id="tagSelectHeader">
+      <div id="selectedTagsContainer">
+        Selected tags: <span class="tagList" id="selectedTagList"></span>
+      </div>
+      <div id="resetTagsContainer">
+        <button id="resetTags">Reset tags</button>
+      </div>
+    </div>
+    <hr>
+    {{ self::tag_list(tags=tags, class="tagGrid") }}
+  </div>
+{% endmacro tag_select %}

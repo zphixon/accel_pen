@@ -3,7 +3,12 @@
 
 {% block head %}
   <link rel="stylesheet" href="{{ config.root }}static/tags.css">
-  <link rel="stylesheet" href="{{ config.root }}static/mapUpload.css">
+  <style>
+    #uploadButton {
+        margin: 1em;
+        padding: 1em;
+    }
+  </style>
 {% endblock head %}
 
 {% block tabTitle -%}
@@ -21,16 +26,14 @@
 {% block content %}
   {% if user %}
     <script type="module" src="{{ config.root }}static/js/uploadMap.js"></script>
+
     <p>
       <label for="mapData">Map file: </label>
       <input id="mapData" type="file" />
     </p>
-    <div id="selectedTagsMenu">
-      <div id="selectedTagList">Selected tags:</div>
-      <button id="resetTags">Reset tags</button>
-    </div>
-    <hr>
-    {{ macros::tag_list(tags=tags, list_class="uploadTag", container_class="uploadContainer") }}
+
+    {{ macros::tag_select(tags=tags) }}
+
     <div>
       <button id="uploadButton">Upload</button>
     </div>

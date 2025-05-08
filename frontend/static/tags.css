@@ -1,8 +1,29 @@
-.tagList {
+
+#tagSelectHeader {
     display: flex;
+}
+
+#selectedTagsContainer {
+    flex-grow: 1;
+    display: flex;
+}
+
+#selectedTagList {
+    padding-left: 0.3em;
+    display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
+}
+
+.tagList {
+    column-gap: 0.3em;
     row-gap: 0.8em;
-    column-gap: 0.4em;
+    display: flex;
+}
+
+.tagList.tagGrid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
 }
 
 .tagName {
