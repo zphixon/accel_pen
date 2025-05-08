@@ -84,11 +84,14 @@ impl NadeoAuthSessionInner {
     async fn from_inner(inner: NadeoTokensInner, state: &AppState) -> Result<Self, ApiError> {
         let issued = time::OffsetDateTime::now_utc();
         let user = NadeoUser::get_self(&inner).await?;
+        let club_tag = NadeoClubTag::get(&user.account_id)
+            .await
+            .context("Get self club tag")?;
 
         let user_id = sqlx::query!(
             "
-                INSERT INTO ap_user (nadeo_display_name, nadeo_id, nadeo_login, registered)
-                VALUES ($1, $2, $3, NOW())
+                INSERT INTO ap_user (nadeo_display_name, nadeo_id, nadeo_login, nadeo_club_tag, registered)
+                VALUES ($1, $2, $3, $4, NOW())
                 ON CONFLICT (nadeo_id) DO UPDATE
                     SET nadeo_display_name=excluded.nadeo_display_name
                 RETURNING ap_user_id
@@ -96,14 +99,11 @@ impl NadeoAuthSessionInner {
             user.display_name,
             &user.account_id,
             super::account_id_to_login(&user.account_id)?,
+            club_tag,
         )
         .fetch_one(&state.pool)
         .await
         .context("Adding user to users table")?;
-
-        let club_tag = NadeoClubTag::get(&user.account_id)
-            .await
-            .context("Get self club tag")?;
 
         Ok(NadeoAuthSessionInner {
             inner,

@@ -198,7 +198,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
     match sqlx::query!(
         "
             SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
-                ap_user.nadeo_display_name, ap_user.nadeo_id
+                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
             ORDER BY map.ap_map_id DESC
             LIMIT 10
@@ -210,17 +210,6 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
         Ok(recent_rows) => {
             let mut recent_maps = Vec::new();
             for map in recent_rows.iter() {
-                let Ok(club_tag) = NadeoClubTag::get(&map.nadeo_id)
-                    .await
-                    .context("Getting club tag for map data author")
-                else {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Getting club tag for map author",
-                    )
-                        .into_response();
-                };
-
                 recent_maps.push(MapContext {
                     id: map.ap_map_id,
                     gbx_uid: &map.gbx_mapuid,
@@ -235,7 +224,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                         display_name: map.nadeo_display_name.clone(),
                         account_id: map.nadeo_id.clone(),
                         user_id: map.ap_author_id,
-                        club_tag,
+                        club_tag: map.nadeo_club_tag.clone(),
                     },
                 });
             }
@@ -360,7 +349,7 @@ async fn map_data(
     let row = sqlx::query!(
         "
             SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
-                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id
+                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
             WHERE map.ap_map_id = $1
         ",
@@ -371,16 +360,13 @@ async fn map_data(
     .with_context(|| format!("Fetching map {} from database", request.map_id))?;
 
     if let Some(row) = row {
-        let club_tag = NadeoClubTag::get(&row.nadeo_id)
-            .await
-            .context("Getting club tag for map data author")?;
         Ok(Json(MapDataResponse {
             name: row.mapname,
             author: UserResponse {
                 display_name: row.nadeo_display_name,
                 account_id: row.nadeo_id,
                 user_id: row.ap_user_id,
-                club_tag,
+                club_tag: row.nadeo_club_tag,
             },
             uploaded: row
                 .uploaded
@@ -407,7 +393,8 @@ async fn get_map_page(
     let map = match sqlx::query!(
         "
             SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
-                map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id
+                map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
+                ap_user.nadeo_club_tag
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
             WHERE map.ap_map_id = $1
         ",
@@ -427,16 +414,6 @@ async fn get_map_page(
     };
 
     if let Some(map) = map {
-        let Ok(club_tag) = NadeoClubTag::get(&map.nadeo_id)
-            .await
-            .context("Getting club tag for map data author")
-        else {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Couldn't get club tag for author",
-            )
-                .into_response();
-        };
         context.insert(
             "map",
             &MapContext {
@@ -452,7 +429,7 @@ async fn get_map_page(
                     display_name: map.nadeo_display_name,
                     account_id: map.nadeo_id,
                     user_id: map.ap_user_id,
-                    club_tag,
+                    club_tag: map.nadeo_club_tag,
                 },
             },
         );

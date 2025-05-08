@@ -5,6 +5,7 @@ CREATE TABLE ap_user (
     nadeo_login TEXT UNIQUE NOT NULL,
     site_admin BOOLEAN NOT NULL DEFAULT FALSE,
     registered TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
+    nadeo_club_tag TEXT,
 
     CONSTRAINT pk_user PRIMARY KEY (ap_user_id)
 );
