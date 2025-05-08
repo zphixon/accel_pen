@@ -611,6 +611,11 @@ async fn post_map_upload(
         map_tags.insert(tag_id.tag_id);
     }
 
+    // TODO configure this, and also pass to frontend
+    if map_tags.len() > 7 {
+        return Err(ApiErrorInner::NotAMap.into());
+    }
+
     let map_node = gbx_rs::Node::read_from(&map_data).context("Parsing map for upload")?;
     let gbx_rs::parse::CGame::CtnChallenge(map) =
         map_node.parse().context("Parsing full map data")?

@@ -147,6 +147,11 @@ pub enum ApiErrorInner {
     #[error("No such tag: {tag}")]
     NoSuchTag { tag: String },
 
+    #[error("Too many tags, max {max}")]
+    TooManyTags {
+        max: i32,
+    },
+
     #[error("Not base64")]
     NotBase64 {
         #[serde(skip)]
@@ -256,6 +261,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::AlreadyUploaded { .. }
             | ApiErrorInner::Json { .. }
             | ApiErrorInner::NoSuchTag { .. }
+            | ApiErrorInner::TooManyTags { .. }
             | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
             ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,
