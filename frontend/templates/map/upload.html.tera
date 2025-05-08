@@ -1,6 +1,8 @@
 {% extends "layout.html.tera" %}
+{% import "macros.tera" as macros %}
 
 {% block head %}
+  <link rel="stylesheet" href="{{ config.root }}static/tags.css">
   <link rel="stylesheet" href="{{ config.root }}static/mapUpload.css">
 {% endblock head %}
 
@@ -28,16 +30,7 @@
       <button id="resetTags">Reset tags</button>
     </div>
     <hr>
-    <div class="tagList">
-      {% for tag in tags | sort(attribute="id") %}
-        <div class="uploadContainer">
-          <div class="uploadTag {{ tag.kind }} {{ tag.name }}">
-            <input hidden class="checkbox" type="checkbox" id="{{ tag.name }}">
-            <label for="{{ tag.name }}" class="{{ tag.kind }}"> {{ tag.name }}</label>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
+    {{ macros::tag_list(tags=tags, list_class="uploadTag", container_class="uploadContainer") }}
     <div>
       <button id="uploadButton">Upload</button>
     </div>

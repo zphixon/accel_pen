@@ -2,6 +2,7 @@
 {% import "macros.tera" as macros %}
 
 {% block head %}
+  <link rel="stylesheet" href="{{ config.root }}static/tags.css">
   <link rel="stylesheet" href="{{ config.root }}static/mapview.css">
 {% endblock head %}
 
@@ -39,11 +40,7 @@
       <div class="mapSideText">
         <p>Uploaded <span class="uploadDate">{{ map.uploaded }}</span></p>
         <p>Tags:</p>
-        <ul>
-          {% for tag in map.tags %}
-            <li>{{ tag }}</li>
-          {% endfor %}
-        </ul>
+        {{ macros::tag_list(tags=map.tags) }}
       </div>
     </div>
 

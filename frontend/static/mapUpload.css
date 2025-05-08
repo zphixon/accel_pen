@@ -1,36 +1,6 @@
-.tagList {
+.uploadTag.tagList {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    row-gap: 0.8em;
-}
-
-.uploadTag > label {
-    border-radius: 5px;
-    padding: 0.25em;
-}
-
-label.mapStyle {
-    background-color: rgb(255, 199, 86);
-}
-
-label.definingSurface {
-    background-color: rgb(158, 229, 255);
-}
-
-label.mapFeature {
-    background-color: rgb(255, 186, 186);
-}
-
-label.drivingTechnique {
-    background-color: rgb(207, 207, 207);
-}
-
-label.notStadium {
-    background-color: rgb(255, 241, 48);
-}
-
-label.mapMeta {
-    background-color: rgb(113, 175, 255);
 }
 
 #uploadButton {

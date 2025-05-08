@@ -10,3 +10,16 @@
 {% macro map_thumbnail(map, class="") %}
   <img class="mapThumbnail {{ class }}" src="{{ config.root }}api/v1/map/{{ map.id }}/thumbnail" />
 {% endmacro map_thumbnail %}
+
+{% macro tag_list(tags, list_class="", container_class="tagContainer") %}
+  <div class="tagList {{ list_class }}">
+    {% for tag in tags | sort(attribute="id") %}
+      <div class="{{ container_class }}">
+        <div class="{{ tag.kind }} {{ tag.name }}">
+          <input hidden class="checkbox" type="checkbox" id="{{ tag.name }}">
+          <label for="{{ tag.name }}" class="tagName {{ tag.kind }}"> {{ tag.name }}</label>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endmacro tag_list %}

@@ -1,0 +1,35 @@
+.tagList {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 0.8em;
+    column-gap: 0.4em;
+}
+
+.tagName {
+    border-radius: 5px;
+    padding: 0.25em;
+}
+
+.tagName.mapStyle {
+    background-color: rgb(255, 199, 86);
+}
+
+.tagName.definingSurface {
+    background-color: rgb(158, 229, 255);
+}
+
+.tagName.mapFeature {
+    background-color: rgb(255, 186, 186);
+}
+
+.tagName.drivingTechnique {
+    background-color: rgb(207, 207, 207);
+}
+
+.tagName.notStadium {
+    background-color: rgb(255, 241, 48);
+}
+
+.tagName.mapMeta {
+    background-color: rgb(113, 175, 255);
+}

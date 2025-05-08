@@ -140,7 +140,7 @@ struct MapContext<'auth> {
     votes: i32,
     uploaded: String,
     author: UserResponse,
-    tags: Vec<String>,
+    tags: Vec<TagInfo>,
 }
 
 async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
@@ -162,28 +162,6 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
             Ok(my_maps) => {
                 let mut maps_context = Vec::new();
                 for map in my_maps.iter() {
-                    let tags = match sqlx::query!(
-                        "
-            SELECT tag_name.tag_name
-            FROM tag_name
-            JOIN tag ON tag.tag_id = tag_name.tag_id
-            JOIN map ON tag.ap_map_id = $1
-        ",
-                        map.ap_map_id
-                    )
-                    .fetch_all(&state.pool)
-                    .await
-                    {
-                        Ok(tags) => tags,
-                        Err(_) => {
-                            return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags")
-                                .into_response()
-                        }
-                    }
-                    .into_iter()
-                    .map(|row| row.tag_name)
-                    .collect::<Vec<_>>();
-
                     maps_context.push(MapContext {
                         id: map.ap_map_id,
                         gbx_uid: &map.gbx_mapuid,
@@ -204,7 +182,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                             user_id: auth.user_id(),
                             club_tag: auth.club_tag().map(String::from),
                         },
-                        tags,
+                        tags: vec![],
                     });
                 }
                 context.insert("my_maps", &maps_context);
@@ -230,21 +208,6 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
         Ok(recent_rows) => {
             let mut recent_maps = Vec::new();
             for map in recent_rows.iter() {
-                let tags = match sqlx::query!(
-                "
-                    SELECT tag_name.tag_name
-                    FROM tag_name
-                    JOIN tag ON tag.tag_id = tag_name.tag_id
-                    JOIN map ON tag.ap_map_id = $1
-                ",
-                    map.ap_map_id
-                )
-                .fetch_all(&state.pool).await {
-                    Ok(tags) => tags,
-                    Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags").into_response(),
-                    // emerjanci rustfmt no worky
-                }.into_iter().map(|row| row.tag_name).collect::<Vec<_>>();
-
                 recent_maps.push(MapContext {
                     id: map.ap_map_id,
                     gbx_uid: &map.gbx_mapuid,
@@ -261,7 +224,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                         user_id: map.ap_author_id,
                         club_tag: map.nadeo_club_tag.clone(),
                     },
-                    tags,
+                    tags: vec!(),
                 });
             }
             context.insert("recent_maps", &recent_maps);
@@ -452,7 +415,7 @@ async fn get_map_page(
     if let Some(map) = map {
         let tags = match sqlx::query!(
             "
-            SELECT tag_name.tag_name
+            SELECT tag_name.tag_id, tag_name.tag_name, tag_name.tag_kind
             FROM tag_name
             JOIN tag ON tag.tag_id = tag_name.tag_id
             JOIN map ON tag.ap_map_id = $1
@@ -468,7 +431,11 @@ async fn get_map_page(
             Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags").into_response(),
         }
         .into_iter()
-        .map(|row| row.tag_name)
+        .map(|row| TagInfo {
+            id: row.tag_id,
+            name: row.tag_name,
+            kind: row.tag_kind,
+        })
         .collect::<Vec<_>>();
 
         context.insert(
@@ -522,6 +489,13 @@ async fn get_map_thumbnail(
         .into_response())
 }
 
+    #[derive(Serialize)]
+    struct TagInfo {
+        id: i32,
+        name: String,
+        kind: String,
+    }
+
 async fn get_map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
     let mut context = config::context_with_auth_session(auth.as_ref());
 
@@ -534,13 +508,6 @@ async fn get_map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSes
             return (StatusCode::INTERNAL_SERVER_ERROR, "Getting names of tags").into_response()
         }
     };
-
-    #[derive(Serialize)]
-    struct TagInfo {
-        id: i32,
-        name: String,
-        kind: String,
-    }
 
     let tag_names = tag_names
         .into_iter()
