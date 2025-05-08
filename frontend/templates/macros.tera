@@ -1,6 +1,8 @@
 {% macro user_summary(user, class="") -%}
   <span class="userSummary {{ class }}">
-    <span class="nandoString">{{ user.club_tag }}</span>
+    {%- if user.club_tag -%}
+      <span class="nandoString">{{ user.club_tag }}</span>
+    {%- endif -%}
     {{ user.display_name }}
   </span>
 {%- endmacro user_summary %}
