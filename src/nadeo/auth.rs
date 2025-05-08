@@ -87,11 +87,11 @@ impl NadeoAuthSessionInner {
 
         let user_id = sqlx::query!(
             "
-                INSERT INTO ap_user (display_name, account_id, registered)
+                INSERT INTO ap_user (nadeo_display_name, nadeo_id, registered)
                 VALUES ($1, $2, NOW())
-                ON CONFLICT (account_id) DO UPDATE
-                    SET display_name=excluded.display_name
-                RETURNING user_id
+                ON CONFLICT (nadeo_id) DO UPDATE
+                    SET nadeo_display_name=excluded.nadeo_display_name
+                RETURNING ap_user_id
             ",
             user.display_name,
             user.account_id,
@@ -108,7 +108,7 @@ impl NadeoAuthSessionInner {
             inner,
             user,
             club_tag: club_tag.club_tag,
-            user_id: user_id.user_id,
+            user_id: user_id.ap_user_id,
             issued,
         })
     }

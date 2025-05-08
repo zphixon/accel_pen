@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n                SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded\n                FROM map\n                WHERE map.author = $1\n                LIMIT 20\n            ",
+  "query": "\n                SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded\n                FROM map\n                WHERE map.ap_author_id = $1\n                LIMIT 20\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "ap_id",
+        "name": "ap_map_id",
         "type_info": "Int4"
       },
       {
@@ -42,5 +42,5 @@
       false
     ]
   },
-  "hash": "f27cb00814d1096a24933206827ddd921b5f5fbe198a35ad04f3c92dfc587070"
+  "hash": "9ae30732f3878adde992def1c51402947388b20db33ce0a926dcbbb570052da9"
 }

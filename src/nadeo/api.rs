@@ -146,6 +146,7 @@ impl NadeoClubTag {
     pub const ENDPOINT: &str = "https://prod.trackmania.core.nadeo.online/accounts/clubTags/";
 
     pub async fn get(account_id: &str) -> Result<NadeoClubTag, ApiError> {
+        tracing::trace!("Get club tag for {}", account_id);
         Ok(CLIENT
             .clone()
             .get(

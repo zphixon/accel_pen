@@ -153,9 +153,9 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
     if let Some(auth) = auth {
         match sqlx::query!(
             "
-                SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded
+                SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded
                 FROM map
-                WHERE map.author = $1
+                WHERE map.ap_author_id = $1
                 LIMIT 20
             ",
             auth.user_id(),
@@ -167,7 +167,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                 let mut maps_context = Vec::new();
                 for map in my_maps.iter() {
                     maps_context.push(MapContext {
-                        id: map.ap_id,
+                        id: map.ap_map_id,
                         gbx_uid: &map.gbx_mapuid,
                         name: &map.mapname,
                         votes: map.votes,
@@ -198,10 +198,10 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
 
     match sqlx::query!(
         "
-            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author,
-                ap_user.display_name, ap_user.user_id, ap_user.account_id
-            FROM map JOIN ap_user ON map.author = ap_user.user_id
-            ORDER BY map.ap_id DESC
+            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
+                ap_user.nadeo_display_name, ap_user.nadeo_id
+            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+            ORDER BY map.ap_map_id DESC
             LIMIT 10
         ",
     )
@@ -211,7 +211,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
         Ok(recent_rows) => {
             let mut recent_maps = Vec::new();
             for map in recent_rows.iter() {
-                let Ok(club_tag) = NadeoClubTag::get(&map.account_id)
+                let Ok(club_tag) = NadeoClubTag::get(&map.nadeo_id)
                     .await
                     .context("Getting club tag for map data author")
                 else {
@@ -223,7 +223,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                 };
 
                 recent_maps.push(MapContext {
-                    id: map.ap_id,
+                    id: map.ap_map_id,
                     gbx_uid: &map.gbx_mapuid,
                     name: &map.mapname,
                     votes: map.votes,
@@ -233,9 +233,9 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                         .context("Formatting map upload time")
                         .expect("this is why i wanted to use regular Results for error handling"),
                     author: UserResponse {
-                        display_name: map.display_name.clone(),
-                        account_id: map.account_id.clone(),
-                        user_id: map.user_id,
+                        display_name: map.nadeo_display_name.clone(),
+                        account_id: map.nadeo_id.clone(),
+                        user_id: map.ap_author_id,
                         club_tag: club_tag.club_tag,
                     },
                 });
@@ -360,10 +360,10 @@ async fn map_data(
 ) -> Result<Json<MapDataResponse>, ApiError> {
     let row = sqlx::query!(
         "
-            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author,
-                ap_user.display_name, ap_user.user_id, ap_user.account_id
-            FROM map JOIN ap_user ON map.author = ap_user.user_id
-            WHERE map.ap_id = $1
+            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
+                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id
+            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+            WHERE map.ap_map_id = $1
         ",
         request.map_id
     )
@@ -372,22 +372,22 @@ async fn map_data(
     .with_context(|| format!("Fetching map {} from database", request.map_id))?;
 
     if let Some(row) = row {
-        let club_tag = NadeoClubTag::get(&row.account_id)
+        let club_tag = NadeoClubTag::get(&row.nadeo_id)
             .await
             .context("Getting club tag for map data author")?;
         Ok(Json(MapDataResponse {
             name: row.mapname,
             author: UserResponse {
-                display_name: row.display_name,
-                account_id: row.account_id,
-                user_id: row.user_id,
+                display_name: row.nadeo_display_name,
+                account_id: row.nadeo_id,
+                user_id: row.ap_user_id,
                 club_tag: club_tag.club_tag,
             },
             uploaded: row
                 .uploaded
                 .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
                 .context("Formatting map upload time")?,
-            map_id: row.ap_id,
+            map_id: row.ap_map_id,
             uid: row.gbx_mapuid,
         }))
     } else {
@@ -407,10 +407,10 @@ async fn get_map_page(
 
     let map = match sqlx::query!(
         "
-            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
-                map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id
-            FROM map JOIN ap_user ON map.author = ap_user.user_id
-            WHERE map.ap_id = $1
+            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
+                map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id
+            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+            WHERE map.ap_map_id = $1
         ",
         map_id,
     )
@@ -428,7 +428,7 @@ async fn get_map_page(
     };
 
     if let Some(map) = map {
-        let Ok(club_tag) = NadeoClubTag::get(&map.account_id)
+        let Ok(club_tag) = NadeoClubTag::get(&map.nadeo_id)
             .await
             .context("Getting club tag for map data author")
         else {
@@ -441,7 +441,7 @@ async fn get_map_page(
         context.insert(
             "map",
             &MapContext {
-                id: map.ap_id,
+                id: map.ap_map_id,
                 gbx_uid: &map.gbx_mapuid,
                 name: &map.mapname,
                 votes: map.votes,
@@ -450,9 +450,9 @@ async fn get_map_page(
                     .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
                     .unwrap(),
                 author: UserResponse {
-                    display_name: map.display_name,
-                    account_id: map.account_id,
-                    user_id: map.user_id,
+                    display_name: map.nadeo_display_name,
+                    account_id: map.nadeo_id,
+                    user_id: map.ap_user_id,
                     club_tag: club_tag.club_tag,
                 },
             },
@@ -479,7 +479,7 @@ async fn get_map_thumbnail(
 ) -> Result<Response, ApiError> {
     Ok((
         [(header::CONTENT_TYPE, "image/jpeg")],
-        sqlx::query!("SELECT thumbnail FROM map WHERE ap_id = $1", map_id)
+        sqlx::query!("SELECT thumbnail FROM map WHERE ap_map_id = $1", map_id)
             .fetch_one(&state.pool)
             .await
             .context("Reading thumbnail from database")?
@@ -579,10 +579,10 @@ async fn post_map_upload(
 
     match sqlx::query!(
         "
-            INSERT INTO map (gbx_mapuid, gbx_data, mapname, author, created, thumbnail)
+            INSERT INTO map (gbx_mapuid, gbx_data, mapname, ap_author_id, created, thumbnail)
             VALUES ($1, $2, $3, $4, NOW(), $5)
             ON CONFLICT DO NOTHING
-            RETURNING ap_id
+            RETURNING ap_map_id
         ",
         map_info.id,
         buffer,
@@ -594,14 +594,19 @@ async fn post_map_upload(
     .await
     .context("Adding map to database")?
     {
-        Some(row) => Ok(Json(MapUploadResponse { map_id: row.ap_id })),
+        Some(row) => Ok(Json(MapUploadResponse {
+            map_id: row.ap_map_id,
+        })),
         None => {
-            let map_id = sqlx::query!("SELECT ap_id FROM map WHERE gbx_mapuid = $1", map_info.id)
-                .fetch_one(&state.pool)
-                .await
-                .context("Fetching map ID for existing map")?;
+            let map_id = sqlx::query!(
+                "SELECT ap_map_id FROM map WHERE gbx_mapuid = $1",
+                map_info.id
+            )
+            .fetch_one(&state.pool)
+            .await
+            .context("Fetching map ID for existing map")?;
             Err(ApiErrorInner::AlreadyUploaded {
-                map_id: map_id.ap_id,
+                map_id: map_id.ap_map_id,
             }
             .into())
         }
