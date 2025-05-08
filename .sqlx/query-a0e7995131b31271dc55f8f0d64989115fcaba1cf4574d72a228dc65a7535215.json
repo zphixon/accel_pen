@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id\n            FROM map JOIN ap_user ON map.author = ap_user.user_id\n            WHERE map.ap_id = $1\n        ",
+  "query": "\n            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author,\n                ap_user.display_name, ap_user.user_id, ap_user.account_id\n            FROM map JOIN ap_user ON map.author = ap_user.user_id\n            WHERE map.ap_id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -66,5 +66,5 @@
       false
     ]
   },
-  "hash": "c8e01b4d8e4d804dcbcacd5cf3e942f177170d7d98015c5c30b58a4dfb3872bc"
+  "hash": "a0e7995131b31271dc55f8f0d64989115fcaba1cf4574d72a228dc65a7535215"
 }

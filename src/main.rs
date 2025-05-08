@@ -360,7 +360,8 @@ async fn map_data(
 ) -> Result<Json<MapDataResponse>, ApiError> {
     let row = sqlx::query!(
         "
-            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author, ap_user.display_name, ap_user.user_id, ap_user.account_id
+            SELECT map.ap_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.author,
+                ap_user.display_name, ap_user.user_id, ap_user.account_id
             FROM map JOIN ap_user ON map.author = ap_user.user_id
             WHERE map.ap_id = $1
         ",
