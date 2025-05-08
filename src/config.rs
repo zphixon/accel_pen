@@ -116,7 +116,7 @@ pub fn context_with_auth_session(auth: Option<&crate::nadeo::auth::NadeoAuthSess
     struct LoggedInUser<'auth> {
         account_id: &'auth str,
         display_name: &'auth str,
-        club_tag: &'auth str,
+        club_tag: Option<&'auth str>,
         user_id: i32,
     }
 

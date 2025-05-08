@@ -145,7 +145,7 @@ pub struct NadeoClubTag {
 impl NadeoClubTag {
     pub const ENDPOINT: &str = "https://prod.trackmania.core.nadeo.online/accounts/clubTags/";
 
-    pub async fn get(account_id: &str) -> Result<NadeoClubTag, ApiError> {
+    pub async fn get(account_id: &str) -> Result<Option<String>, ApiError> {
         tracing::trace!("Get club tag for {}", account_id);
         Ok(CLIENT
             .clone()
@@ -164,7 +164,7 @@ impl NadeoClubTag {
             .await
             .context("Reading JSON for club tag response")?
             .pop()
-            .unwrap())
+            .map(|club_tag| club_tag.club_tag))
     }
 }
 

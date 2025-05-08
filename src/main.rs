@@ -1,5 +1,3 @@
-use std::{path::PathBuf, sync::Arc};
-
 use axum::{
     extract::{DefaultBodyLimit, Multipart, Path, Query, State},
     http::{header, HeaderValue, Method, StatusCode},
@@ -11,6 +9,7 @@ use axum_extra::extract::WithRejection;
 use notify::Watcher;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
+use std::{path::PathBuf, sync::Arc};
 use tera::Tera;
 use tokio::net::TcpListener;
 use tower_http::{
@@ -184,7 +183,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                             display_name: auth.display_name().to_owned(),
                             account_id: auth.account_id().to_owned(),
                             user_id: auth.user_id(),
-                            club_tag: auth.club_tag().to_owned(),
+                            club_tag: auth.club_tag().map(String::from),
                         },
                     });
                 }
@@ -236,7 +235,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                         display_name: map.nadeo_display_name.clone(),
                         account_id: map.nadeo_id.clone(),
                         user_id: map.ap_author_id,
-                        club_tag: club_tag.club_tag,
+                        club_tag,
                     },
                 });
             }
@@ -333,7 +332,7 @@ struct UserResponse {
     display_name: String,
     account_id: String,
     user_id: i32,
-    club_tag: String,
+    club_tag: Option<String>,
 }
 
 #[derive(Deserialize, TS)]
@@ -381,7 +380,7 @@ async fn map_data(
                 display_name: row.nadeo_display_name,
                 account_id: row.nadeo_id,
                 user_id: row.ap_user_id,
-                club_tag: club_tag.club_tag,
+                club_tag,
             },
             uploaded: row
                 .uploaded
@@ -453,7 +452,7 @@ async fn get_map_page(
                     display_name: map.nadeo_display_name,
                     account_id: map.nadeo_id,
                     user_id: map.ap_user_id,
-                    club_tag: club_tag.club_tag,
+                    club_tag,
                 },
             },
         );

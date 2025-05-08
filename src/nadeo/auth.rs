@@ -68,7 +68,7 @@ impl NadeoTokensInner {
 pub struct NadeoAuthSessionInner {
     inner: NadeoTokensInner,
     user: NadeoUser,
-    club_tag: String,
+    club_tag: Option<String>,
     user_id: i32,
     issued: time::OffsetDateTime,
 }
@@ -108,7 +108,7 @@ impl NadeoAuthSessionInner {
         Ok(NadeoAuthSessionInner {
             inner,
             user,
-            club_tag: club_tag.club_tag,
+            club_tag,
             user_id: user_id.ap_user_id,
             issued,
         })
@@ -122,8 +122,8 @@ impl NadeoAuthSessionInner {
         &self.user.display_name
     }
 
-    pub fn club_tag(&self) -> &str {
-        &self.club_tag
+    pub fn club_tag(&self) -> Option<&str> {
+        self.club_tag.as_deref()
     }
 
     pub fn user_id(&self) -> i32 {
