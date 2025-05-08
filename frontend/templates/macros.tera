@@ -2,7 +2,7 @@
   <span class="userSummary {{ class }}">
     {%- if user.club_tag -%}
       <span class="nandoString">{{ user.club_tag }}</span>
-    {%- endif -%}
+    {%- endif %}
     {{ user.display_name }}
   </span>
 {%- endmacro user_summary %}

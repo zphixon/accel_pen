@@ -144,6 +144,9 @@ pub enum ApiErrorInner {
     #[error("Please don't upload maps that aren't yours")]
     NotYourMap,
 
+    #[error("No such tag: {tag}")]
+    NoSuchTag { tag: String },
+
     #[error("Not base64")]
     NotBase64 {
         #[serde(skip)]
@@ -188,6 +191,14 @@ pub enum ApiErrorInner {
         #[serde(skip)]
         #[from]
         error: tera::Error,
+    },
+
+    #[error("Could not parse JSON: {error}")]
+    Json {
+        #[ts(skip)]
+        #[serde(skip)]
+        #[from]
+        error: serde_json::Error,
     },
 }
 
@@ -243,6 +254,8 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::NotUtf8 { .. }
             | ApiErrorInner::NotYourMap
             | ApiErrorInner::AlreadyUploaded { .. }
+            | ApiErrorInner::Json { .. }
+            | ApiErrorInner::NoSuchTag { .. }
             | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
             ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,

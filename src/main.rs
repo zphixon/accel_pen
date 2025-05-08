@@ -8,7 +8,7 @@ use axum::{
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use tera::Tera;
 use tokio::net::TcpListener;
 use tower_http::{
@@ -140,6 +140,7 @@ struct MapContext<'auth> {
     votes: i32,
     uploaded: String,
     author: UserResponse,
+    tags: Vec<String>,
 }
 
 async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
@@ -161,6 +162,28 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
             Ok(my_maps) => {
                 let mut maps_context = Vec::new();
                 for map in my_maps.iter() {
+                    let tags = match sqlx::query!(
+                        "
+            SELECT tag_name.tag_name
+            FROM tag_name
+            JOIN tag ON tag.tag_id = tag_name.tag_id
+            JOIN map ON tag.ap_map_id = $1
+        ",
+                        map.ap_map_id
+                    )
+                    .fetch_all(&state.pool)
+                    .await
+                    {
+                        Ok(tags) => tags,
+                        Err(_) => {
+                            return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags")
+                                .into_response()
+                        }
+                    }
+                    .into_iter()
+                    .map(|row| row.tag_name)
+                    .collect::<Vec<_>>();
+
                     maps_context.push(MapContext {
                         id: map.ap_map_id,
                         gbx_uid: &map.gbx_mapuid,
@@ -181,6 +204,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                             user_id: auth.user_id(),
                             club_tag: auth.club_tag().map(String::from),
                         },
+                        tags,
                     });
                 }
                 context.insert("my_maps", &maps_context);
@@ -206,6 +230,21 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
         Ok(recent_rows) => {
             let mut recent_maps = Vec::new();
             for map in recent_rows.iter() {
+                let tags = match sqlx::query!(
+                "
+                    SELECT tag_name.tag_name
+                    FROM tag_name
+                    JOIN tag ON tag.tag_id = tag_name.tag_id
+                    JOIN map ON tag.ap_map_id = $1
+                ",
+                    map.ap_map_id
+                )
+                .fetch_all(&state.pool).await {
+                    Ok(tags) => tags,
+                    Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags").into_response(),
+                    // emerjanci rustfmt no worky
+                }.into_iter().map(|row| row.tag_name).collect::<Vec<_>>();
+
                 recent_maps.push(MapContext {
                     id: map.ap_map_id,
                     gbx_uid: &map.gbx_mapuid,
@@ -222,6 +261,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                         user_id: map.ap_author_id,
                         club_tag: map.nadeo_club_tag.clone(),
                     },
+                    tags,
                 });
             }
             context.insert("recent_maps", &recent_maps);
@@ -410,6 +450,25 @@ async fn get_map_page(
     };
 
     if let Some(map) = map {
+        let tags = match sqlx::query!(
+            "
+            SELECT tag_name.tag_name
+            FROM tag_name
+            JOIN tag ON tag.tag_id = tag_name.tag_id
+            JOIN map ON tag.ap_map_id = $1
+        ",
+            map.ap_map_id
+        )
+        .fetch_all(&state.pool)
+        .await
+        {
+            Ok(tags) => tags,
+            Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags").into_response(),
+        }
+        .into_iter()
+        .map(|row| row.tag_name)
+        .collect::<Vec<_>>();
+
         context.insert(
             "map",
             &MapContext {
@@ -427,6 +486,7 @@ async fn get_map_page(
                     user_id: map.ap_user_id,
                     club_tag: map.nadeo_club_tag,
                 },
+                tags,
             },
         );
     } else {
@@ -481,12 +541,20 @@ struct MapUploadResponse {
     map_id: i32,
 }
 
+#[derive(Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct MapUploadMeta {
+    tags: Vec<String>,
+}
+
 async fn post_map_upload(
     State(state): State<AppState>,
     session: NadeoAuthSession,
     WithRejection(mut multipart, _): WithRejection<Multipart, ApiError>,
 ) -> Result<Json<MapUploadResponse>, ApiError> {
     let mut map_data = None;
+    let mut map_meta = None;
 
     while let Some(field) = multipart
         .next_field()
@@ -507,8 +575,9 @@ async fn post_map_upload(
 
         tracing::debug!("{:?}", name);
 
-        if &name == "map_meta" {}
-        if &name == "map_data" {
+        if &name == "map_meta" {
+            map_meta = Some(data);
+        } else if &name == "map_data" {
             map_data = Some(data);
         }
     }
@@ -519,6 +588,31 @@ async fn post_map_upload(
         }
         .into());
     };
+
+    let Some(map_meta) = map_meta else {
+        return Err(ApiErrorInner::MissingFromMultipart {
+            error: "Value of map meta",
+        }
+        .into());
+    };
+
+    let map_meta =
+        serde_json::from_slice::<MapUploadMeta>(&map_meta).context("Parsing map meta as JSON")?;
+
+    let mut map_tags: HashSet<i32> = HashSet::new();
+    for tag in map_meta.tags.iter() {
+        let Some(tag_id) = sqlx::query!("SELECT tag_id FROM tag_name WHERE tag_name = $1", tag)
+            .fetch_optional(&state.pool)
+            .await
+            .context("Looking up tag name")?
+        else {
+            return Err(ApiErrorInner::NoSuchTag {
+                tag: tag.to_owned(),
+            }
+            .into());
+        };
+        map_tags.insert(tag_id.tag_id);
+    }
 
     let map_node = gbx_rs::Node::read_from(&map_data).context("Parsing map for upload")?;
     let gbx_rs::parse::CGame::CtnChallenge(map) =
@@ -549,7 +643,7 @@ async fn post_map_upload(
 
     let buffer = map_data.to_vec();
 
-    match sqlx::query!(
+    let map_response = match sqlx::query!(
         "
             INSERT INTO map (gbx_mapuid, gbx_data, mapname, ap_author_id, created, thumbnail)
             VALUES ($1, $2, $3, $4, NOW(), $5)
@@ -566,9 +660,10 @@ async fn post_map_upload(
     .await
     .context("Adding map to database")?
     {
-        Some(row) => Ok(Json(MapUploadResponse {
+        // you really can't get this from the function signature?
+        Some(row) => MapUploadResponse {
             map_id: row.ap_map_id,
-        })),
+        },
         None => {
             let map_id = sqlx::query!(
                 "SELECT ap_map_id FROM map WHERE gbx_mapuid = $1",
@@ -577,10 +672,23 @@ async fn post_map_upload(
             .fetch_one(&state.pool)
             .await
             .context("Fetching map ID for existing map")?;
-            Err(ApiErrorInner::AlreadyUploaded {
+            return Err(ApiErrorInner::AlreadyUploaded {
                 map_id: map_id.ap_map_id,
             }
-            .into())
+            .into());
         }
+    };
+
+    for tag in map_tags {
+        sqlx::query!(
+            "INSERT INTO tag (ap_map_id, tag_id) VALUES ($1, $2)",
+            map_response.map_id,
+            tag
+        )
+        .execute(&state.pool)
+        .await
+        .context("Adding tag to map")?;
     }
+
+    Ok(Json(map_response))
 }

@@ -2,13 +2,10 @@ import * as api from './api.js';
 
 async function uploadMap() {
   let mapData = document.getElementById("mapData")! as HTMLInputElement;
-
-  let data = new FormData();
-  if (mapData.files) {
-    data.append("map_data", mapData.files[0]);
-  }
-
-  let response = await api.uploadMap(data);
+  let response = await api.uploadMap(mapData.files![0], {
+    'type': 'MapUploadMeta',
+    'tags': ['Race'],
+  });
 
   let responseElement = document.getElementById("response")!;
   responseElement.innerHTML = '';

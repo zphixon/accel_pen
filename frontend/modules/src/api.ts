@@ -87,6 +87,9 @@ export async function mapData(request: types.MapDataRequest): Promise<types.MapD
   return await apiCall<types.MapDataResponse>("/map/data", { params: request });
 }
 
-export async function uploadMap(data: FormData): Promise<types.MapUploadResponse | types.TsApiError> {
-  return await apiCall<types.MapUploadResponse>("/map/upload", { body: data, method: 'POST' });
+export async function uploadMap(map: File, mapMeta: types.MapUploadMeta): Promise<types.MapUploadResponse | types.TsApiError> {
+  let body = new FormData();
+  body.append("map_data", map);
+  body.append("map_meta", JSON.stringify(mapMeta));
+  return await apiCall<types.MapUploadResponse>("/map/upload", { body, method: 'POST' });
 }

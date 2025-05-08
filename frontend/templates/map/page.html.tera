@@ -36,9 +36,15 @@
 
     <div class="mapDetails">
       {{ macros::map_thumbnail(map=map) }}
-      <p>
-        Uploaded <span class="uploadDate">{{ map.uploaded }}</span>
-      </p>
+      <div class="mapSideText">
+        <p>Uploaded <span class="uploadDate">{{ map.uploaded }}</span></p>
+        <p>Tags:</p>
+        <ul>
+          {% for tag in map.tags %}
+            <li>{{ tag }}</li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
 
     <script type="text/javascript">

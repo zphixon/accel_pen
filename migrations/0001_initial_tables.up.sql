@@ -27,9 +27,96 @@ CREATE TABLE map (
         ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+CREATE TABLE tag_name (
+    tag_id SERIAL UNIQUE NOT NULL,
+    tag_name TEXT NOT NULL,
+
+    CONSTRAINT pk_tag_name PRIMARY KEY (tag_id)
+);
+
+CREATE TABLE tag (
+    ap_map_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+
+    CONSTRAINT fk_map_id FOREIGN KEY (ap_map_id)
+        REFERENCES map (ap_map_id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_tag_id FOREIGN KEY (tag_id)
+        REFERENCES tag_name (tag_id)
+);
+
+INSERT INTO tag_name (tag_name) VALUES
+    ('Race'),
+    ('Scenery'),
+    ('Signature'),
+    ('Educational'),
+
+    ('FullSpeed'),
+    ('SpeedFun'),
+    ('Tech'),
+    ('SpeedTech'),
+    ('RPG'),
+    ('MiniRPG'),
+    ('LOL'),
+    ('Offroad'),
+    ('Trial'),
+    ('ZrT'),
+    ('Competitive'),
+    ('Kacky'),
+    ('Endurance'),
+    ('Obstacle'),
+    ('Mixed'),
+    ('Nascar'),
+    ('Transitional'),
+    ('Backwards'),
+    ('Pathfinding'),
+    ('AlteredNadeo'),
+    ('Underwater'),
+    ('Turtle'),
+
+    ('NoBrakes'),
+    ('Reactor'),
+    ('SlowMotion'),
+    ('Fragile'),
+    ('EngineOff'),
+    ('CruiseControl'),
+    ('NoSteering'),
+    ('NoGrip'),
+
+    ('Ice'),
+    ('Dirt'),
+    ('Plastic'),
+    ('Grass'),
+    ('Water'),
+    ('Sausage'),
+    ('Bobsleigh'),
+    ('Wood'),
+    ('WetWood'),
+    ('WetIcyWood'),
+    ('Magnet'),
+    ('Bumper'),
+    ('MovingItems'),
+    ('Pipes'),
+
+    ('Bugslide'),
+    ('Mudslide'),
+    ('SpeedMapping'),
+
+    ('SnowCar'),
+    ('DesertCar'),
+    ('RallyCar'),
+    ('MixedCar'),
+
+    ('PressForward'),
+    ('Stunt'),
+    ('Platform'),
+    ('Royal'),
+    ('Puzzle')
+;
+
 CREATE TABLE vote (
-    ap_user_id INTEGER,
-    ap_map_id INTEGER,
+    ap_user_id INTEGER NOT NULL,
+    ap_map_id INTEGER NOT NULL,
     vote_value SMALLINT NOT NULL,
     cast_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
 
