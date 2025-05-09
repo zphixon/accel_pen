@@ -2,14 +2,14 @@
 {% import "macros.tera" as macros %}
 
 {% block tabTitle -%}
-  {{ super() }} - Not found
+  {{ super() }} - {{ error }}
 {%- endblock tabTitle %}
 
 {% block title -%}
-  Not found
+  {{ error }}
 {%- endblock title %}
 
 {% block content %}
-  Page not found
+  {{ error_description }}
 {% endblock content %}
 

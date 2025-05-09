@@ -1,0 +1,32 @@
+{% extends "layout.html.tera" %}
+{% import "macros.tera" as macros %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ config.root }}static/manageMap.css">
+{% endblock head %}
+
+{% block tabTitle -%}
+  {%- if map -%}
+    {{ super() }} - Manage {{ map.plain_name }}
+  {%- else -%}
+    {{ super() }} - No such map
+  {%- endif -%}
+{%- endblock tabTitle %}
+
+{% block returnPath -%}
+  {%- if map -%}
+    ?returnPath=/map/{{ map.id }}
+  {%- endif -%}
+{%- endblock returnPath %}
+
+{% block content %}
+  {% if map %}
+    <h2>Manage {{ macros::nadeo_string(text=map.name) }}</h2>
+    <script type="application/json" id="mapData">{{ map | json_encode() }}</script>
+    <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
+    <div id="mapManage"></div>
+    <script type="module" src="{{ config.root }}static/js/manageMap.js"></script>
+  {% else %}
+    <h1>No such map</h1>
+  {% endif %}
+{% endblock content %}

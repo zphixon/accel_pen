@@ -25,8 +25,7 @@
       <h2 class="mapName">{{ macros::nadeo_string(text=map.name) }}</h2>
       {% if user and user.user_id == map.author.user_id %}
         <div class="manageMap">
-          <button>Edit</button>
-          <button>Delete</button>
+          <a href="{{ config.root }}map/{{ map.id }}/manage">Manage map</a>
           {{ macros::user_summary(user=map.author, class="mapAuthor") }}
         </div>
       {% else %}

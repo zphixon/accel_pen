@@ -1,6 +1,6 @@
 use axum::{
-    extract::{DefaultBodyLimit, Multipart, Path, Query, State},
-    http::{header, HeaderValue, Method, StatusCode},
+    extract::{DefaultBodyLimit, FromRequestParts, Multipart, Path, Query, State},
+    http::{header, HeaderValue, Method, StatusCode, Uri},
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Json, Router,
@@ -94,6 +94,10 @@ async fn main() -> anyhow::Result<()> {
             .route(&CONFIG.route(""), get(index))
             .route(&CONFIG.route("map/{map_id}"), get(get_map_page))
             .route(
+                &CONFIG.route("map/{map_id}/manage"),
+                get(get_map_manage_page),
+            )
+            .route(
                 &CONFIG.route_api_v1("map/{map_id}/thumbnail"),
                 get(get_map_thumbnail).layer(long_cache),
             )
@@ -133,21 +137,31 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn my_fallback(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
-    let context = config::context_with_auth_session(auth.as_ref());
+async fn my_fallback(
+    State(state): State<AppState>,
+    uri: Uri,
+    auth: Option<NadeoAuthSession>,
+) -> Response {
+    let mut context = config::context_with_auth_session(auth.as_ref());
+    context.insert("error", "Not found");
+    context.insert(
+        "error_description",
+        &format!("Page not found: {}", uri.path()),
+    );
     match state
         .tera
         .read()
         .unwrap()
-        .render("404.html.tera", &context)
-        .context("Rendering 404 template")
+        .render("error.html.tera", &context)
+        .context("Rendering error template")
     {
         Ok(page) => Html(page).into_response(),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export)]
 struct MapContext<'auth> {
     id: i32,
     gbx_uid: &'auth str,
@@ -475,7 +489,10 @@ async fn get_map_page(
                     display_name: map.nadeo_display_name,
                     account_id: map.nadeo_id,
                     user_id: map.ap_user_id,
-                    club_tag: map.nadeo_club_tag.as_deref().map(nadeo::FormattedString::parse),
+                    club_tag: map
+                        .nadeo_club_tag
+                        .as_deref()
+                        .map(nadeo::FormattedString::parse),
                 },
                 tags,
             },
@@ -489,6 +506,141 @@ async fn get_map_page(
         .read()
         .unwrap()
         .render("map/page.html.tera", &context)
+        .context("Rendering map page template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
+}
+
+struct UnauthorizedPageAccess;
+
+impl IntoResponse for UnauthorizedPageAccess {
+    fn into_response(self) -> Response {
+        "Not authorized to view this page".into_response()
+    }
+}
+
+impl From<<NadeoAuthSession as FromRequestParts<AppState>>::Rejection> for UnauthorizedPageAccess {
+    fn from(_value: <NadeoAuthSession as FromRequestParts<AppState>>::Rejection) -> Self {
+        UnauthorizedPageAccess
+    }
+}
+
+async fn get_map_manage_page(
+    State(state): State<AppState>,
+    WithRejection(auth, _): WithRejection<NadeoAuthSession, UnauthorizedPageAccess>,
+    Path(map_id): Path<i32>,
+) -> Response {
+    let mut context = config::context_with_auth_session(Some(&auth));
+
+    let map = match sqlx::query!(
+        "
+            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
+                map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
+                ap_user.nadeo_club_tag
+            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+            WHERE map.ap_map_id = $1
+        ",
+        map_id,
+    )
+    .fetch_optional(&state.pool)
+    .await
+    {
+        Ok(maybe_row) => maybe_row,
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("DB error: {}", err),
+            )
+                .into_response()
+        }
+    };
+
+    if let Some(map) = map {
+        if map.ap_author_id != auth.user_id() {
+            return (StatusCode::UNAUTHORIZED, "This isn't your map").into_response();
+        }
+
+        let tags = match sqlx::query!(
+            "
+            SELECT tag_name.tag_id, tag_name.tag_name, tag_name.tag_kind
+            FROM tag_name
+            JOIN tag ON tag.tag_id = tag_name.tag_id
+            JOIN map ON tag.ap_map_id = $1
+            GROUP BY tag_name.tag_id
+            ORDER BY tag_name.tag_id ASC
+        ",
+            map.ap_map_id
+        )
+        .fetch_all(&state.pool)
+        .await
+        {
+            Ok(tags) => tags,
+            Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags").into_response(),
+        }
+        .into_iter()
+        .map(|row| TagInfo {
+            id: row.tag_id,
+            name: row.tag_name,
+            kind: row.tag_kind,
+        })
+        .collect::<Vec<_>>();
+
+        let name = nadeo::FormattedString::parse(&map.mapname);
+        context.insert(
+            "map",
+            &MapContext {
+                id: map.ap_map_id,
+                gbx_uid: &map.gbx_mapuid,
+                plain_name: name.strip_formatting(),
+                name,
+                votes: map.votes,
+                uploaded: map
+                    .uploaded
+                    .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+                    .unwrap(),
+                author: UserResponse {
+                    display_name: map.nadeo_display_name,
+                    account_id: map.nadeo_id,
+                    user_id: map.ap_user_id,
+                    club_tag: map
+                        .nadeo_club_tag
+                        .as_deref()
+                        .map(nadeo::FormattedString::parse),
+                },
+                tags,
+            },
+        );
+    } else {
+        context.insert("map", &None::<()>);
+    }
+
+    let tag_names = match sqlx::query!("SELECT tag_id, tag_name, tag_kind FROM tag_name")
+        .fetch_all(&state.pool)
+        .await
+    {
+        Ok(tag_names) => tag_names,
+        Err(_) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Getting names of tags").into_response()
+        }
+    };
+
+    let tag_names = tag_names
+        .into_iter()
+        .map(|row| TagInfo {
+            id: row.tag_id,
+            name: row.tag_name,
+            kind: row.tag_kind,
+        })
+        .collect::<Vec<TagInfo>>();
+    context.insert("tags", &tag_names);
+
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("map/manage.html.tera", &context)
         .context("Rendering map page template")
     {
         Ok(page) => Html(page).into_response(),
