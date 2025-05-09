@@ -38,6 +38,7 @@
       {{ macros::map_thumbnail(map=map) }}
       <div class="mapSideText">
         <p>Uploaded <span class="uploadDate">{{ map.uploaded }}</span></p>
+        <p><a href="https://trackmania.io/#/leaderboard/{{ map.gbx_uid }}">View on Trackmania.io</a></p>
         {{ macros::tag_list(tags=map.tags) }}
       </div>
     </div>
