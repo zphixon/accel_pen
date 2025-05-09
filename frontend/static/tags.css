@@ -18,6 +18,8 @@
 
 .tagList {
     display: flex;
+    column-gap: 0.3em;
+    row-gap: 0.6em;
 }
 
 .tagList.tagSelectGrid {
@@ -25,10 +27,6 @@
     grid-template-columns: repeat(6, 1fr);
     padding-top: 0.3em;
     padding-bottom: 0.3em;
-}
-
-.tagBadge {
-    margin: 0.3em;
 }
 
 .tagBadge:has(.tagCheckbox.tagCheckboxSelected) .tagName {

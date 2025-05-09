@@ -25,11 +25,11 @@
       <h2 class="mapName">{{ macros::nadeo_string(text=map.name) }}</h2>
       {% if user and user.user_id == map.author.user_id %}
         <div class="manageMap">
+          by you -
           <a href="{{ config.root }}map/{{ map.id }}/manage">Manage map</a>
-          {{ macros::user_summary(user=map.author, class="mapAuthor") }}
         </div>
       {% else %}
-        {{ macros::user_summary(user=map.author, class="mapAuthor") }}
+        <span class="mapAuthor">by {{ macros::user_summary(user=map.author, class="mapAuthor") }}</span>
       {% endif %}
     </div>
 
