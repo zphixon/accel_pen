@@ -32,12 +32,9 @@
 {% endmacro map_thumbnail %}
 
 {% macro tag_badge(tag) %}
-  <div class="tagContainer">
-    <div class="{{ tag.kind }} {{ tag.name }}">
-      <input hidden class="tagCheckbox" type="checkbox" id="{{ tag.name }}">
-      <label for="{{ tag.name }}" class="tagName {{ tag.kind }}">{{ tag.name }}</label>
-    </div>
-  </div>
+  <a class="tagBadge {{ tag.kind }} {{ tag.name }}" href="{{ config.root }}search?taggedWith={{ tag.name }}">
+    <span class="tagName {{ tag.kind }}">{{ tag.name }}</span>
+  </a>
 {% endmacro tag_badge %}
 
 {% macro tag_list(tags, class="") %}
