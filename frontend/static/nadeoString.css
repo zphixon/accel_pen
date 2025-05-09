@@ -1,3 +1,11 @@
+.nadeoString .textBold {
+    font-weight: bold;
+}
+
+.nadeoString .textItalic {
+    font-style: italic;
+}
+
 .nadeoString .textStretch {
     display: inline-block;
     transform: scale(1.5, 1);

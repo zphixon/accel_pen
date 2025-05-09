@@ -51,7 +51,7 @@ impl Format {
             'n' => Some(Format::TextShrink),
             't' => Some(Format::TextUppercase),
             's' => Some(Format::TextShadow),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -67,66 +67,84 @@ pub struct FormattedChar {
 
 impl FormattedChar {
     fn icon(char: char, color: Option<Color>, format: &HashSet<Format>) -> Self {
-        FormattedChar { char, icon: true, color, format: format.clone() }
-    }
-
-    fn char(char: char, color: Option<Color>, format: &HashSet<Format>) -> Self {
-        FormattedChar { char, icon: false, color, format: format.clone() }
-    }
-}
-
-pub fn to_formatted_string(s: &str) -> Vec<FormattedChar> {
-    let mut formatted = Vec::new();
-
-    let mut format = HashSet::new();
-    let mut color = None::<Color>;
-
-    let mut i = 0;
-    let chars = s.chars().collect::<Vec<_>>();
-    while i < chars.len() {
-        let char = chars[i];
-        let codepoint = chars[i] as u32;
-        if 0xE000 <= codepoint && codepoint <= 0xF8FF
-            || 0xF0000 <= codepoint && codepoint <= 0xFFFFD
-            || 0x100000 <= codepoint && codepoint <= 0x10FFFD
-        {
-            i += 1;
-            formatted.push(FormattedChar::icon(char, color, &format));
-        } else if char == '$' {
-            i += 1;
-            let Some(&code) = chars.get(i) else {
-                break;
-            };
-            if code == '$' {
-                formatted.push(FormattedChar::char('$', color, &format));
-            } else if let Some(format_char) = Format::from_char(code) {
-                format.insert(format_char);
-            } else if code == 'g' {
-                color = None;
-            } else if code == 'z' {
-                format.clear();
-            } else {
-                let r = code;
-                i += 1;
-                let Some(&g) = chars.get(i) else {
-                    break;
-                };
-                i += 1;
-                let Some(&b) = chars.get(i) else {
-                    break;
-                };
-                color = Some(Color { r, g, b })
-            }
-            i += 1;
-        } else {
-            i += 1;
-            formatted.push(FormattedChar::char(char, color, &format));
+        FormattedChar {
+            char,
+            icon: true,
+            color,
+            format: format.clone(),
         }
     }
 
-    formatted
+    fn char(char: char, color: Option<Color>, format: &HashSet<Format>) -> Self {
+        FormattedChar {
+            char,
+            icon: false,
+            color,
+            format: format.clone(),
+        }
+    }
 }
 
-pub fn strip_formatting(formatted: &[FormattedChar]) -> String {
-    formatted.iter().map(|format| format.char).collect()
+#[derive(Serialize, TS)]
+#[ts(export)]
+#[repr(transparent)]
+#[serde(transparent)]
+pub struct FormattedString(Vec<FormattedChar>);
+
+impl FormattedString {
+    pub fn strip_formatting(&self) -> String {
+        self.0.iter().map(|format| format.char).collect()
+    }
+
+    pub fn parse(s: &str) -> Self {
+        let mut formatted = Vec::new();
+
+        let mut format = HashSet::new();
+        let mut color = None::<Color>;
+
+        let mut i = 0;
+        let chars = s.chars().collect::<Vec<_>>();
+        while i < chars.len() {
+            let char = chars[i];
+            let codepoint = chars[i] as u32;
+            if 0xE000 <= codepoint && codepoint <= 0xF8FF
+                || 0xF0000 <= codepoint && codepoint <= 0xFFFFD
+                || 0x100000 <= codepoint && codepoint <= 0x10FFFD
+            {
+                i += 1;
+                formatted.push(FormattedChar::icon(char, color, &format));
+            } else if char == '$' {
+                i += 1;
+                let Some(&code) = chars.get(i) else {
+                    break;
+                };
+                if code == '$' {
+                    formatted.push(FormattedChar::char('$', color, &format));
+                } else if let Some(format_char) = Format::from_char(code) {
+                    format.insert(format_char);
+                } else if code == 'g' {
+                    color = None;
+                } else if code == 'z' {
+                    format.clear();
+                } else {
+                    let r = code;
+                    i += 1;
+                    let Some(&g) = chars.get(i) else {
+                        break;
+                    };
+                    i += 1;
+                    let Some(&b) = chars.get(i) else {
+                        break;
+                    };
+                    color = Some(Color { r, g, b })
+                }
+                i += 1;
+            } else {
+                i += 1;
+                formatted.push(FormattedChar::char(char, color, &format));
+            }
+        }
+
+        FormattedString(formatted)
+    }
 }
