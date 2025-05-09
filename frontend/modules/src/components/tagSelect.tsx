@@ -4,14 +4,15 @@ import * as types from "../bindings/index";
 interface TagBadgeProps {
   tag: types.TagInfo,
   checked: boolean,
+  selected: boolean,
   onChange?: React.ChangeEventHandler<HTMLInputElement>,
 }
-function TagBadge({ tag, checked, onChange }: TagBadgeProps) {
+function TagBadge({ tag, checked, selected, onChange }: TagBadgeProps) {
   return <>
-    <div className={[tag.kind, tag.name].join(" ")}>
+    <div className={["tagBadge", tag.kind, tag.name].join(" ")}>
       <input
         hidden
-        className="tagCheckbox"
+        className={["tagCheckbox", selected ? "tagCheckboxSelected" : ""].join(" ")}
         type="checkbox"
         id={tag.name}
         onChange={onChange}
@@ -28,12 +29,13 @@ function TagBadge({ tag, checked, onChange }: TagBadgeProps) {
 }
 
 interface TagSelectProps {
+  originalSelectedTags?: types.TagInfo[],
   tagInfo: types.TagInfo[],
   selectedTags: types.TagInfo[],
   setSelectedTags: (newSelectedTags: types.TagInfo[]) => void,
   maxTags: number,
 }
-function TagSelect({ tagInfo, selectedTags, setSelectedTags, maxTags }: TagSelectProps) {
+function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTags = [], maxTags }: TagSelectProps) {
   function toggleTag(event: React.ChangeEvent<HTMLInputElement>) {
     if (event.target.checked) {
       if (selectedTags.length >= maxTags) {
@@ -52,10 +54,11 @@ function TagSelect({ tagInfo, selectedTags, setSelectedTags, maxTags }: TagSelec
     }
   }
 
-  let selectedTagList = selectedTags.map(tag => <TagBadge key={tag.id} tag={tag} checked={true} onChange={toggleTag} />);
+  let selectedTagList = selectedTags.map(tag => <TagBadge key={tag.id} tag={tag} selected={false} checked={true} onChange={toggleTag} />);
   let tagGrid = tagInfo.map(tag => <div key={tag.id} className="tagContainer">
     {selectedTags.find(selectedTag => selectedTag.name == tag.name)
-      ? '' : <TagBadge key={tag.id} tag={tag} checked={false} onChange={toggleTag} />}
+      ? <TagBadge key={tag.id} tag={tag} selected={true} checked={false} onChange={toggleTag} />
+      : <TagBadge key={tag.id} tag={tag} selected={false} checked={false} onChange={toggleTag} />}
   </div>);
 
   let gridClasses = ["tagList", "tagSelectGrid"];
@@ -69,10 +72,10 @@ function TagSelect({ tagInfo, selectedTags, setSelectedTags, maxTags }: TagSelec
         Selected tags: <span className="tagList" id="selectedTagList">{selectedTagList}</span>
       </div>
       <div id="resetTagsContainer">
-        <button id="resetTags" onClick={_ => setSelectedTags([])}>Reset tags</button>
+        <button id="resetTags" onClick={_ => setSelectedTags(originalSelectedTags)}>Reset tags</button>
       </div>
     </div>
-    <hr />
+    <br/>
     <div className={gridClasses.join(" ")}>
       {tagGrid}
     </div>

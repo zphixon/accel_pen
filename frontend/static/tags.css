@@ -1,6 +1,7 @@
 
 #tagSelectHeader {
     display: flex;
+    min-height: 2em;
 }
 
 #selectedTagsContainer {
@@ -16,19 +17,29 @@
 }
 
 .tagList {
-    column-gap: 0.3em;
-    row-gap: 0.8em;
     display: flex;
 }
 
 .tagList.tagSelectGrid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
+    padding-top: 0.3em;
+    padding-bottom: 0.3em;
+}
+
+.tagBadge {
+    margin: 0.3em;
+}
+
+.tagBadge:has(.tagCheckbox.tagCheckboxSelected) .tagName {
+    color: rgb(65, 64, 64);
+    background-color: lightgrey;
+    border: 1px solid rgb(62, 62, 62);
 }
 
 .tagSelectGrid.fullSelection .tagName {
     color: grey;
-    background-color: lightgrey;
+    background-color: rgb(240, 240, 240);
 }
 
 .tagName {
@@ -37,25 +48,25 @@
 }
 
 .tagName.mapStyle {
-    background-color: rgb(255, 199, 86);
+    background-color: rgb(255, 195, 128);
 }
 
 .tagName.definingSurface {
-    background-color: rgb(158, 229, 255);
+    background-color: rgb(255, 113, 47);
 }
 
 .tagName.mapFeature {
-    background-color: rgb(255, 186, 186);
+    background-color: rgb(153, 230, 255);
 }
 
 .tagName.drivingTechnique {
-    background-color: rgb(207, 207, 207);
+    background-color: rgb(146, 182, 236);
 }
 
 .tagName.notStadium {
-    background-color: rgb(255, 241, 48);
+    background-color: rgb(253, 236, 0);
 }
 
 .tagName.mapMeta {
-    background-color: rgb(113, 175, 255);
+    background-color: rgb(255, 194, 242);
 }
