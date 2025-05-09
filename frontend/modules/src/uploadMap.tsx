@@ -13,6 +13,7 @@ function UploadMap() {
 
   function onChangeMap(event: React.ChangeEvent<HTMLInputElement>) {
     if (event.target.files && event.target.files.length > 0) {
+      setSelectedTags([]);
       setMapFile(event.target.files[0]);
     }
   }
@@ -25,7 +26,13 @@ function UploadMap() {
     api.uploadMap(mapFile, {
       type: 'MapUploadMeta',
       tags: selectedTags.map(tag => tag.name),
-    }).then(response => setApiResponse(response))
+    }).then(response => {
+      if (response.type == 'MapUploadResponse') {
+        setSelectedTags([]);
+        setMapFile(undefined);
+      }
+      setApiResponse(response);
+    })
   }
 
   let response = <></>;
