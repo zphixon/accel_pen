@@ -136,7 +136,8 @@ async fn main() -> anyhow::Result<()> {
 struct MapContext<'auth> {
     id: i32,
     gbx_uid: &'auth str,
-    name: &'auth str,
+    plain_name: String,
+    name: Vec<nadeo::FormattedChar>,
     votes: i32,
     uploaded: String,
     author: UserResponse,
@@ -162,10 +163,12 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
             Ok(my_maps) => {
                 let mut maps_context = Vec::new();
                 for map in my_maps.iter() {
+                    let name = nadeo::to_formatted_string(&map.mapname);
                     maps_context.push(MapContext {
                         id: map.ap_map_id,
                         gbx_uid: &map.gbx_mapuid,
-                        name: &map.mapname,
+                        plain_name: nadeo::strip_formatting(&name),
+                        name,
                         votes: map.votes,
                         uploaded: map
                             .uploaded
@@ -180,7 +183,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                             display_name: auth.display_name().to_owned(),
                             account_id: auth.account_id().to_owned(),
                             user_id: auth.user_id(),
-                            club_tag: auth.club_tag().map(String::from),
+                            club_tag: auth.club_tag().map(nadeo::to_formatted_string),
                         },
                         tags: vec![],
                     });
@@ -208,10 +211,12 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
         Ok(recent_rows) => {
             let mut recent_maps = Vec::new();
             for map in recent_rows.iter() {
+                let name = nadeo::to_formatted_string(&map.mapname);
                 recent_maps.push(MapContext {
                     id: map.ap_map_id,
                     gbx_uid: &map.gbx_mapuid,
-                    name: &map.mapname,
+                    plain_name: nadeo::strip_formatting(&name),
+                    name,
                     votes: map.votes,
                     uploaded: map
                         .uploaded
@@ -222,7 +227,7 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                         display_name: map.nadeo_display_name.clone(),
                         account_id: map.nadeo_id.clone(),
                         user_id: map.ap_author_id,
-                        club_tag: map.nadeo_club_tag.clone(),
+                        club_tag: map.nadeo_club_tag.as_deref().map(nadeo::to_formatted_string),
                     },
                     tags: vec!(),
                 });
@@ -320,7 +325,7 @@ struct UserResponse {
     display_name: String,
     account_id: String,
     user_id: i32,
-    club_tag: Option<String>,
+    club_tag: Option<Vec<nadeo::FormattedChar>>,
 }
 
 //#[derive(Deserialize, TS)]
@@ -438,12 +443,14 @@ async fn get_map_page(
         })
         .collect::<Vec<_>>();
 
+        let name = nadeo::to_formatted_string(&map.mapname);
         context.insert(
             "map",
             &MapContext {
                 id: map.ap_map_id,
                 gbx_uid: &map.gbx_mapuid,
-                name: &map.mapname,
+                plain_name: nadeo::strip_formatting(&name),
+                name,
                 votes: map.votes,
                 uploaded: map
                     .uploaded
@@ -453,7 +460,7 @@ async fn get_map_page(
                     display_name: map.nadeo_display_name,
                     account_id: map.nadeo_id,
                     user_id: map.ap_user_id,
-                    club_tag: map.nadeo_club_tag,
+                    club_tag: map.nadeo_club_tag.as_deref().map(nadeo::to_formatted_string),
                 },
                 tags,
             },

@@ -1,11 +1,27 @@
-{% macro nando_string(text, class="") %}
-  <span class="nandoString {{ class }}">{{ text }}</span>
-{% endmacro nando_string %}
+{% macro nadeo_string(text) -%}
+  <span class="nadeoString">
+    {%- for char in text -%}
+      {%- set class_list = char.format | join(sep=" ") %}
+
+      {%- if char.color -%}
+        {%- set_global char_color = ['style="color:#', char.color.r, char.color.g, char.color.b, ';"'] | join(sep="") -%}
+      {%- else -%}
+        {%- set_global char_color = "" %}
+      {%- endif -%}
+
+      {%- if char.icon -%}
+        <i class="fa-solid {{ class_list }}" {{ char_color }}>{{ char.char }}</i>
+      {%- else -%}
+        <span class="{{ class_list }}" {{ char_color }}>{{ char.char }}</span>
+      {%- endif -%}
+    {%- endfor -%}
+  </span>
+{%- endmacro nadeo_string %}
 
 {% macro user_summary(user, class="") -%}
   <span class="userSummary {{ class }}">
     {%- if user.club_tag -%}
-      {{ self::nando_string(text=user.club_tag, class="clubTag") }}
+      {{ self::nadeo_string(text=user.club_tag, class="clubTag") }}
     {%- endif %}
     {{ user.display_name }}
   </span>

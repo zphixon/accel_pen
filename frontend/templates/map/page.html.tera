@@ -8,7 +8,7 @@
 
 {% block tabTitle -%}
   {%- if map -%}
-    {{ super() }} - {{ map.name }} by {{ map.author.display_name }}
+    {{ super() }} - {{ map.plain_name }} by {{ map.author.display_name }}
   {%- else -%}
     {{ super() }} - No such map
   {%- endif -%}
@@ -23,7 +23,7 @@
 {% block content %}
   {% if map %}
     <div class="mapHeader">
-      <h2 class="mapName">{{ macros::nando_string(text=map.name) }}</h2>
+      <h2 class="mapName">{{ macros::nadeo_string(text=map.name) }}</h2>
       {% if user and user.user_id == map.author.user_id %}
         <div class="manageMap">
           <button>Edit</button>

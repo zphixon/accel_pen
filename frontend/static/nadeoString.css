@@ -1,19 +1,19 @@
-.nandoString .textStretch {
+.nadeoString .textStretch {
     display: inline-block;
     transform: scale(1.5, 1);
     margin: 0em 0.1em;
 }
 
-.nandoString .textShrink {
+.nadeoString .textShrink {
     display: inline-block;
     transform: scale(0.8, 1);
     margin: 0em -0.05em;
 }
 
-.nandoString .textUppercase {
+.nadeoString .textUppercase {
     text-transform: uppercase;
 }
 
-.nandoString .textShadow {
+.nadeoString .textShadow {
     text-shadow: 1px 1px black;
 }

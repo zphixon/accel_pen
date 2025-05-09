@@ -112,22 +112,13 @@ pub static CONFIG_CONTEXT: LazyLock<Context> = LazyLock::new(|| {
 pub fn context_with_auth_session(auth: Option<&crate::nadeo::auth::NadeoAuthSession>) -> Context {
     let mut context = CONFIG_CONTEXT.clone();
 
-    #[derive(Serialize)]
-    struct LoggedInUser<'auth> {
-        account_id: &'auth str,
-        display_name: &'auth str,
-        club_tag: Option<&'auth str>,
-        user_id: i32,
-    }
-
     if let Some(auth) = auth {
-        // this clearly clones anyway hmmmmm
         context.insert(
             "user",
-            &Some(LoggedInUser {
-                account_id: auth.account_id(),
-                display_name: auth.display_name(),
-                club_tag: auth.club_tag(),
+            &Some(crate::UserResponse {
+                account_id: auth.account_id().to_owned(),
+                display_name: auth.display_name().to_owned(),
+                club_tag: auth.club_tag().map(crate::nadeo::to_formatted_string),
                 user_id: auth.user_id(),
             }),
         );
