@@ -2,7 +2,6 @@
 {% import "macros.tera" as macros %}
 
 {% block head %}
-  <link rel="stylesheet" href="{{ config.root }}static/tags.css">
   <link rel="stylesheet" href="{{ config.root }}static/mapview.css">
 {% endblock head %}
 

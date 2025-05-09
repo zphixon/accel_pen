@@ -2,7 +2,6 @@
 {% import "macros.tera" as macros %}
 
 {% block head %}
-  <link rel="stylesheet" href="{{ config.root }}static/tags.css">
   <style>
     #uploadButton {
         margin: 1em;
