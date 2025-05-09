@@ -103,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
             .route(&CONFIG.oauth_finish_route(), get(oauth_finish))
             .route(&CONFIG.oauth_logout_route(), get(oauth_logout))
             .nest_service(&CONFIG.route("static"), ServeDir::new("frontend/static"))
+            .fallback(my_fallback)
             .with_state(AppState { pool, tera })
             .layer(session_layer)
             .layer(DefaultBodyLimit::disable())
@@ -130,6 +131,20 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+async fn my_fallback(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
+    let context = config::context_with_auth_session(auth.as_ref());
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("404.html.tera", &context)
+        .context("Rendering 404 template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
 }
 
 #[derive(Serialize)]

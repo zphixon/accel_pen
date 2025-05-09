@@ -1,0 +1,15 @@
+{% extends "layout.html.tera" %}
+{% import "macros.tera" as macros %}
+
+{% block tabTitle -%}
+  {{ super() }} - Not found
+{%- endblock tabTitle %}
+
+{% block title -%}
+  Not found
+{%- endblock title %}
+
+{% block content %}
+  Page not found
+{% endblock content %}
+
