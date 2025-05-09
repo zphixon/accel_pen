@@ -35,8 +35,4 @@
       </div>
     {% endfor %}
   </div>
-
-  <div id="tryReactRoot"></div>
-
-  <script type="module" src="{{ config.root }}static/js/tryReact.js"></script>
 {% endblock content %}

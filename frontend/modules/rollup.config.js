@@ -21,6 +21,7 @@ export default {
   output: {
     dir: "../static/js",
     format: "es",
+    sourcemap: true,
   },
   plugins: [
     replace({ "process.env.NODE_ENV": JSON.stringify("development") }),
@@ -29,7 +30,7 @@ export default {
       include: /node_modules/,
       requireReturnsDefault: 'auto',
     }),
-    typescript(),
+    typescript({ sourceMap: false }),
   ],
   jsx: "react-jsx",
   treeshake: false,

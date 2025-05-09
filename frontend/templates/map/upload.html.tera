@@ -25,19 +25,9 @@
 
 {% block content %}
   {% if user %}
+    <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
+    <div id="mapUpload"></div>
     <script type="module" src="{{ config.root }}static/js/uploadMap.js"></script>
-
-    <p>
-      <label for="mapData">Map file: </label>
-      <input id="mapData" type="file" />
-    </p>
-
-    {{ macros::tag_select(tags=tags) }}
-
-    <div>
-      <button id="uploadButton">Upload</button>
-    </div>
-    <div id="response"></div>
   {% else %}
     <p>Log in to upload</p>
   {% endif %}

@@ -148,9 +148,7 @@ pub enum ApiErrorInner {
     NoSuchTag { tag: String },
 
     #[error("Too many tags, max {max}")]
-    TooManyTags {
-        max: i32,
-    },
+    TooManyTags { max: i32 },
 
     #[error("Not base64")]
     NotBase64 {

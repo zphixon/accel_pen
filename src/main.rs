@@ -489,12 +489,13 @@ async fn get_map_thumbnail(
         .into_response())
 }
 
-    #[derive(Serialize)]
-    struct TagInfo {
-        id: i32,
-        name: String,
-        kind: String,
-    }
+#[derive(Serialize, TS)]
+#[ts(export)]
+struct TagInfo {
+    id: i32,
+    name: String,
+    kind: String,
+}
 
 async fn get_map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
     let mut context = config::context_with_auth_session(auth.as_ref());

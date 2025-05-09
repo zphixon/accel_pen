@@ -100,7 +100,6 @@ INSERT INTO tag_name (tag_name, tag_kind) VALUES
     ('Mudslide',          'drivingTechnique'),
     ('Gear3',             'drivingTechnique'),
     ('Gear4',             'drivingTechnique'),
-    ('Gear5',             'drivingTechnique'),
 
     ('SnowCar',           'notStadium'),
     ('DesertCar',         'notStadium'),
