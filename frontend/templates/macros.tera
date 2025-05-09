@@ -31,18 +31,3 @@
     {% endfor %}
   </div>
 {% endmacro tag_list %}
-
-{% macro tag_select(tags) %}
-  <div id="tagSelect">
-    <div id="tagSelectHeader">
-      <div id="selectedTagsContainer">
-        Selected tags: <span class="tagList" id="selectedTagList"></span>
-      </div>
-      <div id="resetTagsContainer">
-        <button id="resetTags">Reset tags</button>
-      </div>
-    </div>
-    <hr>
-    {{ self::tag_list(tags=tags, class="tagSelectGrid") }}
-  </div>
-{% endmacro tag_select %}
