@@ -80,6 +80,14 @@ pub enum ApiErrorInner {
         error: axum::extract::rejection::JsonRejection,
     },
 
+    #[error("Invalid path: {error}")]
+    InvalidPath {
+        #[serde(skip)]
+        #[ts(skip)]
+        #[from]
+        error: axum::extract::rejection::PathRejection,
+    },
+
     #[error("Invalid oauth: {error}")]
     InvalidOauth {
         #[ts(skip)]
@@ -143,6 +151,22 @@ pub enum ApiErrorInner {
 
     #[error("Please don't upload maps that aren't yours")]
     NotYourMap,
+
+    #[error("Invalid map thumbnail: {error}")]
+    InvalidThumbnail {
+        #[serde(skip)]
+        #[ts(skip)]
+        #[from]
+        error: image::error::ImageError,
+    },
+
+    #[error("Standard library IO error: {error}")]
+    StdIo {
+        #[serde(skip)]
+        #[ts(skip)]
+        #[from]
+        error: std::io::Error,
+    },
 
     #[error("No such tag: {tag}")]
     NoSuchTag { tag: String },
@@ -242,11 +266,13 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::ApiReturnedError { .. }
             | ApiErrorInner::UnexpectedResponse { .. }
             | ApiErrorInner::Tera { .. }
+            | ApiErrorInner::StdIo { .. }
             | ApiErrorInner::Time { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             ApiErrorInner::ApiFailed { error } => error.status().unwrap_or(StatusCode::BAD_GATEWAY),
 
             ApiErrorInner::InvalidQuery { .. }
+            | ApiErrorInner::InvalidPath { .. }
             | ApiErrorInner::InvalidJson { .. }
             | ApiErrorInner::InvalidMultipart { .. }
             | ApiErrorInner::MissingFromMultipart { .. }
@@ -260,6 +286,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::Json { .. }
             | ApiErrorInner::NoSuchTag { .. }
             | ApiErrorInner::TooManyTags { .. }
+            | ApiErrorInner::InvalidThumbnail { .. }
             | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
             ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,

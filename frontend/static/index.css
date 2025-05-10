@@ -36,7 +36,6 @@ a {
 }
 
 img.mapThumbnail {
-  transform: scaleY(-1);
   max-width: 100%;
 }
 

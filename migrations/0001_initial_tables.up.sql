@@ -20,6 +20,7 @@ CREATE TABLE map (
     uploaded TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
     created TIMESTAMP WITH TIME ZONE NOT NULL,
     thumbnail BYTEA NOT NULL,
+    thumbnail_small BYTEA NOT NULL,
 
     CONSTRAINT pk_map PRIMARY KEY (ap_map_id, gbx_mapuid),
     CONSTRAINT fk_map_author FOREIGN KEY (ap_author_id)

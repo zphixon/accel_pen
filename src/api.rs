@@ -94,19 +94,64 @@ pub async fn oauth_logout(auth: NadeoAuthSession) -> Result<Redirect, ApiError> 
     Ok(Redirect::to(CONFIG.net.url.as_str()))
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum ThumbnailSize {
+    Small,
+    Large,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ThumbnailPath {
+    map_id: i32,
+    size: ThumbnailSize,
+}
+
 pub async fn map_thumbnail(
     State(state): State<AppState>,
-    Path(map_id): Path<i32>,
+    WithRejection(Path(map_id), _): WithRejection<Path<i32>, ApiError>,
 ) -> Result<Response, ApiError> {
-    Ok((
-        [(header::CONTENT_TYPE, "image/jpeg")],
-        sqlx::query!("SELECT thumbnail FROM map WHERE ap_map_id = $1", map_id)
+    map_thumbnail_inner(
+        state,
+        ThumbnailPath {
+            map_id,
+            size: ThumbnailSize::Large,
+        },
+    )
+    .await
+}
+
+pub async fn map_thumbnail_size(
+    State(state): State<AppState>,
+    WithRejection(Path(path), _): WithRejection<Path<ThumbnailPath>, ApiError>,
+) -> Result<Response, ApiError> {
+    map_thumbnail_inner(state, path).await
+}
+
+async fn map_thumbnail_inner(state: AppState, path: ThumbnailPath) -> Result<Response, ApiError> {
+    let thumbnail = match path.size {
+        ThumbnailSize::Small => {
+            sqlx::query!(
+                "SELECT thumbnail_small FROM map WHERE ap_map_id = $1",
+                path.map_id
+            )
+            .fetch_one(&state.pool)
+            .await
+            .context("Reading small thumbnail from database")?
+            .thumbnail_small
+        }
+        ThumbnailSize::Large => {
+            sqlx::query!(
+                "SELECT thumbnail FROM map WHERE ap_map_id = $1",
+                path.map_id
+            )
             .fetch_one(&state.pool)
             .await
             .context("Reading thumbnail from database")?
-            .thumbnail,
-    )
-        .into_response())
+            .thumbnail
+        }
+    };
+    Ok(([(header::CONTENT_TYPE, "image/webp")], thumbnail).into_response())
 }
 
 #[derive(Serialize, TS)]
@@ -217,24 +262,54 @@ pub async fn map_upload(
         return Err(ApiErrorInner::MissingFromMultipart { error: "Map name" }.into());
     };
 
-    let Some(thumbnail) = map.thumbnail_data else {
+    let Some(thumbnail_data) = map.thumbnail_data else {
         return Err(ApiErrorInner::MissingFromMultipart { error: "Thumbnail" }.into());
     };
 
-    let buffer = map_data.to_vec();
+    let thumbnail = image::ImageReader::new(std::io::Cursor::new(thumbnail_data))
+        .with_guessed_format()
+        .context("Reading thumbnail image")?
+        .decode()
+        .context("Decoding thumbnail image")?;
+    let thumbnail = image::imageops::flip_vertical(&thumbnail);
+
+    let mut thumbnail_data = Vec::new();
+    thumbnail
+        .write_to(
+            &mut std::io::Cursor::new(&mut thumbnail_data),
+            image::ImageFormat::WebP,
+        )
+        .context("Re-encoding thumbnail")?;
+
+    let small = image::imageops::resize(
+        &thumbnail,
+        thumbnail.width() / 4,
+        thumbnail.height() / 4,
+        image::imageops::Lanczos3,
+    );
+    let mut small_thumbnail_data = Vec::new();
+    small
+        .write_to(
+            &mut std::io::Cursor::new(&mut small_thumbnail_data),
+            image::ImageFormat::WebP,
+        )
+        .context("Re-encoding small thumbnail")?;
+
+    let map_buffer = map_data.to_vec();
 
     let map_response = match sqlx::query!(
         "
-            INSERT INTO map (gbx_mapuid, gbx_data, mapname, ap_author_id, created, thumbnail)
-            VALUES ($1, $2, $3, $4, NOW(), $5)
+            INSERT INTO map (gbx_mapuid, gbx_data, mapname, ap_author_id, created, thumbnail, thumbnail_small)
+            VALUES ($1, $2, $3, $4, NOW(), $5, $6)
             ON CONFLICT DO NOTHING
             RETURNING ap_map_id
         ",
         map_info.id,
-        buffer,
+        map_buffer,
         map_name,
         auth.user_id(),
-        thumbnail,
+        thumbnail_data,
+        small_thumbnail_data,
     )
     .fetch_optional(&state.pool)
     .await
@@ -366,7 +441,10 @@ pub async fn map_manage(
                 .context("Applying tag to map")?;
             }
 
-            transaction.commit().await.context("Committing transaction")?;
+            transaction
+                .commit()
+                .await
+                .context("Committing transaction")?;
         }
 
         MapManageCommand::Delete => {

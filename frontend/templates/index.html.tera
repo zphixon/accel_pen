@@ -27,7 +27,7 @@
   <div class="mapTiles">
     {% for map in recent_maps %}
       <div class="mapTile">
-        <a href="{{ config.root }}map/{{ map.id }}">{{ macros::map_thumbnail(map=map, class="smallThumbnail") }}</a>
+        <a href="{{ config.root }}map/{{ map.id }}">{{ macros::map_thumbnail(map=map, small=true) }}</a>
         <div class="mapTileData">
           {{ macros::nadeo_string(text=map.name) }}
           <div class="mapTileAuthor">by {{ macros::user_summary(user=map.author) }}</div>

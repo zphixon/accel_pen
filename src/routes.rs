@@ -451,10 +451,7 @@ pub async fn map_manage_page(
     }
 }
 
-pub async fn map_upload(
-    State(state): State<AppState>,
-    auth: Option<NadeoAuthSession>,
-) -> Response {
+pub async fn map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
     let mut context = config::context_with_auth_session(auth.as_ref());
 
     let tag_names = match sqlx::query!("SELECT tag_id, tag_name, tag_kind FROM tag_name")
