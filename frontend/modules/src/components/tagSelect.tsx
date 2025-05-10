@@ -34,11 +34,12 @@ interface TagSelectProps {
   selectedTags: types.TagInfo[],
   setSelectedTags: (newSelectedTags: types.TagInfo[]) => void,
   maxTags: number,
+  maySelectTags?: boolean
 }
-function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTags = [], maxTags }: TagSelectProps) {
+function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTags = [], maySelectTags = true, maxTags }: TagSelectProps) {
   function toggleTag(event: React.ChangeEvent<HTMLInputElement>) {
     if (event.target.checked) {
-      if (selectedTags.length >= maxTags) {
+      if (selectedTags.length >= maxTags || !maySelectTags) {
         event.target.checked = false;
         return;
       }
@@ -62,7 +63,7 @@ function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTag
   </div>);
 
   let gridClasses = ["tagList", "tagSelectGrid"];
-  if (selectedTags.length >= maxTags) {
+  if (selectedTags.length >= maxTags || !maySelectTags) {
     gridClasses.push("fullSelection");
   }
 
