@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT FROM map\n        WHERE deleted IS NULL\n            AND ap_map_id = $1 AND ap_author_id = $2\n        LIMIT 1\n    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "efb520efbfa879db3eda71cb87255227d5d1cbe79cdaee7564f2c3d00ce0e361"
+}

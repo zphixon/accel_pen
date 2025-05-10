@@ -72,7 +72,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
             "
                 SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded
                 FROM map
-                WHERE map.ap_author_id = $1
+                WHERE map.ap_author_id = $1 AND map.deleted IS NULL
                 LIMIT 20
             ",
             auth.user_id(),
@@ -127,6 +127,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
             SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
                 ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+            WHERE map.deleted IS NULL AND ap_user.deleted IS NULL
             ORDER BY map.ap_map_id DESC
             LIMIT 10
         ",
@@ -196,7 +197,8 @@ pub async fn map_page(
                 map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
                 ap_user.nadeo_club_tag
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-            WHERE map.ap_map_id = $1
+            WHERE map.deleted IS NULL AND ap_user.deleted IS NULL
+                AND map.ap_map_id = $1
         ",
         map_id,
     )
@@ -321,7 +323,8 @@ pub async fn map_manage_page(
                 map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
                 ap_user.nadeo_club_tag
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-            WHERE map.ap_map_id = $1
+            WHERE map.deleted IS NULL AND ap_user.deleted IS NULL
+                AND map.ap_map_id = $1
         ",
         map_id,
     )
@@ -451,10 +454,7 @@ pub async fn map_manage_page(
     }
 }
 
-pub async fn map_upload(
-    State(state): State<AppState>,
-    auth: Option<NadeoAuthSession>,
-) -> Response {
+pub async fn map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
     let mut context = config::context_with_auth_session(auth.as_ref());
 
     let tag_names = match sqlx::query!("SELECT tag_id, tag_name, tag_kind FROM tag_name")

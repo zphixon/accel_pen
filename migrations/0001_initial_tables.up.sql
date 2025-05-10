@@ -6,6 +6,7 @@ CREATE TABLE ap_user (
     site_admin BOOLEAN NOT NULL DEFAULT FALSE,
     registered TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
     nadeo_club_tag TEXT,
+    deleted TIMESTAMP WITH TIME ZONE,
 
     CONSTRAINT pk_user PRIMARY KEY (ap_user_id)
 );
@@ -20,6 +21,7 @@ CREATE TABLE map (
     uploaded TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
     created TIMESTAMP WITH TIME ZONE NOT NULL,
     thumbnail BYTEA NOT NULL,
+    deleted TIMESTAMP WITH TIME ZONE,
 
     CONSTRAINT pk_map PRIMARY KEY (ap_map_id, gbx_mapuid),
     CONSTRAINT fk_map_author FOREIGN KEY (ap_author_id)
