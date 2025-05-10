@@ -63,10 +63,15 @@ function ManageMap({ tagInfo, mapData }: ManageMapProps) {
       <button onClick={_ => setShowDelete(true)}>Delete map</button>
     </p>
     <p>{manageResponse}</p>
+    {showDelete && <div className="bgBlur"></div>}
     {showDelete && createPortal(<div className="deleteMapConfirmation" ref={ref}>
-      <div className="confirmMessage">Are you sure you want to delete this map?</div>
+      <div className="confirmMessage">
+        Are you sure you want to delete this map? This is action is not reversable.
+      </div>
+      &nbsp;
       <div className="confirmButtons">
         <button onClick={_ => doDeleteMap()}>Delete</button>
+        &nbsp;
         <button onClick={_ => setShowDelete(false)}>Cancel</button>
       </div>
     </div>, document.body)}
