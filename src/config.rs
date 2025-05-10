@@ -115,7 +115,7 @@ pub fn context_with_auth_session(auth: Option<&crate::nadeo::auth::NadeoAuthSess
     if let Some(auth) = auth {
         context.insert(
             "user",
-            &Some(crate::UserResponse {
+            &Some(crate::api::UserResponse {
                 account_id: auth.account_id().to_owned(),
                 display_name: auth.display_name().to_owned(),
                 club_tag: auth.club_tag().map(crate::nadeo::FormattedString::parse),
