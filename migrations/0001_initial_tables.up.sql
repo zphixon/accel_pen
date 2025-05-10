@@ -62,12 +62,12 @@ INSERT INTO tag_name (tag_name, tag_kind) VALUES
     ('Kacky',             'mapStyle'),
     ('Endurance',         'mapStyle'),
     ('Obstacle',          'mapStyle'),
-    ('Mixed',             'mapStyle'),
     ('Nascar',            'mapStyle'),
     ('Transitional',      'mapStyle'),
     ('Backwards',         'mapStyle'),
     ('Pathfinding',       'mapStyle'),
 
+    ('Mixed',             'definingSurface'),
     ('Offroad',           'definingSurface'),
     ('Underwater',        'definingSurface'),
     ('Turtle',            'definingSurface'),
