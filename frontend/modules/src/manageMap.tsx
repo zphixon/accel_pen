@@ -1,9 +1,10 @@
-import { createRoot } from "react-dom/client";
-import * as types from "./bindings/index";
-import * as api from "./api.js";
-import TagSelect from "./components/tagSelect";
-import { useState } from "react";
 import { createPortal } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { useOnClickOutside } from "../node_modules/usehooks-ts/dist/index";
+import React, { useRef, useState } from "react";
+import * as api from "./api.js";
+import * as types from "./bindings/index";
+import TagSelect from "./components/tagSelect";
 
 let maxTags = 7;
 
@@ -15,6 +16,9 @@ function ManageMap({ tagInfo, mapData }: ManageMapProps) {
   let [showDelete, setShowDelete] = useState(false);
   let [selectedTags, setSelectedTags] = useState<types.TagInfo[]>(mapData.tags);
   let maySetTags = selectedTags.length > 0 && selectedTags.length <= maxTags;
+
+  let ref = useRef<HTMLDivElement>(null);
+  useOnClickOutside(ref as React.RefObject<HTMLDivElement>, _ => setShowDelete(false));
 
   let [deleteResponse, setDeleteResponse] = useState<types.MapManageResponse | types.TsApiError | undefined>(undefined);
   function doDeleteMap() {
@@ -59,7 +63,7 @@ function ManageMap({ tagInfo, mapData }: ManageMapProps) {
       <button onClick={_ => setShowDelete(true)}>Delete map</button>
     </p>
     <p>{manageResponse}</p>
-    {showDelete && createPortal(<div className="deleteMapConfirmation">
+    {showDelete && createPortal(<div className="deleteMapConfirmation" ref={ref}>
       <div className="confirmMessage">Are you sure you want to delete this map?</div>
       <div className="confirmButtons">
         <button onClick={_ => doDeleteMap()}>Delete</button>
