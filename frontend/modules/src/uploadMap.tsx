@@ -17,6 +17,7 @@ function UploadMap() {
   let mapFileRef = useRef<HTMLInputElement>(null);
   let [mapFile, setMapFile] = useState<File | undefined>(undefined);
 
+  let [loading, setLoading] = useState(false);
   let [apiResponse, setApiResponse] = useState<types.MapUploadResponse | types.TsApiError | undefined>(undefined);
 
   function onChangeMap(event: React.ChangeEvent<HTMLInputElement>) {
@@ -32,6 +33,7 @@ function UploadMap() {
       return;
     }
 
+    setLoading(true);
     api.uploadMap(mapFile, {
       type: 'MapUploadMeta',
       tags: selectedTags.map(tag => tag.name),
@@ -46,10 +48,15 @@ function UploadMap() {
         }
       }
       setApiResponse(response);
+      setLoading(false);
     })
   }
 
   let response = <></>;
+  if (loading) {
+    response = <>Uploading</>;
+  }
+
   if (apiResponse) {
     if (apiResponse.type == "TsApiError") {
       if (apiResponse.error.type == "AlreadyUploaded") {
@@ -67,7 +74,6 @@ function UploadMap() {
   let mayUpload = selectedTags.length > 0 && selectedTags.length <= maxTags && mapFile != undefined;
 
   return <>
-    {response}
     <p>
       <label htmlFor="mapFile">Map file:</label>
       <input type="file" id="mapFile" onChange={onChangeMap} ref={mapFileRef} />
@@ -81,6 +87,7 @@ function UploadMap() {
     />
     <p>
       <button disabled={!mayUpload} onClick={_ => onSubmitMap()}>Upload map</button>
+      {response}
     </p>
     <div hidden>{ forceRerender }</div>
   </>;
