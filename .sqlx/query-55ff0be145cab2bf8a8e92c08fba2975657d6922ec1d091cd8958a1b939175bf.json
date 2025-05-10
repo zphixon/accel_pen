@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM tag WHERE ap_map_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "55ff0be145cab2bf8a8e92c08fba2975657d6922ec1d091cd8958a1b939175bf"
+}

@@ -1,5 +1,5 @@
 use crate::{
-    api::UserResponse,
+    api::{TagInfo, UserResponse},
     config,
     error::Context,
     nadeo::{self, auth::NadeoAuthSession},
@@ -13,14 +13,6 @@ use axum::{
 use serde::Serialize;
 use tera::Context as TeraContext;
 use ts_rs::TS;
-
-#[derive(Serialize, TS)]
-#[ts(export)]
-struct TagInfo {
-    id: i32,
-    name: String,
-    kind: String,
-}
 
 #[derive(Serialize, TS)]
 #[ts(export)]
@@ -191,7 +183,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
     }
 }
 
-pub async fn get_map_page(
+pub async fn map_page(
     State(state): State<AppState>,
     auth: Option<NadeoAuthSession>,
     Path(map_id): Path<i32>,
@@ -307,7 +299,7 @@ pub async fn get_map_page(
     }
 }
 
-pub async fn get_map_manage_page(
+pub async fn map_manage_page(
     State(state): State<AppState>,
     auth: Option<NadeoAuthSession>,
     Path(map_id): Path<i32>,
@@ -459,7 +451,7 @@ pub async fn get_map_manage_page(
     }
 }
 
-pub async fn get_map_upload(
+pub async fn map_upload(
     State(state): State<AppState>,
     auth: Option<NadeoAuthSession>,
 ) -> Response {

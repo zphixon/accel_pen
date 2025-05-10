@@ -15,6 +15,7 @@ use axum::{
 };
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
+use sqlx::Acquire;
 use std::collections::HashSet;
 use tower_sessions::Session;
 use ts_rs::TS;
@@ -88,12 +89,12 @@ pub async fn oauth_finish(
     Ok(Html(client_redirect))
 }
 
-pub async fn oauth_logout(auth_session: NadeoAuthSession) -> Result<Redirect, ApiError> {
-    auth_session.session().clear().await;
+pub async fn oauth_logout(auth: NadeoAuthSession) -> Result<Redirect, ApiError> {
+    auth.session().clear().await;
     Ok(Redirect::to(CONFIG.net.url.as_str()))
 }
 
-pub async fn get_map_thumbnail(
+pub async fn map_thumbnail(
     State(state): State<AppState>,
     Path(map_id): Path<i32>,
 ) -> Result<Response, ApiError> {
@@ -122,9 +123,9 @@ struct MapUploadMeta {
     tags: Vec<String>,
 }
 
-pub async fn post_map_upload(
+pub async fn map_upload(
     State(state): State<AppState>,
-    session: NadeoAuthSession,
+    auth: NadeoAuthSession,
     WithRejection(mut multipart, _): WithRejection<Multipart, ApiError>,
 ) -> Result<Json<MapUploadResponse>, ApiError> {
     let mut map_data = None;
@@ -208,7 +209,7 @@ pub async fn post_map_upload(
     };
 
     let author = nadeo::login_to_account_id(map_info.author).context("Parsing map author")?;
-    if session.account_id() != author {
+    if auth.account_id() != author {
         return Err(ApiErrorInner::NotYourMap.into());
     }
 
@@ -232,7 +233,7 @@ pub async fn post_map_upload(
         map_info.id,
         buffer,
         map_name,
-        session.user_id(),
+        auth.user_id(),
         thumbnail,
     )
     .fetch_optional(&state.pool)
@@ -270,4 +271,111 @@ pub async fn post_map_upload(
     }
 
     Ok(Json(map_response))
+}
+
+#[derive(Deserialize, Serialize, TS)]
+#[ts(export)]
+pub struct TagInfo {
+    pub id: i32,
+    pub name: String,
+    pub kind: String,
+}
+
+#[derive(Deserialize, TS)]
+#[serde(tag = "type")]
+#[ts(export)]
+pub enum MapManageCommand {
+    SetTags { tags: Vec<TagInfo> },
+    Delete,
+}
+
+#[derive(Deserialize, TS)]
+#[serde(tag = "type")]
+#[ts(export)]
+pub struct MapManageRequest {
+    command: MapManageCommand,
+}
+
+#[derive(Serialize, TS)]
+#[serde(tag = "type")]
+#[ts(export)]
+pub struct MapManageResponse {}
+
+pub async fn map_manage(
+    State(state): State<AppState>,
+    Path(map_id): Path<i32>,
+    auth: NadeoAuthSession,
+    WithRejection(Json(request), _): WithRejection<Json<MapManageRequest>, ApiError>,
+) -> Result<Json<MapManageResponse>, ApiError> {
+    let Some(_) = sqlx::query!(
+        "SELECT FROM map WHERE ap_map_id = $1 AND ap_author_id = $2 LIMIT 1",
+        map_id,
+        auth.user_id()
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .context("Checking map by user exists")?
+    else {
+        return Err(ApiErrorInner::MapNotFound { map_id }.into());
+    };
+
+    match &request.command {
+        MapManageCommand::SetTags { tags } => {
+            // 1. make sure tags exist
+
+            for tag in tags.iter() {
+                let Some(_) = sqlx::query!(
+                    "SELECT FROM tag_name WHERE tag_id = $1 AND tag_name = $2 LIMIT 1",
+                    tag.id,
+                    tag.name
+                )
+                .fetch_optional(&state.pool)
+                .await
+                .context("Checking if tags exist")?
+                else {
+                    return Err(ApiErrorInner::NoSuchTag {
+                        tag: tag.name.clone(),
+                    }
+                    .into());
+                };
+            }
+
+            let mut conn = state
+                .pool
+                .acquire()
+                .await
+                .context("Acquiring connection for transaction")?;
+            let mut transaction = conn.begin().await.context("Starting transaction")?;
+
+            // 2. remove map from `tag`
+            // 3. re-add map to tag with tags from `tags`
+
+            sqlx::query!("DELETE FROM tag WHERE ap_map_id = $1", map_id)
+                .execute(&mut *transaction)
+                .await
+                .context("Deleting map from tag")?;
+
+            for tag in tags.iter() {
+                sqlx::query!(
+                    "INSERT INTO tag (ap_map_id, tag_id) VALUES ($1, $2)",
+                    map_id,
+                    tag.id
+                )
+                .execute(&mut *transaction)
+                .await
+                .context("Applying tag to map")?;
+            }
+
+            transaction.commit().await.context("Committing transaction")?;
+        }
+
+        MapManageCommand::Delete => {
+            sqlx::query!("DELETE FROM map WHERE ap_map_id = $1", map_id)
+                .execute(&state.pool)
+                .await
+                .context("Deleting map")?;
+        }
+    }
+
+    Ok(Json(MapManageResponse {}))
 }

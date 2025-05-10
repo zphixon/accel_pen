@@ -48,7 +48,6 @@ CREATE TABLE tag (
 );
 
 INSERT INTO tag_name (tag_name, tag_kind) VALUES
-    ('Race',              'mapStyle'),
     ('FullSpeed',         'mapStyle'),
     ('SpeedFun',          'mapStyle'),
     ('Tech',              'mapStyle'),
@@ -67,7 +66,6 @@ INSERT INTO tag_name (tag_name, tag_kind) VALUES
     ('Transitional',      'mapStyle'),
     ('Backwards',         'mapStyle'),
     ('Pathfinding',       'mapStyle'),
-    ('AlteredNadeo',      'mapStyle'),
 
     ('Offroad',           'definingSurface'),
     ('Underwater',        'definingSurface'),
@@ -106,6 +104,7 @@ INSERT INTO tag_name (tag_name, tag_kind) VALUES
     ('RallyCar',          'notStadium'),
     ('MixedCar',          'notStadium'),
 
+    ('AlteredNadeo',      'mapMeta'),
     ('Mini',              'mapMeta'),
     ('SecretLeaderboard', 'mapMeta'),
     ('Scenery',           'mapMeta'),
@@ -113,6 +112,7 @@ INSERT INTO tag_name (tag_name, tag_kind) VALUES
     ('Educational',       'mapMeta'),
     ('SpeedMapping',      'mapMeta'),
     ('PressForward',      'mapMeta'),
+    ('Race',              'mapMeta'),
     ('Stunt',             'mapMeta'),
     ('Platform',          'mapMeta'),
     ('Royal',             'mapMeta'),

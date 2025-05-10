@@ -89,19 +89,23 @@ async fn main() -> anyhow::Result<()> {
             .fallback(routes::my_fallback)
             .route(&CONFIG.route(""), get(routes::index))
             .nest_service(&CONFIG.route("static"), ServeDir::new("frontend/static"))
-            .route(&CONFIG.route("map/upload"), get(routes::get_map_upload))
-            .route(&CONFIG.route("map/{map_id}"), get(routes::get_map_page))
+            .route(&CONFIG.route("map/upload"), get(routes::map_upload))
+            .route(&CONFIG.route("map/{map_id}"), get(routes::map_page))
             .route(
                 &CONFIG.route("map/{map_id}/manage"),
-                get(routes::get_map_manage_page),
+                get(routes::map_manage_page),
             )
             .route(
                 &CONFIG.route_api_v1("map/upload"),
-                post(api::post_map_upload),
+                post(api::map_upload),
             )
             .route(
                 &CONFIG.route_api_v1("map/{map_id}/thumbnail"),
-                get(api::get_map_thumbnail).layer(long_cache),
+                get(api::map_thumbnail).layer(long_cache),
+            )
+            .route(
+                &CONFIG.route_api_v1("map/{map_id}/manage"),
+                post(api::map_manage)
             )
             .route(&CONFIG.oauth_start_route(), get(api::oauth_start))
             .route(&CONFIG.oauth_finish_route(), get(api::oauth_finish))
