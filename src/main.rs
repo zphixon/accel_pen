@@ -470,6 +470,7 @@ async fn get_map_page(
         }
     };
 
+    let had_map = map.is_some();
     if let Some(map) = map {
         let tags = match sqlx::query!(
             "
@@ -540,7 +541,15 @@ async fn get_map_page(
         .render("map/page.html.tera", &context)
         .context("Rendering map page template")
     {
-        Ok(page) => Html(page).into_response(),
+        Ok(page) => (
+            if had_map {
+                StatusCode::OK
+            } else {
+                StatusCode::NOT_FOUND
+            },
+            Html(page),
+        )
+            .into_response(),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
     }
 }
