@@ -13,15 +13,9 @@
   {%- endif -%}
 {%- endblock tabTitle %}
 
-{% block returnPath -%}
-  {%- if map -%}
-    ?returnPath=/map/{{ map.id }}
-  {%- endif -%}
-{%- endblock returnPath %}
-
 {% block content %}
   {% if map %}
-    <h2>Manage {{ macros::nadeo_string(text=map.name) }}</h2>
+    <h2>Manage <a href="{{ config.root }}map/{{ map.id }}">{{ macros::nadeo_string(text=map.name) }}</a></h2>
     <script type="application/json" id="mapData">{{ map | json_encode() }}</script>
     <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
     <div id="mapManage"></div>

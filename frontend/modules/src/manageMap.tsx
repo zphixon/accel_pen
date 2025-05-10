@@ -16,6 +16,34 @@ function ManageMap({ tagInfo, mapData }: ManageMapProps) {
   let [selectedTags, setSelectedTags] = useState<types.TagInfo[]>(mapData.tags);
   let maySetTags = selectedTags.length > 0 && selectedTags.length <= maxTags;
 
+  let [deleteResponse, setDeleteResponse] = useState<types.MapManageResponse | types.TsApiError | undefined>(undefined);
+  function doDeleteMap() {
+    api.manageMap(mapData.id, {
+      type: "MapManageRequest",
+      command: { type: "Delete" },
+    }).then(setDeleteResponse);
+  }
+
+  let [setTagsResponse, setSetTagsResponse] = useState<types.MapManageResponse | types.TsApiError | undefined>(undefined);
+  function doSetTags() {
+    api.manageMap(mapData.id, {
+      type: "MapManageRequest",
+      command: { type: "SetTags", tags: selectedTags },
+    }).then(setSetTagsResponse);
+  }
+
+  let manageResponse = <></>;
+  if (deleteResponse?.type == "TsApiError") {
+    manageResponse = <>Couldn't delete map: {deleteResponse.message}</>;
+  } else if (deleteResponse?.type == "MapManageResponse") {
+    return <>Map deleted</>;
+  }
+  if (setTagsResponse?.type == "TsApiError") {
+    manageResponse = <>Couldn't set tags: {setTagsResponse.message}</>;
+  } else if (setTagsResponse?.type == "MapManageResponse") {
+    manageResponse = <>Set tags successfully</>;
+  }
+
   return <>
     <TagSelect
       tagInfo={tagInfo}
@@ -25,15 +53,17 @@ function ManageMap({ tagInfo, mapData }: ManageMapProps) {
       maxTags={maxTags}
     />
     <p>
-      <button disabled={!maySetTags}>Update tags</button>
+      <button disabled={!maySetTags} onClick={_ => doSetTags()}>Update tags</button>
     </p>
     <p>
       <button onClick={_ => setShowDelete(true)}>Delete map</button>
     </p>
+    <p>{manageResponse}</p>
     {showDelete && createPortal(<div className="deleteMapConfirmation">
       <div className="confirmMessage">Are you sure you want to delete this map?</div>
       <div className="confirmButtons">
-        <button>Delete</button><button onClick={_ => setShowDelete(false)}>Cancel</button>
+        <button onClick={_ => doDeleteMap()}>Delete</button>
+        <button onClick={_ => setShowDelete(false)}>Cancel</button>
       </div>
     </div>, document.body)}
   </>;
