@@ -267,6 +267,28 @@ pub async fn map_upload(
         return Err(ApiErrorInner::MissingFromMultipart { error: "Thumbnail" }.into());
     };
 
+    let Some(author) = map.author_time else {
+        return Err(ApiErrorInner::MissingFromMultipart {
+            error: "Author time",
+        }
+        .into());
+    };
+    let Some(gold) = map.gold_time else {
+        return Err(ApiErrorInner::MissingFromMultipart { error: "Gold time" }.into());
+    };
+    let Some(silver) = map.silver_time else {
+        return Err(ApiErrorInner::MissingFromMultipart {
+            error: "Silver time",
+        }
+        .into());
+    };
+    let Some(bronze) = map.bronze_time else {
+        return Err(ApiErrorInner::MissingFromMultipart {
+            error: "Bronze time",
+        }
+        .into());
+    };
+
     let thumbnail = image::ImageReader::new(std::io::Cursor::new(thumbnail_data))
         .with_guessed_format()
         .context("Reading thumbnail image")?
@@ -300,8 +322,16 @@ pub async fn map_upload(
 
     let map_response = match sqlx::query!(
         "
-            INSERT INTO map (gbx_mapuid, gbx_data, mapname, ap_author_id, created, thumbnail, thumbnail_small)
-            VALUES ($1, $2, $3, $4, NOW(), $5, $6)
+            INSERT INTO map (
+                gbx_mapuid, gbx_data, mapname, ap_author_id, created,
+                thumbnail, thumbnail_small,
+                author_medal_ms, gold_medal_ms, silver_medal_ms, bronze_medal_ms 
+            )
+            VALUES (
+                $1, $2, $3, $4, NOW(),
+                $5, $6,
+                $7, $8, $9, $10
+            )
             ON CONFLICT DO NOTHING
             RETURNING ap_map_id
         ",
@@ -311,6 +341,10 @@ pub async fn map_upload(
         auth.user_id(),
         thumbnail_data,
         small_thumbnail_data,
+        author as i32,
+        gold as i32,
+        silver as i32,
+        bronze as i32
     )
     .fetch_optional(&state.pool)
     .await

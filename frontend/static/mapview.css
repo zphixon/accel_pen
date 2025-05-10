@@ -14,3 +14,26 @@
   gap: 1em;
   margin: 1em;
 }
+
+.medalTimes {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 2em;
+  padding-right: 2em;
+}
+
+.author {
+  color: green;
+}
+
+.gold {
+  color: gold;
+}
+
+.silver {
+  color: silver;
+}
+
+.bronze {
+  color: rgb(198, 146, 69);
+}

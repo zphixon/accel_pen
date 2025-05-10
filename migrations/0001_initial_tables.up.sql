@@ -22,6 +22,11 @@ CREATE TABLE map (
     thumbnail BYTEA NOT NULL,
     thumbnail_small BYTEA NOT NULL,
 
+    author_medal_ms INTEGER NOT NULL,
+    gold_medal_ms INTEGER NOT NULL,
+    silver_medal_ms INTEGER NOT NULL,
+    bronze_medal_ms INTEGER NOT NULL,
+
     CONSTRAINT pk_map PRIMARY KEY (ap_map_id, gbx_mapuid),
     CONSTRAINT fk_map_author FOREIGN KEY (ap_author_id)
         REFERENCES ap_user (ap_user_id)

@@ -25,6 +25,16 @@ struct MapContext<'auth> {
     uploaded: String,
     author: UserResponse,
     tags: Vec<TagInfo>,
+    medals: Option<Medals>,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+pub struct Medals {
+    author: u32,
+    gold: u32,
+    silver: u32,
+    bronze: u32,
 }
 
 fn render_error(
@@ -105,6 +115,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
                             user_id: auth.user_id(),
                             club_tag: auth.club_tag().map(nadeo::FormattedString::parse),
                         },
+                        medals: None,
                         tags: vec![],
                     });
                 }
@@ -155,6 +166,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
                         user_id: map.ap_author_id,
                         club_tag: map.nadeo_club_tag.as_deref().map(nadeo::FormattedString::parse),
                     },
+                    medals: None,
                     tags: vec!(),
                 });
             }
@@ -194,7 +206,8 @@ pub async fn map_page(
         "
             SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
                 map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
-                ap_user.nadeo_club_tag
+                ap_user.nadeo_club_tag,
+                map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
             WHERE map.ap_map_id = $1
         ",
@@ -273,6 +286,12 @@ pub async fn map_page(
                         .map(nadeo::FormattedString::parse),
                 },
                 tags,
+                medals: Some(Medals {
+                    author: map.author_medal_ms as u32,
+                    gold: map.gold_medal_ms as u32,
+                    silver: map.silver_medal_ms as u32,
+                    bronze: map.bronze_medal_ms as u32,
+                }),
             },
         );
     } else {
@@ -407,6 +426,7 @@ pub async fn map_manage_page(
                         .map(nadeo::FormattedString::parse),
                 },
                 tags,
+                medals: None,
             },
         );
     } else {

@@ -36,9 +36,25 @@
     <div class="mapDetails">
       {{ macros::map_thumbnail(map=map) }}
       <div class="mapSideText">
+        <div>
+          <span class="medalTimes">
+            <span class="medalTime"><i class="fa-solid fa-circle author"></i> <span class="medalTimeMs">{{ map.medals.author }}</span></span>
+            <span class="medalTime"><i class="fa-solid fa-circle gold"></i> <span class="medalTimeMs">{{ map.medals.gold }}</span></span>
+            <span class="medalTime"><i class="fa-solid fa-circle silver"></i> <span class="medalTimeMs">{{ map.medals.silver }}</span></span>
+            <span class="medalTime"><i class="fa-solid fa-circle bronze"></i> <span class="medalTimeMs">{{ map.medals.bronze }}</span></span>
+          </span>
+        </div>
+        <p>{{ macros::tag_list(tags=map.tags) }}</p>
         <p>Uploaded <span class="uploadDate">{{ map.uploaded }}</span></p>
-        <p><a href="https://trackmania.io/#/leaderboard/{{ map.gbx_uid }}" target="_blank">View on Trackmania.io</a></p>
-        {{ macros::tag_list(tags=map.tags) }}
+        <p>
+          <a href="https://trackmania.io/#/leaderboard/{{ map.gbx_uid }}" target="_blank">
+            <i class="fa-solid fa-heart-pulse"></i> View on Trackmania.io
+          </a>
+          <br/>
+          <a href="https://www.trackmania.com/tracks/{{ map.gbx_uid }}" target="_blank">
+            <img src="https://www.trackmania.com/favicon.ico" style="max-height: 1em;"> View on TrackMania.com
+          </a>
+        </p>
       </div>
     </div>
 
@@ -49,6 +65,36 @@
         dateStyle: "full",
         timeStyle: "short",
       }).format(date);
+
+      // Adapted from https://stackoverflow.com/a/21294619
+      function formatMillis(millis) {
+        let minutes = Math.floor(millis / 60000);
+        let seconds = Math.floor((millis % 60000) / 1000)
+        let leftover = millis % 1000;
+
+        let millisStr = leftover.toString().padStart(3, "0");
+
+        let secondsStr;
+        if (seconds == 60) {
+          secondsStr = "00.";
+        } else if (minutes > 0) {
+          secondsStr = seconds.toString().padStart(2, "0") + ".";
+        } else {
+          secondsStr = seconds.toString() + ".";
+        }
+
+        let minutesStr = "";
+        if (minutes > 0) {
+          minutesStr = minutes.toString() + ":";
+        }
+
+        return minutesStr + secondsStr + millisStr;
+      }
+
+      let times = document.querySelectorAll(".medalTimeMs");
+      for (let time of times) {
+        time.innerText = formatMillis(time.innerText);
+      }
     </script>
   {% else %}
     <h1>No such map</h1>
