@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,\n                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag\n            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id\n            ORDER BY map.ap_map_id DESC\n            LIMIT 10\n        ",
+  "query": "\n            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,\n                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag\n            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id\n            ORDER BY map.ap_map_id DESC\n            LIMIT 6\n        ",
   "describe": {
     "columns": [
       {
@@ -64,5 +64,5 @@
       true
     ]
   },
-  "hash": "bb9ed5c67f6836e8f1c90a0832f54d92a8209d690f26a6884fd9158e63d67160"
+  "hash": "d5cb6e3f402693343a8277907b546b33234a3fd0ca1248b16f95a2dd91eecdd7"
 }

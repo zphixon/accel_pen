@@ -128,7 +128,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
                 ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
             ORDER BY map.ap_map_id DESC
-            LIMIT 10
+            LIMIT 6
         ",
     )
     .fetch_all(&state.pool)
