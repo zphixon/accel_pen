@@ -159,6 +159,7 @@ async fn map_thumbnail_inner(state: AppState, path: ThumbnailPath) -> Result<Res
 #[serde(tag = "type")]
 pub struct MapUploadResponse {
     map_id: i32,
+    map_name: String,
 }
 
 #[derive(Deserialize, TS)]
@@ -318,6 +319,7 @@ pub async fn map_upload(
         // you really can't get this from the function signature?
         Some(row) => MapUploadResponse {
             map_id: row.ap_map_id,
+            map_name: nadeo::FormattedString::parse(map_name).strip_formatting(),
         },
         None => {
             let map_id = sqlx::query!(

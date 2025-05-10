@@ -60,13 +60,14 @@ function UploadMap() {
         response = <>Could not upload map: {apiResponse.message}</>;
       }
     } else {
-      response = <a href={"/map/" + apiResponse.map_id}>Uploaded successfully!</a>;
+      response = <a href={"/map/" + apiResponse.map_id}>{apiResponse.map_name} uploaded successfully!</a>;
     }
   }
 
   let mayUpload = selectedTags.length > 0 && selectedTags.length <= maxTags && mapFile != undefined;
 
   return <>
+    {response}
     <p>
       <label htmlFor="mapFile">Map file:</label>
       <input type="file" id="mapFile" onChange={onChangeMap} ref={mapFileRef} />
@@ -81,7 +82,6 @@ function UploadMap() {
     <p>
       <button disabled={!mayUpload} onClick={_ => onSubmitMap()}>Upload map</button>
     </p>
-    {response}
     <div hidden>{ forceRerender }</div>
   </>;
 }
