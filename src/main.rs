@@ -561,10 +561,19 @@ impl From<<NadeoAuthSession as FromRequestParts<AppState>>::Rejection> for Unaut
 
 async fn get_map_manage_page(
     State(state): State<AppState>,
-    WithRejection(auth, _): WithRejection<NadeoAuthSession, UnauthorizedPageAccess>,
+    auth: Option<NadeoAuthSession>,
     Path(map_id): Path<i32>,
 ) -> Response {
-    let mut context = config::context_with_auth_session(Some(&auth));
+    let mut context = config::context_with_auth_session(auth.as_ref());
+    let Some(auth) = auth else {
+        return render_error(
+            &state,
+            context,
+            StatusCode::UNAUTHORIZED,
+            "Not allowed",
+            "Must be logged in to manage maps",
+        );
+    };
 
     let map = match sqlx::query!(
         "
@@ -593,7 +602,13 @@ async fn get_map_manage_page(
 
     if let Some(map) = map {
         if map.ap_author_id != auth.user_id() {
-            return (StatusCode::UNAUTHORIZED, "This isn't your map").into_response();
+            return render_error(
+                &state,
+                context,
+                StatusCode::UNAUTHORIZED,
+                "Not allowed",
+                "Cannot manage other users' maps",
+            );
         }
 
         let tags = match sqlx::query!(
@@ -611,13 +626,15 @@ async fn get_map_manage_page(
         .await
         {
             Ok(tags) => tags,
-            Err(err) => return render_error(
-                &state,
-                context,
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Database error reading map tags",
-                err,
-            ),
+            Err(err) => {
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error reading map tags",
+                    err,
+                )
+            }
         }
         .into_iter()
         .map(|row| TagInfo {
