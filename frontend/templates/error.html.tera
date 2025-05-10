@@ -6,7 +6,7 @@
 {%- endblock tabTitle %}
 
 {% block title -%}
-  {{ error }}
+  {{ super() }} - {{ error }}
 {%- endblock title %}
 
 {% block content %}

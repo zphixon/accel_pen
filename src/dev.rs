@@ -58,7 +58,8 @@ pub fn reload_task(tera: Arc<RwLock<Tera>>) {
                         .iter()
                         .any(|path| path.ancestors().any(|unc| unc.ends_with("modules")))
                     {
-                        let output = std::process::Command::new("./node_modules/.bin/rollup").arg("-c")
+                        let output = std::process::Command::new("./node_modules/.bin/rollup")
+                            .arg("-c")
                             .current_dir("frontend/modules")
                             .output();
                         println!("tsc: {:?}", output);

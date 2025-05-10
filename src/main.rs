@@ -9,7 +9,7 @@ use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{collections::HashSet, sync::Arc};
-use tera::Tera;
+use tera::{Context as TeraContext, Tera};
 use tokio::net::TcpListener;
 use tower_http::{
     cors::{AllowMethods, CorsLayer},
@@ -137,17 +137,16 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn my_fallback(
-    State(state): State<AppState>,
-    uri: Uri,
-    auth: Option<NadeoAuthSession>,
+fn render_error(
+    state: &AppState,
+    mut context: TeraContext,
+    status: StatusCode,
+    error: impl ToString,
+    error_description: impl ToString,
 ) -> Response {
-    let mut context = config::context_with_auth_session(auth.as_ref());
-    context.insert("error", "Not found");
-    context.insert(
-        "error_description",
-        &format!("Page not found: {}", uri.path()),
-    );
+    context.insert("status", &u16::from(status));
+    context.insert("error", &error.to_string());
+    context.insert("error_description", &error_description.to_string());
     match state
         .tera
         .read()
@@ -155,9 +154,24 @@ async fn my_fallback(
         .render("error.html.tera", &context)
         .context("Rendering error template")
     {
-        Ok(page) => Html(page).into_response(),
+        Ok(page) => (status, Html(page)).into_response(),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
     }
+}
+
+async fn my_fallback(
+    State(state): State<AppState>,
+    uri: Uri,
+    auth: Option<NadeoAuthSession>,
+) -> Response {
+    let context = config::context_with_auth_session(auth.as_ref());
+    render_error(
+        &state,
+        context,
+        StatusCode::NOT_FOUND,
+        "Not found",
+        format!("Not found: {}", uri.path()),
+    )
 }
 
 #[derive(Serialize, TS)]
@@ -220,7 +234,13 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
                 context.insert("my_maps", &maps_context);
             }
             Err(err) => {
-                return (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response()
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error getting my maps",
+                    err,
+                );
             }
         }
     }
@@ -264,11 +284,13 @@ async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>) ->
             context.insert("recent_maps", &recent_maps);
         }
         Err(err) => {
-            return (
+            return render_error(
+                &state,
+                context,
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Couldn't get recent maps: {}", err),
-            )
-                .into_response()
+                "Database error getting recently uploaded maps",
+                err,
+            );
         }
     }
 
@@ -438,11 +460,13 @@ async fn get_map_page(
     {
         Ok(maybe_row) => maybe_row,
         Err(err) => {
-            return (
+            return render_error(
+                &state,
+                context,
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("DB error: {}", err),
-            )
-                .into_response()
+                "Database error reading map data",
+                err,
+            );
         }
     };
 
@@ -462,7 +486,15 @@ async fn get_map_page(
         .await
         {
             Ok(tags) => tags,
-            Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags").into_response(),
+            Err(err) => {
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error reading map tags",
+                    err,
+                )
+            }
         }
         .into_iter()
         .map(|row| TagInfo {
@@ -549,11 +581,13 @@ async fn get_map_manage_page(
     {
         Ok(maybe_row) => maybe_row,
         Err(err) => {
-            return (
+            return render_error(
+                &state,
+                context,
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("DB error: {}", err),
-            )
-                .into_response()
+                "Database error reading map data",
+                err,
+            );
         }
     };
 
@@ -577,7 +611,13 @@ async fn get_map_manage_page(
         .await
         {
             Ok(tags) => tags,
-            Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Getting tags").into_response(),
+            Err(err) => return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error reading map tags",
+                err,
+            ),
         }
         .into_iter()
         .map(|row| TagInfo {
@@ -621,8 +661,14 @@ async fn get_map_manage_page(
         .await
     {
         Ok(tag_names) => tag_names,
-        Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Getting names of tags").into_response()
+        Err(err) => {
+            return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error getting tag names",
+                err,
+            );
         }
     };
 
@@ -679,8 +725,14 @@ async fn get_map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSes
         .await
     {
         Ok(tag_names) => tag_names,
-        Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Getting names of tags").into_response()
+        Err(err) => {
+            return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error getting tag names",
+                err,
+            );
         }
     };
 
