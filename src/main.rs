@@ -1,8 +1,7 @@
 use axum::{
     extract::DefaultBodyLimit,
     http::{header, HeaderValue, Method},
-    routing::{get, post},
-    Router,
+    routing::{get, post}, Router,
 };
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::sync::Arc;
@@ -96,14 +95,17 @@ async fn main() -> anyhow::Result<()> {
                 &CONFIG.route("map/{map_id}/manage"),
                 get(routes::map_manage_page),
             )
-            .route(&CONFIG.route_api_v1("map/upload"), post(api::map_upload))
+            .route(
+                &CONFIG.route_api_v1("map/upload"),
+                post(api::map_upload),
+            )
             .route(
                 &CONFIG.route_api_v1("map/{map_id}/thumbnail"),
                 get(api::map_thumbnail).layer(long_cache),
             )
             .route(
                 &CONFIG.route_api_v1("map/{map_id}/manage"),
-                post(api::map_manage),
+                post(api::map_manage)
             )
             .route(&CONFIG.oauth_start_route(), get(api::oauth_start))
             .route(&CONFIG.oauth_finish_route(), get(api::oauth_finish))

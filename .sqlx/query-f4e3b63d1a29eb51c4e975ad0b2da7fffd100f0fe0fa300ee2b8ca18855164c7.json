@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT thumbnail FROM map\n            WHERE deleted is NULL\n                AND ap_map_id = $1\n        ",
+  "query": "SELECT thumbnail FROM map WHERE ap_map_id = $1",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       false
     ]
   },
-  "hash": "3eb3681f950285cc69b7ba7e48dac5c4b8394ef93a7d2284b0b369e4f882b2a7"
+  "hash": "f4e3b63d1a29eb51c4e975ad0b2da7fffd100f0fe0fa300ee2b8ca18855164c7"
 }

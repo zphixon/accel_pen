@@ -100,18 +100,11 @@ pub async fn map_thumbnail(
 ) -> Result<Response, ApiError> {
     Ok((
         [(header::CONTENT_TYPE, "image/jpeg")],
-        sqlx::query!(
-            "
-            SELECT thumbnail FROM map
-            WHERE deleted is NULL
-                AND ap_map_id = $1
-        ",
-            map_id
-        )
-        .fetch_one(&state.pool)
-        .await
-        .context("Reading thumbnail from database")?
-        .thumbnail,
+        sqlx::query!("SELECT thumbnail FROM map WHERE ap_map_id = $1", map_id)
+            .fetch_one(&state.pool)
+            .await
+            .context("Reading thumbnail from database")?
+            .thumbnail,
     )
         .into_response())
 }
@@ -247,32 +240,22 @@ pub async fn map_upload(
     .await
     .context("Adding map to database")?
     {
+        // you really can't get this from the function signature?
         Some(row) => MapUploadResponse {
             map_id: row.ap_map_id,
         },
         None => {
             let map_id = sqlx::query!(
-                "
-                    SELECT ap_map_id
-                    FROM map
-                    WHERE deleted IS NULL
-                        AND gbx_mapuid = $1
-                ",
+                "SELECT ap_map_id FROM map WHERE gbx_mapuid = $1",
                 map_info.id
             )
-            .fetch_optional(&state.pool)
+            .fetch_one(&state.pool)
             .await
             .context("Fetching map ID for existing map")?;
-
-            if let Some(map_id) = map_id {
-                return Err(ApiErrorInner::AlreadyUploaded {
-                    map_id: map_id.ap_map_id,
-                }
-                .into());
-            } else {
-                // hmmmm - map deleted immediately after upload
-                return Err(ApiErrorInner::MapNotFound { map_id: 0 }.into());
+            return Err(ApiErrorInner::AlreadyUploaded {
+                map_id: map_id.ap_map_id,
             }
+            .into());
         }
     };
 
@@ -325,12 +308,7 @@ pub async fn map_manage(
     WithRejection(Json(request), _): WithRejection<Json<MapManageRequest>, ApiError>,
 ) -> Result<Json<MapManageResponse>, ApiError> {
     let Some(_) = sqlx::query!(
-        "
-        SELECT FROM map
-        WHERE deleted IS NULL
-            AND ap_map_id = $1 AND ap_author_id = $2
-        LIMIT 1
-    ",
+        "SELECT FROM map WHERE ap_map_id = $1 AND ap_author_id = $2 LIMIT 1",
         map_id,
         auth.user_id()
     )
@@ -388,24 +366,14 @@ pub async fn map_manage(
                 .context("Applying tag to map")?;
             }
 
-            transaction
-                .commit()
-                .await
-                .context("Committing transaction")?;
+            transaction.commit().await.context("Committing transaction")?;
         }
 
         MapManageCommand::Delete => {
-            sqlx::query!(
-                "
-                UPDATE map
-                SET deleted = timezone('utc', now())
-                WHERE ap_map_id = $1
-            ",
-                map_id
-            )
-            .execute(&state.pool)
-            .await
-            .context("Deleting map")?;
+            sqlx::query!("DELETE FROM map WHERE ap_map_id = $1", map_id)
+                .execute(&state.pool)
+                .await
+                .context("Deleting map")?;
         }
     }
 

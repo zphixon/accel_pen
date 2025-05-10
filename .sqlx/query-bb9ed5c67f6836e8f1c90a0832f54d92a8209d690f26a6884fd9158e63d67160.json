@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,\n                map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,\n                ap_user.nadeo_club_tag\n            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id\n            WHERE map.deleted IS NULL AND ap_user.deleted IS NULL\n                AND map.ap_map_id = $1\n        ",
+  "query": "\n            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,\n                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag\n            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id\n            ORDER BY map.ap_map_id DESC\n            LIMIT 10\n        ",
   "describe": {
     "columns": [
       {
@@ -40,27 +40,19 @@
       },
       {
         "ordinal": 7,
-        "name": "ap_user_id",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 8,
         "name": "nadeo_id",
         "type_info": "Text"
       },
       {
-        "ordinal": 9,
+        "ordinal": 8,
         "name": "nadeo_club_tag",
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Left": [
-        "Int4"
-      ]
+      "Left": []
     },
     "nullable": [
-      false,
       false,
       false,
       false,
@@ -72,5 +64,5 @@
       true
     ]
   },
-  "hash": "435ab44e08b82481fdd1513d75034767b8b2c5ed061b17fde860252d30b29d8c"
+  "hash": "bb9ed5c67f6836e8f1c90a0832f54d92a8209d690f26a6884fd9158e63d67160"
 }

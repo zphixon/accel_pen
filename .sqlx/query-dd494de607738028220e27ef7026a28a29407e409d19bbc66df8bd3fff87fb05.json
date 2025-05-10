@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT FROM map WHERE ap_map_id = $1 AND ap_author_id = $2 LIMIT 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd494de607738028220e27ef7026a28a29407e409d19bbc66df8bd3fff87fb05"
+}
