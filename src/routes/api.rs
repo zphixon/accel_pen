@@ -525,7 +525,7 @@ pub async fn map_search(
 
             let tags = sqlx::query!(
                 "
-            SELECT tag.tag_id, tag.tag_name, tag.tag_kind
+            SELECT tag.tag_id, tag.tag_name
             FROM tag
             JOIN map_tag ON map_tag.tag_id = tag.tag_id
             JOIN map ON map_tag.ap_map_id = $1
@@ -541,7 +541,6 @@ pub async fn map_search(
             .map(|row| TagInfo {
                 id: row.tag_id,
                 name: row.tag_name,
-                kind: row.tag_kind,
             })
             .collect::<Vec<_>>();
 

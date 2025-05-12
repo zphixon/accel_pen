@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT tag_id, tag_name, tag_kind FROM tag",
+  "query": "\n            SELECT tag.tag_id, tag.tag_name\n            FROM tag\n            WHERE tag.implication IS NOT NULL\n        ",
   "describe": {
     "columns": [
       {
@@ -12,11 +12,6 @@
         "ordinal": 1,
         "name": "tag_name",
         "type_info": "Text"
-      },
-      {
-        "ordinal": 2,
-        "name": "tag_kind",
-        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -24,9 +19,8 @@
     },
     "nullable": [
       false,
-      false,
       false
     ]
   },
-  "hash": "cda0589f38c6f4fdff9009d7d92a6d2a103d2de1470402f93d3d4e81b9787d0d"
+  "hash": "7c7648fedf8ad7a773b270fdedf16956bf29d80d3dd96fc5a7eafa802c486407"
 }

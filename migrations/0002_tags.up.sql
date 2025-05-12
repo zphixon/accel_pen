@@ -1,72 +1,175 @@
-INSERT INTO tag (tag_name, tag_kind) VALUES
-    ('FullSpeed',         'mapStyle'),
-    ('SpeedFun',          'mapStyle'),
-    ('Tech',              'mapStyle'),
-    ('SpeedTech',         'mapStyle'),
-    ('RPG',               'mapStyle'),
-    ('MiniRPG',           'mapStyle'),
-    ('LOL',               'mapStyle'),
-    ('Trial',             'mapStyle'),
-    ('ZrT',               'mapStyle'),
-    ('Competitive',       'mapStyle'),
-    ('Kacky',             'mapStyle'),
-    ('Endurance',         'mapStyle'),
-    ('Obstacle',          'mapStyle'),
-    ('Nascar',            'mapStyle'),
-    ('Transitional',      'mapStyle'),
-    ('Backwards',         'mapStyle'),
-    ('Pathfinding',       'mapStyle'),
-
-    ('Mixed',             'definingSurface'),
-    ('Offroad',           'definingSurface'),
-    ('Underwater',        'definingSurface'),
-    ('Turtle',            'definingSurface'),
-    ('Ice',               'definingSurface'),
-    ('Bobsleigh',         'definingSurface'),
-    ('WetWood',           'definingSurface'),
-    ('WetIcyWood',        'definingSurface'),
-    ('Dirt',              'definingSurface'),
-    ('Plastic',           'definingSurface'),
-    ('Grass',             'definingSurface'),
-    ('Wood',              'definingSurface'),
-
-    ('NoBrakes',          'mapFeature'),
-    ('Reactor',           'mapFeature'),
-    ('SlowMotion',        'mapFeature'),
-    ('Fragile',           'mapFeature'),
-    ('EngineOff',         'mapFeature'),
-    ('CruiseControl',     'mapFeature'),
-    ('NoSteering',        'mapFeature'),
-    ('NoGrip',            'mapFeature'),
-    ('Water',             'mapFeature'),
-    ('Sausage',           'mapFeature'),
-    ('Magnet',            'mapFeature'),
-    ('Bumper',            'mapFeature'),
-    ('MovingItems',       'mapFeature'),
-    ('Pipes',             'mapFeature'),
-
-    ('Bugslide',          'drivingTechnique'),
-    ('Mudslide',          'drivingTechnique'),
-    ('Gear3',             'drivingTechnique'),
-    ('Gear4',             'drivingTechnique'),
-
-    ('SnowCar',           'notStadium'),
-    ('DesertCar',         'notStadium'),
-    ('RallyCar',          'notStadium'),
-    ('MixedCar',          'notStadium'),
-
-    ('AlteredNadeo',      'mapMeta'),
-    ('Mini',              'mapMeta'),
-    ('SecretLeaderboard', 'mapMeta'),
-    ('Scenery',           'mapMeta'),
-    ('Signature',         'mapMeta'),
-    ('Educational',       'mapMeta'),
-    ('SpeedMapping',      'mapMeta'),
-    ('PressForward',      'mapMeta'),
-    ('Race',              'mapMeta'),
-    ('Stunt',             'mapMeta'),
-    ('Platform',          'mapMeta'),
-    ('Royal',             'mapMeta'),
-    ('Puzzle',            'mapMeta')
-;
-
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 2, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 3, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 4, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 5, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 6, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 7, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 8, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 9, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 10, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 11, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 12, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 13, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 14, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 15, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 16, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 17, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 18, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 19, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (0, 20, 1);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (1, 7, 6);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 22, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 23, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 24, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 25, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 26, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 27, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 28, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 29, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 30, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 31, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 32, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 33, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 34, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 35, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 36, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 37, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 38, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 39, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 40, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (2, 41, 21);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (3, 26, 25);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (3, 27, 25);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (4, 32, 31);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (4, 33, 31);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (5, 35, 34);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (5, 36, 34);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (6, 38, 37);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (6, 39, 37);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 43, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 44, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 45, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 46, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 47, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 48, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 49, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 50, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 51, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 52, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 53, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 54, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 55, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 56, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 57, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 58, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 59, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (7, 60, 42);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (8, 44, 43);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (8, 45, 43);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (8, 46, 43);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (9, 49, 48);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (10, 62, 61);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (10, 63, 61);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (10, 64, 61);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (10, 65, 61);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 67, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 68, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 69, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 70, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 71, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 72, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 73, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 74, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 75, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 76, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 77, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 78, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 79, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 80, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (11, 81, 66);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (12, 70, 69);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (13, 77, 76);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (13, 78, 76);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (13, 79, 76);
+INSERT INTO tag_implies (implication, implyer, implied) VALUES (13, 80, 76);
+INSERT INTO tag (tag_id, tag_name, tag_definition) VALUES (1, 'Style', '');
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (2, 'Style/FullSpeed', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (3, 'Style/SpeedFun', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (4, 'Style/Tech', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (5, 'Style/SpeedTech', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (6, 'Style/RPG', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (7, 'Style/RPG/Short', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (8, 'Style/MiniRPG', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (9, 'Style/LOL', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (10, 'Style/Trial', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (11, 'Style/ZrT', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (12, 'Style/Competitive', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (13, 'Style/Kacky', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (14, 'Style/Endurance', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (15, 'Style/Obstacle', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (16, 'Style/Nascar', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (17, 'Style/Transitional', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (18, 'Style/Backwards', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (19, 'Style/Pathfinding', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (20, 'Style/Underwater', '', 0);
+INSERT INTO tag (tag_id, tag_name, tag_definition) VALUES (21, 'Surface', '');
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (22, 'Surface/Mixed', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (23, 'Surface/Offroad', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (24, 'Surface/Turtle', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (25, 'Surface/Ice', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (26, 'Surface/Ice/Gear3', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (27, 'Surface/Ice/Gear4', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (28, 'Surface/Bobsleigh', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (29, 'Surface/WetWood', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (30, 'Surface/WetIcyWood', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (31, 'Surface/Dirt', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (32, 'Surface/Dirt/Gear3', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (33, 'Surface/Dirt/Gear4', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (34, 'Surface/Plastic', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (35, 'Surface/Plastic/Gear3', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (36, 'Surface/Plastic/Gear4', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (37, 'Surface/Grass', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (38, 'Surface/Grass/Gear3', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (39, 'Surface/Grass/Gear4', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (40, 'Surface/Wood', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (41, 'Surface/Water', '', 2);
+INSERT INTO tag (tag_id, tag_name, tag_definition) VALUES (42, 'Feature', '');
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (43, 'Feature/TireStatus', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (44, 'Feature/TireStatus/Worn', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (45, 'Feature/TireStatus/Wet', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (46, 'Feature/TireStatus/Icy', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (47, 'Feature/NoBrakes', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (48, 'Feature/Reactor', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (49, 'Feature/Reactor/YEET', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (50, 'Feature/SlowMotion', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (51, 'Feature/Fragile', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (52, 'Feature/EngineOff', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (53, 'Feature/CruiseControl', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (54, 'Feature/NoSteering', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (55, 'Feature/NoGrip', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (56, 'Feature/Sausage', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (57, 'Feature/Magnet', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (58, 'Feature/Bumpers', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (59, 'Feature/MovingItems', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (60, 'Feature/Pipes', '', 7);
+INSERT INTO tag (tag_id, tag_name, tag_definition) VALUES (61, 'OriginalCar', '');
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (62, 'OriginalCar/Snow', '', 10);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (63, 'OriginalCar/Desert', '', 10);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (64, 'OriginalCar/Rally', '', 10);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (65, 'OriginalCar/Mixed', '', 10);
+INSERT INTO tag (tag_id, tag_name, tag_definition) VALUES (66, 'Meta', '');
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (67, 'Meta/AlteredNadeo', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (68, 'Meta/Mini', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (69, 'Meta/SecretLeaderboard', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (70, 'Meta/SecretLeaderboard/WeeklyShorts', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (71, 'Meta/Scenery', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (72, 'Meta/Signature', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (73, 'Meta/Educational', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (74, 'Meta/SpeedMapping', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (75, 'Meta/PressForward', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (76, 'Meta/Gamemode', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (77, 'Meta/Gamemode/Stunt', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (78, 'Meta/Gamemode/Platform', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (79, 'Meta/Gamemode/Royal', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (80, 'Meta/Gamemode/Puzzle', '', 11);
+INSERT INTO tag (tag_id, tag_name, tag_definition, implication) VALUES (81, 'Meta/Experimental', '', 11);

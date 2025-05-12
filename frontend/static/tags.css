@@ -45,32 +45,33 @@ a.tagBadge {
     background-color: rgb(240, 240, 240);
 }
 
+.rootName {
+    font-size: small;
+    color: rgba(0, 0, 0, 0.5);
+}
+
 .tagName {
     border-radius: 5px;
     padding: 0.25em;
     cursor: pointer;
 }
 
-.tagName.mapStyle {
+.tagName.Style {
     background-color: rgb(255, 195, 128);
 }
 
-.tagName.definingSurface {
+.tagName.Surface {
     background-color: rgb(255, 113, 47);
 }
 
-.tagName.mapFeature {
+.tagName.Feature {
     background-color: rgb(153, 230, 255);
 }
 
-.tagName.drivingTechnique {
-    background-color: rgb(146, 182, 236);
-}
-
-.tagName.notStadium {
+.tagName.OriginalCar {
     background-color: rgb(253, 236, 0);
 }
 
-.tagName.mapMeta {
+.tagName.Meta {
     background-color: rgb(255, 194, 242);
 }

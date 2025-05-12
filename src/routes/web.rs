@@ -193,10 +193,11 @@ async fn populate_context_with_map_data(
     if let Some(map) = map {
         let tags = sqlx::query!(
             "
-            SELECT tag.tag_id, tag.tag_name, tag.tag_kind
+            SELECT tag.tag_id, tag.tag_name
             FROM tag
-            JOIN map_tag ON map_tag.tag_id = tag.tag_id
-            JOIN map ON map_tag.ap_map_id = $1
+                JOIN map_tag ON map_tag.tag_id = tag.tag_id
+                JOIN map ON map_tag.ap_map_id = $1
+            WHERE tag.implication IS NOT NULL
             GROUP BY tag.tag_id
             ORDER BY tag.tag_id ASC
         ",
@@ -209,7 +210,6 @@ async fn populate_context_with_map_data(
         .map(|row| TagInfo {
             id: row.tag_id,
             name: row.tag_name,
-            kind: row.tag_kind,
         })
         .collect::<Vec<_>>();
 
@@ -295,17 +295,22 @@ async fn populate_context_with_tags(
     state: &AppState,
     context: &mut TeraContext,
 ) -> Result<(), ApiError> {
-    let tag_names = sqlx::query!("SELECT tag_id, tag_name, tag_kind FROM tag")
-        .fetch_all(&state.pool)
-        .await
-        .context("Getting tag names")?;
+    let tag_names = sqlx::query!(
+        "
+            SELECT tag.tag_id, tag.tag_name
+            FROM tag
+            WHERE tag.implication IS NOT NULL
+        "
+    )
+    .fetch_all(&state.pool)
+    .await
+    .context("Getting tag names")?;
 
     let tag_names = tag_names
         .into_iter()
         .map(|row| TagInfo {
             id: row.tag_id,
             name: row.tag_name,
-            kind: row.tag_kind,
         })
         .collect::<Vec<TagInfo>>();
 

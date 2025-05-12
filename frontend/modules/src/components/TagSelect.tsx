@@ -8,8 +8,10 @@ interface TagBadgeProps {
   onChange?: React.ChangeEventHandler<HTMLInputElement>,
 }
 function TagBadge({ tag, checked, selected, onChange }: TagBadgeProps) {
+  let root = tag.name.split("/")[0];
+  let rest = tag.name.split("/").slice(1).join("/");
   return <>
-    <div className={["tagBadge", tag.kind, tag.name].join(" ")}>
+    <div className={["tagBadge", root].join(" ")}>
       <input
         hidden
         className={["tagCheckbox", selected ? "tagCheckboxSelected" : ""].join(" ")}
@@ -20,9 +22,9 @@ function TagBadge({ tag, checked, selected, onChange }: TagBadgeProps) {
       />
       <label
         htmlFor={tag.name}
-        className={["tagName", tag.kind].join(" ")}
+        className={["tagName", root].join(" ")}
       >
-        {tag.name}
+        <span className="rootName">{root}/</span>{rest}
       </label>
     </div>
   </>;

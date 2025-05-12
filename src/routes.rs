@@ -43,5 +43,4 @@ pub struct Medals {
 pub struct TagInfo {
     pub id: i32,
     pub name: String,
-    pub kind: String,
 }

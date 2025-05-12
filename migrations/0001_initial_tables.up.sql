@@ -35,15 +35,15 @@ CREATE TABLE map (
 
 CREATE TABLE tag_implies (
     implication INTEGER NOT NULL,
-    tag_id INTEGER NOT NULL
+    implyer INTEGER NOT NULL,
+    implied INTEGER NOT NULL
 );
 
 CREATE TABLE tag (
-    tag_id SERIAL UNIQUE NOT NULL,
+    tag_id INTEGER UNIQUE NOT NULL,
     tag_name TEXT NOT NULL,
-    tag_kind TEXT NOT NULL,
     tag_definition TEXT,
-    implies INTEGER,
+    implication INTEGER,
 
     CONSTRAINT pk_tag PRIMARY KEY (tag_id)
 );
@@ -57,6 +57,7 @@ CREATE TABLE map_tag (
         ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_tag_id FOREIGN KEY (tag_id)
         REFERENCES tag (tag_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE vote (

@@ -38,8 +38,13 @@
 {%- endmacro map_thumbnail %}
 
 {% macro tag_badge(tag) %}
-  <a class="tagBadge {{ tag.kind }} {{ tag.name }}" href="/map/search?tagged_with={{ tag.name }}">
-    <span class="tagName {{ tag.kind }}">{{ tag.name }}</span>
+  {%- set parts = tag.name | split(pat="/") -%}
+  {%- set root = parts | first -%}
+  {%- set name = parts | slice(start=1) | join(sep="/") -%}
+  <a class="tagBadge {{ root }} {{ name }}" href="/map/search?tagged_with={{ tag.name }}">
+    <span class="tagName {{ root }}">
+      <span class="rootName">{{ root }}/</span>{{ name }}
+    </span>
   </a>
 {% endmacro tag_badge %}
 
