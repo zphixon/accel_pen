@@ -33,11 +33,17 @@ CREATE TABLE map (
         ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+CREATE TABLE tag_implies (
+    implication INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL
+);
+
 CREATE TABLE tag (
     tag_id SERIAL UNIQUE NOT NULL,
     tag_name TEXT NOT NULL,
     tag_kind TEXT NOT NULL,
     tag_definition TEXT,
+    implies INTEGER,
 
     CONSTRAINT pk_tag PRIMARY KEY (tag_id)
 );
