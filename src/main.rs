@@ -20,7 +20,6 @@ use tower_sessions::{
 };
 use tracing_subscriber::EnvFilter;
 
-mod api;
 mod config;
 mod dev;
 mod error;
@@ -87,28 +86,31 @@ async fn main() -> anyhow::Result<()> {
         );
 
         let app = Router::new()
-            .fallback(routes::my_fallback)
-            .route("/", get(routes::index))
+            .fallback(routes::web::my_fallback)
+            .route("/", get(routes::web::index))
             .nest_service("/static", ServeDir::new("frontend/static"))
-            .route("/map/upload", get(routes::map_upload))
-            .route("/map/{map_id}", get(routes::map_page))
-            .route("/map/{map_id}/manage", get(routes::map_manage_page))
-            .route(&CONFIG.route_api_v1("/map/upload"), post(api::map_upload))
+            .route("/map/upload", get(routes::web::map_upload))
+            .route("/map/{map_id}", get(routes::web::map_page))
+            .route("/map/{map_id}/manage", get(routes::web::map_manage_page))
+            .route(
+                &CONFIG.route_api_v1("/map/upload"),
+                post(routes::api::map_upload),
+            )
             .route(
                 &CONFIG.route_api_v1("/map/{map_id}/thumbnail"),
-                get(api::map_thumbnail).layer(long_cache.clone()),
+                get(routes::api::map_thumbnail).layer(long_cache.clone()),
             )
             .route(
                 &CONFIG.route_api_v1("/map/{map_id}/thumbnail/{size}"),
-                get(api::map_thumbnail_size).layer(long_cache),
+                get(routes::api::map_thumbnail_size).layer(long_cache),
             )
             .route(
                 &CONFIG.route_api_v1("/map/{map_id}/manage"),
-                post(api::map_manage),
+                post(routes::api::map_manage),
             )
-            .route(&CONFIG.oauth_start_route(), get(api::oauth_start))
-            .route(&CONFIG.oauth_finish_route(), get(api::oauth_finish))
-            .route(&CONFIG.oauth_logout_route(), get(api::oauth_logout))
+            .route(&CONFIG.oauth_start_route(), get(routes::api::oauth_start))
+            .route(&CONFIG.oauth_finish_route(), get(routes::api::oauth_finish))
+            .route(&CONFIG.oauth_logout_route(), get(routes::api::oauth_logout))
             .with_state(AppState { pool, tera })
             .layer(session_layer)
             .layer(DefaultBodyLimit::disable())

@@ -1,3 +1,4 @@
+use super::{MapContext, TagInfo};
 use crate::{
     config::CONFIG,
     error::{ApiError, ApiErrorInner, Context as _},
@@ -20,16 +21,6 @@ use std::collections::HashSet;
 use tower_sessions::Session;
 use ts_rs::TS;
 use uuid::Uuid;
-
-#[derive(Serialize, TS)]
-#[ts(export)]
-#[serde(tag = "type")]
-pub struct UserResponse {
-    pub display_name: String,
-    pub account_id: String,
-    pub user_id: i32,
-    pub club_tag: Option<nadeo::FormattedString>,
-}
 
 #[derive(Deserialize)]
 pub struct OauthStartRequest {
@@ -381,14 +372,6 @@ pub async fn map_upload(
     }
 
     Ok(Json(map_response))
-}
-
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
-pub struct TagInfo {
-    pub id: i32,
-    pub name: String,
-    pub kind: String,
 }
 
 #[derive(Deserialize, TS)]
