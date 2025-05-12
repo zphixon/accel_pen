@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT tag_id, tag_name, tag_kind FROM tag_name",
+  "query": "\n            SELECT tag.tag_id, tag.tag_name, tag.tag_kind\n            FROM tag\n            JOIN map_tag ON map_tag.tag_id = tag.tag_id\n            JOIN map ON map_tag.ap_map_id = $1\n            GROUP BY tag.tag_id\n            ORDER BY tag.tag_id ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -20,7 +20,9 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Int4"
+      ]
     },
     "nullable": [
       false,
@@ -28,5 +30,5 @@
       false
     ]
   },
-  "hash": "7eae542bb68c0528cb8720dc3b4e0f08d3446592844192a313d271e554206d3d"
+  "hash": "20ddefe44dc8f151e30fdc54bbfdbd24c8a9193dff8d650afc0d8910d9fac2eb"
 }

@@ -213,7 +213,7 @@ pub async fn map_upload(
 
     let mut map_tags: HashSet<i32> = HashSet::new();
     for tag in map_meta.tags.iter() {
-        let Some(tag_id) = sqlx::query!("SELECT tag_id FROM tag_name WHERE tag_name = $1", tag)
+        let Some(tag_id) = sqlx::query!("SELECT tag_id FROM tag WHERE tag_name = $1", tag)
             .fetch_optional(&state.pool)
             .await
             .context("Looking up tag name")?
@@ -363,7 +363,7 @@ pub async fn map_upload(
 
     for tag in map_tags {
         sqlx::query!(
-            "INSERT INTO tag (ap_map_id, tag_id) VALUES ($1, $2)",
+            "INSERT INTO map_tag (ap_map_id, tag_id) VALUES ($1, $2)",
             map_response.map_id,
             tag
         )
@@ -419,7 +419,7 @@ pub async fn map_manage(
 
             for tag in tags.iter() {
                 let Some(_) = sqlx::query!(
-                    "SELECT FROM tag_name WHERE tag_id = $1 AND tag_name = $2 LIMIT 1",
+                    "SELECT FROM tag WHERE tag_id = $1 AND tag_name = $2 LIMIT 1",
                     tag.id,
                     tag.name
                 )
@@ -444,14 +444,14 @@ pub async fn map_manage(
             // 2. remove map from `tag`
             // 3. re-add map to tag with tags from `tags`
 
-            sqlx::query!("DELETE FROM tag WHERE ap_map_id = $1", map_id)
+            sqlx::query!("DELETE FROM map_tag WHERE ap_map_id = $1", map_id)
                 .execute(&mut *transaction)
                 .await
                 .context("Deleting map from tag")?;
 
             for tag in tags.iter() {
                 sqlx::query!(
-                    "INSERT INTO tag (ap_map_id, tag_id) VALUES ($1, $2)",
+                    "INSERT INTO map_tag (ap_map_id, tag_id) VALUES ($1, $2)",
                     map_id,
                     tag.id
                 )
@@ -503,10 +503,10 @@ pub async fn map_search(
                 map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
                 map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms,
                 ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag
-            FROM tag
-                JOIN map ON tag.ap_map_id = map.ap_map_id
+            FROM map_tag
+                JOIN map ON map_tag.ap_map_id = map.ap_map_id
                 JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-            WHERE tag.tag_id = $1
+            WHERE map_tag.tag_id = $1
             LIMIT 20
         ",
             tag.id,
@@ -525,12 +525,12 @@ pub async fn map_search(
 
             let tags = sqlx::query!(
                 "
-            SELECT tag_name.tag_id, tag_name.tag_name, tag_name.tag_kind
-            FROM tag_name
-            JOIN tag ON tag.tag_id = tag_name.tag_id
-            JOIN map ON tag.ap_map_id = $1
-            GROUP BY tag_name.tag_id
-            ORDER BY tag_name.tag_id ASC
+            SELECT tag.tag_id, tag.tag_name, tag.tag_kind
+            FROM tag
+            JOIN map_tag ON map_tag.tag_id = tag.tag_id
+            JOIN map ON map_tag.ap_map_id = $1
+            GROUP BY tag.tag_id
+            ORDER BY tag.tag_id ASC
         ",
                 row.ap_map_id
             )

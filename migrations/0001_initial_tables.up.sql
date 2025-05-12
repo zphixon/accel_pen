@@ -33,16 +33,16 @@ CREATE TABLE map (
         ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE tag_name (
+CREATE TABLE tag (
     tag_id SERIAL UNIQUE NOT NULL,
     tag_name TEXT NOT NULL,
     tag_kind TEXT NOT NULL,
     tag_definition TEXT,
 
-    CONSTRAINT pk_tag_name PRIMARY KEY (tag_id)
+    CONSTRAINT pk_tag PRIMARY KEY (tag_id)
 );
 
-CREATE TABLE tag (
+CREATE TABLE map_tag (
     ap_map_id INTEGER NOT NULL,
     tag_id INTEGER NOT NULL,
 
@@ -50,80 +50,8 @@ CREATE TABLE tag (
         REFERENCES map (ap_map_id)
         ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_tag_id FOREIGN KEY (tag_id)
-        REFERENCES tag_name (tag_id)
+        REFERENCES tag (tag_id)
 );
-
-INSERT INTO tag_name (tag_name, tag_kind) VALUES
-    ('FullSpeed',         'mapStyle'),
-    ('SpeedFun',          'mapStyle'),
-    ('Tech',              'mapStyle'),
-    ('SpeedTech',         'mapStyle'),
-    ('RPG',               'mapStyle'),
-    ('MiniRPG',           'mapStyle'),
-    ('LOL',               'mapStyle'),
-    ('Trial',             'mapStyle'),
-    ('ZrT',               'mapStyle'),
-    ('Competitive',       'mapStyle'),
-    ('Kacky',             'mapStyle'),
-    ('Endurance',         'mapStyle'),
-    ('Obstacle',          'mapStyle'),
-    ('Nascar',            'mapStyle'),
-    ('Transitional',      'mapStyle'),
-    ('Backwards',         'mapStyle'),
-    ('Pathfinding',       'mapStyle'),
-
-    ('Mixed',             'definingSurface'),
-    ('Offroad',           'definingSurface'),
-    ('Underwater',        'definingSurface'),
-    ('Turtle',            'definingSurface'),
-    ('Ice',               'definingSurface'),
-    ('Bobsleigh',         'definingSurface'),
-    ('WetWood',           'definingSurface'),
-    ('WetIcyWood',        'definingSurface'),
-    ('Dirt',              'definingSurface'),
-    ('Plastic',           'definingSurface'),
-    ('Grass',             'definingSurface'),
-    ('Wood',              'definingSurface'),
-
-    ('NoBrakes',          'mapFeature'),
-    ('Reactor',           'mapFeature'),
-    ('SlowMotion',        'mapFeature'),
-    ('Fragile',           'mapFeature'),
-    ('EngineOff',         'mapFeature'),
-    ('CruiseControl',     'mapFeature'),
-    ('NoSteering',        'mapFeature'),
-    ('NoGrip',            'mapFeature'),
-    ('Water',             'mapFeature'),
-    ('Sausage',           'mapFeature'),
-    ('Magnet',            'mapFeature'),
-    ('Bumper',            'mapFeature'),
-    ('MovingItems',       'mapFeature'),
-    ('Pipes',             'mapFeature'),
-
-    ('Bugslide',          'drivingTechnique'),
-    ('Mudslide',          'drivingTechnique'),
-    ('Gear3',             'drivingTechnique'),
-    ('Gear4',             'drivingTechnique'),
-
-    ('SnowCar',           'notStadium'),
-    ('DesertCar',         'notStadium'),
-    ('RallyCar',          'notStadium'),
-    ('MixedCar',          'notStadium'),
-
-    ('AlteredNadeo',      'mapMeta'),
-    ('Mini',              'mapMeta'),
-    ('SecretLeaderboard', 'mapMeta'),
-    ('Scenery',           'mapMeta'),
-    ('Signature',         'mapMeta'),
-    ('Educational',       'mapMeta'),
-    ('SpeedMapping',      'mapMeta'),
-    ('PressForward',      'mapMeta'),
-    ('Race',              'mapMeta'),
-    ('Stunt',             'mapMeta'),
-    ('Platform',          'mapMeta'),
-    ('Royal',             'mapMeta'),
-    ('Puzzle',            'mapMeta')
-;
 
 CREATE TABLE vote (
     ap_user_id INTEGER NOT NULL,

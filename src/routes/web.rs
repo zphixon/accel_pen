@@ -193,12 +193,12 @@ async fn populate_context_with_map_data(
     if let Some(map) = map {
         let tags = sqlx::query!(
             "
-            SELECT tag_name.tag_id, tag_name.tag_name, tag_name.tag_kind
-            FROM tag_name
-            JOIN tag ON tag.tag_id = tag_name.tag_id
-            JOIN map ON tag.ap_map_id = $1
-            GROUP BY tag_name.tag_id
-            ORDER BY tag_name.tag_id ASC
+            SELECT tag.tag_id, tag.tag_name, tag.tag_kind
+            FROM tag
+            JOIN map_tag ON map_tag.tag_id = tag.tag_id
+            JOIN map ON map_tag.ap_map_id = $1
+            GROUP BY tag.tag_id
+            ORDER BY tag.tag_id ASC
         ",
             map.ap_map_id
         )
@@ -295,7 +295,7 @@ async fn populate_context_with_tags(
     state: &AppState,
     context: &mut TeraContext,
 ) -> Result<(), ApiError> {
-    let tag_names = sqlx::query!("SELECT tag_id, tag_name, tag_kind FROM tag_name")
+    let tag_names = sqlx::query!("SELECT tag_id, tag_name, tag_kind FROM tag")
         .fetch_all(&state.pool)
         .await
         .context("Getting tag names")?;
