@@ -2,9 +2,9 @@ import { createRoot } from "react-dom/client";
 import React, { useEffect, useRef, useState } from "react";
 import * as types from "./bindings/index";
 import * as api from "./api.js";
-import TagSelect from "./components/tagSelect";
+import TagSelect from "./components/TagSelect";
 
-function UploadMap() {
+function MapUpload() {
   // TODO configurable
   let maxTags = 7;
   let [maySelectTags, setMaySelectTags] = useState(false);
@@ -94,4 +94,4 @@ function UploadMap() {
 let tagInfoNode = document.getElementById("tagData")!;
 let mapUploadNode = document.getElementById("mapUpload")!;
 let mapUploadRoot = createRoot(mapUploadNode);
-mapUploadRoot.render(<UploadMap />);
+mapUploadRoot.render(<MapUpload />);

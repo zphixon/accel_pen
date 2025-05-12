@@ -2,7 +2,7 @@
 {% import "macros.tera" as macros %}
 
 {% block head %}
-  <link rel="stylesheet" href="/static/manageMap.css">
+  <link rel="stylesheet" href="/static/mapManage.css">
 {% endblock head %}
 
 {% block tabTitle -%}
@@ -19,7 +19,7 @@
     <script type="application/json" id="mapData">{{ map | json_encode() }}</script>
     <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
     <div id="mapManage"></div>
-    <script type="module" src="/static/js/manageMap.js"></script>
+    <script type="module" src="/static/js/renderMapManage.js"></script>
   {% else %}
     <h1>No such map</h1>
   {% endif %}

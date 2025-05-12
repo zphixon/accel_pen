@@ -4,15 +4,15 @@ import { useOnClickOutside } from "../node_modules/usehooks-ts/dist/index";
 import React, { useRef, useState } from "react";
 import * as api from "./api.js";
 import * as types from "./bindings/index";
-import TagSelect from "./components/tagSelect";
+import TagSelect from "./components/TagSelect";
 
 let maxTags = 7;
 
-interface ManageMapProps {
+interface MapManageProps {
   tagInfo: types.TagInfo[],
   mapData: types.MapContext,
 }
-function ManageMap({ tagInfo, mapData }: ManageMapProps) {
+function MapManage({ tagInfo, mapData }: MapManageProps) {
   let [showDelete, setShowDelete] = useState(false);
   let [selectedTags, setSelectedTags] = useState<types.TagInfo[]>(mapData.tags);
   let maySetTags = selectedTags.length > 0 && selectedTags.length <= maxTags;
@@ -86,4 +86,4 @@ let mapData: types.MapContext = JSON.parse(mapDataNode.innerText);
 
 let mapManageNode = document.getElementById("mapManage")!;
 let mapManageRoot = createRoot(mapManageNode);
-mapManageRoot.render(<ManageMap tagInfo={tagInfo} mapData={mapData} />);
+mapManageRoot.render(<MapManage tagInfo={tagInfo} mapData={mapData} />);

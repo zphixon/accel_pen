@@ -12,5 +12,5 @@
 {% block content %}
   <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
   <div id="search"></div> <!-- should there be content in this? hmm -->
-  <script type="module" src="/static/js/search.js"></script>
+  <script type="module" src="/static/js/renderMapSearch.js"></script>
 {% endblock content %}

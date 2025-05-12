@@ -2,7 +2,7 @@
 {% import "macros.tera" as macros %}
 
 {% block head %}
-  <link rel="stylesheet" href="/static/mapview.css">
+  <link rel="stylesheet" href="/static/mapView.css">
 {% endblock head %}
 
 {% block tabTitle -%}

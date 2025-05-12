@@ -26,7 +26,7 @@
   {% if user %}
     <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
     <div id="mapUpload"></div>
-    <script type="module" src="/static/js/uploadMap.js"></script>
+    <script type="module" src="/static/js/renderMapUpload.js"></script>
   {% else %}
     <p>Log in to upload</p>
   {% endif %}
