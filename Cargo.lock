@@ -13,6 +13,7 @@ dependencies = [
  "diesel",
  "form_urlencoded",
  "from_env",
+ "futures-util",
  "gbx_rs",
  "hex",
  "image",

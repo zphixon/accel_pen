@@ -111,7 +111,7 @@ async fn main() -> anyhow::Result<()> {
             )
             .route(
                 &CONFIG.route_api_v1("/map/search"),
-                get(routes::api::map_search),
+                post(routes::api::map_search),
             )
             .route(&CONFIG.oauth_start_route(), get(routes::api::oauth_start))
             .route(&CONFIG.oauth_finish_route(), get(routes::api::oauth_finish))

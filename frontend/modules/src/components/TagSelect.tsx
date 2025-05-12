@@ -34,7 +34,7 @@ interface TagSelectProps {
   selectedTags: types.TagInfo[],
   setSelectedTags: (newSelectedTags: types.TagInfo[]) => void,
   maxTags: number,
-  maySelectTags?: boolean
+  maySelectTags?: boolean,
 }
 function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTags = [], maySelectTags = true, maxTags }: TagSelectProps) {
   function toggleTag(event: React.ChangeEvent<HTMLInputElement>) {

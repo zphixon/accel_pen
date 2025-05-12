@@ -23,7 +23,7 @@ export function webUrl(): URL {
 }
 
 interface ApiCallOptions {
-  params?: any,
+  params?: URLSearchParams,
   body?: any,
   method?: string,
   contentType?: string,
@@ -38,7 +38,7 @@ async function apiCall<T>(path: string, { params, body, method, contentType }: A
 
   try {
     var response = await fetch(
-      apiUrl() + path + "?" + new URLSearchParams(params).toString(),
+      apiUrl() + path + (params ? "?" + params.toString() : ""),
       {
         method: method,
         mode: 'cors',
@@ -88,5 +88,16 @@ export async function manageMap(mapId: number, request: types.MapManageRequest):
       contentType: 'application/json',
       body: JSON.stringify(request),
     },
+  );
+}
+
+export async function mapSearch(request: types.MapSearchRequest): Promise<types.MapSearchResponse | types.TsApiError> {
+  return await apiCall<types.MapSearchResponse>(
+    "/map/search",
+    {
+      method: 'POST',
+      contentType: 'application/json',
+      body: JSON.stringify(request),
+    }
   );
 }

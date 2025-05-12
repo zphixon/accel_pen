@@ -6,6 +6,7 @@ use crate::{
         self,
         auth::{NadeoAuthSession, NadeoOauthFinishRequest, RandomStateSession},
     },
+    routes::{Medals, UserResponse},
     AppState,
 };
 use axum::{
@@ -17,7 +18,7 @@ use axum::{
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tower_sessions::Session;
 use ts_rs::TS;
 use uuid::Uuid;
@@ -479,7 +480,7 @@ pub async fn map_manage(
 #[derive(Deserialize, TS)]
 #[ts(export)]
 pub struct MapSearchRequest {
-    tagged_with: Option<TagInfo>,
+    tagged_with: Vec<TagInfo>,
 }
 
 #[derive(Serialize, TS)]
@@ -491,7 +492,95 @@ pub struct MapSearchResponse {
 
 pub async fn map_search(
     State(state): State<AppState>,
-    WithRejection(Query(request), _): WithRejection<Query<MapSearchRequest>, ApiError>,
+    WithRejection(Json(request), _): WithRejection<Json<MapSearchRequest>, ApiError>,
 ) -> Result<Json<MapSearchResponse>, ApiError> {
-    Ok(Json(MapSearchResponse { maps: vec![] }))
+    let mut maps = HashMap::new();
+
+    for tag in request.tagged_with.iter() {
+        let mut stream = sqlx::query!(
+            "
+            SELECT DISTINCT ON (map.ap_map_id)
+                map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
+                map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms,
+                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag
+            FROM tag
+                JOIN map ON tag.ap_map_id = map.ap_map_id
+                JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+            WHERE tag.tag_id = $1
+            LIMIT 20
+        ",
+            tag.id,
+        )
+        .fetch(&state.pool);
+
+        use futures_util::stream::TryStreamExt;
+        while let Some(row) = stream
+            .try_next()
+            .await
+            .context("Reading row from database")?
+        {
+            if maps.contains_key(&row.ap_map_id) {
+                continue;
+            }
+
+            let tags = sqlx::query!(
+                "
+            SELECT tag_name.tag_id, tag_name.tag_name, tag_name.tag_kind
+            FROM tag_name
+            JOIN tag ON tag.tag_id = tag_name.tag_id
+            JOIN map ON tag.ap_map_id = $1
+            GROUP BY tag_name.tag_id
+            ORDER BY tag_name.tag_id ASC
+        ",
+                row.ap_map_id
+            )
+            .fetch_all(&state.pool)
+            .await
+            .context("Reading tags from map")?
+            .into_iter()
+            .map(|row| TagInfo {
+                id: row.tag_id,
+                name: row.tag_name,
+                kind: row.tag_kind,
+            })
+            .collect::<Vec<_>>();
+
+            let name = crate::nadeo::FormattedString::parse(&row.mapname);
+
+            maps.insert(
+                row.ap_map_id,
+                MapContext {
+                    id: row.ap_map_id,
+                    gbx_uid: row.gbx_mapuid,
+                    plain_name: name.strip_formatting(),
+                    name,
+                    votes: row.votes,
+                    uploaded: row
+                        .uploaded
+                        .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+                        .unwrap(),
+                    author: UserResponse {
+                        display_name: row.nadeo_display_name,
+                        account_id: row.nadeo_id,
+                        user_id: row.ap_user_id,
+                        club_tag: row
+                            .nadeo_club_tag
+                            .as_deref()
+                            .map(crate::nadeo::FormattedString::parse),
+                    },
+                    tags,
+                    medals: Some(Medals {
+                        author: row.author_medal_ms as u32,
+                        gold: row.gold_medal_ms as u32,
+                        silver: row.silver_medal_ms as u32,
+                        bronze: row.bronze_medal_ms as u32,
+                    }),
+                },
+            );
+        }
+    }
+
+    Ok(Json(MapSearchResponse {
+        maps: maps.into_values().collect(),
+    }))
 }

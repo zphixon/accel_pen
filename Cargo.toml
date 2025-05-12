@@ -13,6 +13,7 @@ axum-extra = { version = "0.10.1", features = ["typed-header"] }
 base64 = "0.22.1"
 diesel = "2.2.10"
 form_urlencoded = "1.2.1"
+futures-util = "0.3.31"
 hex = "0.4.3"
 image = { version = "0.25.5", features = ["serde"] }
 notify = "8.0.0"
