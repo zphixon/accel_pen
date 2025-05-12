@@ -67,13 +67,18 @@ function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTag
     gridClasses.push("fullSelection");
   }
 
+  let buttonText = "Reset tags";
+  if (originalSelectedTags.length == 0) {
+    buttonText = "Clear tags";
+  }
+
   return <div id="tagSelect">
     <div id="tagSelectHeader">
       <div id="selectedTagsContainer">
         Selected tags: <span className="tagList" id="selectedTagList">{selectedTagList}</span>
       </div>
       <div id="resetTagsContainer">
-        <button id="resetTags" onClick={_ => setSelectedTags(originalSelectedTags)}>Reset tags</button>
+        <button id="resetTags" onClick={_ => setSelectedTags(originalSelectedTags)}>{buttonText}</button>
       </div>
     </div>
     <br/>
