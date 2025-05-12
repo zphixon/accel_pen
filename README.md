@@ -55,7 +55,8 @@ To build for the first time:
 - Build the frontend
   ```shell
   cd frontend
-  ./node_modules/.bin/tsc
+  npm install
+  ./node_modules/.bin/rollup -c
   ```
 
 - Start the postgres database (Docker is recommended)
@@ -68,7 +69,7 @@ To build for the first time:
 
 ### Adding Typescript modules
 
-Create your *.ts* file in *frontend/modules/src*.
+Create your *.ts*/*.tsx* file in *frontend/modules/src*.
 
 ```ts
 import * as api from './api.js'; // .js extension required for modules to work
@@ -79,11 +80,12 @@ Build it with the same command from earlier. The compiled JS will be placed in
 *frontend/static/js*. Use it in a page:
 
 ```html
-<script type="module" src="{{ config.root }}static/js/myNewModule.js"></script>
+<script type="module" src="/static/js/myNewModule.js"></script>
 ```
 
 Note that since it's a module, it can't interact with other `script` elements.
-Write anything you need to run on page load directly in the *.ts* file.
+Write anything you need to run on page load directly in the *.ts* file. Use the
+`rollup` command from earlier to build, and refresh.
 
 
 ### Adding SSR pages
@@ -218,39 +220,22 @@ to restart from scratch lol
 
 ### Modifying an existing schema
 
-Kind of annoying, but preferable compared to having a billion migration scripts
-and not having a full view of the database schema. If [this issue](https://github.com/launchbadge/sqlx/issues/2066)
-ever gets traction then maybe we could just add migrations and consolidate when
-we feel like it.
-
-
-#### Method 1 (ideal but not sure if it actually works)
-
 ```shell
 sqlx migrate revert --target-version 0
-# edit migration up/down
-sqlx migrate run
+# edit migration up+down
+sqlx migrate run # alternatively, since we use the sqlx::migrate! macro, just run the backend
 ```
 
-
-#### Method 2 (not ideal but does what I need it to do)
-
-```shell
-sudo docker container rm dev_accel_pen-database-1
-sudo docker volume rm dev_accel_pen_database
-# edit migration up/down
-sudo docker compose -f dev.docker-compose.yml up --build
-```
 
 ### Adding new queries or modifying existing ones
 
 Edit the `query!` macro invocation, then run
 
 ```shell
-cargo sqlx prepare -D "postgres://$user:$pass@$address/accel_pen"
+cargo sqlx prepare -D "postgres://$user:$pass@$address:5432/accel_pen"
 ```
 
-Probably also restart rust_analyzer (in VS Code at least). Once you're happy,
+Sometimes also restart rust_analyzer (in VS Code at least). Once you're happy,
 don't forget to include changes to the *.sqlx* directory in your commit.
 
 
@@ -271,9 +256,7 @@ database, the Nadeo OAuth API, or the Nadeo Ubisoft-credentialed API.
 
 This is a little cursed because I want server-side rendering without a
 framework. Dioxus and Next.JS exist and are probably pretty nice, but they seem
-too magical. I also want Typescript for the few cases where I need to add some
-light interactivity. Doing it this way affords me more control, and still allows
-me to add React down the line if I really need it.
+too magical. React was possible to add without too much pain.
 
 
 ### Gamebox file support (*gbx_rs*)
