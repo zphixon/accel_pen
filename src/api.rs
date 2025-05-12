@@ -32,7 +32,6 @@ pub struct UserResponse {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct OauthStartRequest {
     return_path: Option<String>,
 }

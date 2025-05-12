@@ -40,7 +40,7 @@
         </span>
         {%- else -%}
         <span class="loginLink">
-          <a href="{{ config.login_path }}{% block returnPath %}{% endblock returnPath %}">Log in</a>
+          <a href="{{ config.login_path }}{% block return_path %}{% endblock return_path %}">Log in</a>
         </span>
         {%- endif %}
       </div>

@@ -18,9 +18,9 @@
   {{ super() }} - Upload a map
 {%- endblock title %}
 
-{% block returnPath -%}
-  ?returnPath=/map/upload
-{%- endblock returnPath %}
+{% block return_path -%}
+  ?return_path=/map/upload
+{%- endblock return_path %}
 
 {% block content %}
   {% if user %}

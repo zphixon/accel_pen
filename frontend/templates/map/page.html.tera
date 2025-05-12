@@ -13,11 +13,11 @@
   {%- endif -%}
 {%- endblock tabTitle %}
 
-{% block returnPath -%}
+{% block return_path -%}
   {%- if map -%}
-    ?returnPath=/map/{{ map.id }}
+    ?return_path=/map/{{ map.id }}
   {%- endif -%}
-{%- endblock returnPath %}
+{%- endblock return_path %}
 
 {% block content %}
   {% if map %}
