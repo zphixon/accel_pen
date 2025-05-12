@@ -6,13 +6,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <link rel="stylesheet" href="{{ config.root }}static/index.css" />
-    <link rel="stylesheet" href="{{ config.root }}static/nadeoString.css" />
-    <link rel="stylesheet" href="{{ config.root }}static/tags.css">
+    <link rel="stylesheet" href="/static/index.css" />
+    <link rel="stylesheet" href="/static/nadeoString.css" />
+    <link rel="stylesheet" href="/static/tags.css">
 
-    <script defer src="{{ config.root }}static/fontawesome/fontawesome.min.js"></script>
-    <script defer src="{{ config.root }}static/fontawesome/solid.min.js"></script>
-    <script defer src="{{ config.root }}static/fontawesome/brands.min.js"></script>
+    <script defer src="/static/fontawesome/fontawesome.min.js"></script>
+    <script defer src="/static/fontawesome/solid.min.js"></script>
+    <script defer src="/static/fontawesome/brands.min.js"></script>
     <title>
       {%- block tabTitle -%}
         Accel Pen
@@ -29,7 +29,7 @@
         <span class="homeLink">
           <h1>
             {%- block title -%}
-              <a href="{{ config.root }}">Accel Pen</a>
+              <a href="/">Accel Pen</a>
             {%- endblock title -%}
           </h1>
         </span>

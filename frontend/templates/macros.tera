@@ -34,11 +34,11 @@
     {%- set class_list = class_list | concat(with="smallThumbnail") -%}
     {%- set resource = resource ~ "/small" %}
   {%- endif -%}
-  <img class="{{ class_list | join(sep=' ') }}" src="{{ config.root }}api/v1/map/{{ map.id }}/{{ resource }}" />
+  <img class="{{ class_list | join(sep=' ') }}" src="/api/v1/map/{{ map.id }}/{{ resource }}" />
 {%- endmacro map_thumbnail %}
 
 {% macro tag_badge(tag) %}
-  <a class="tagBadge {{ tag.kind }} {{ tag.name }}" href="{{ config.root }}search?taggedWith={{ tag.name }}">
+  <a class="tagBadge {{ tag.kind }} {{ tag.name }}" href="/search?taggedWith={{ tag.name }}">
     <span class="tagName {{ tag.kind }}">{{ tag.name }}</span>
   </a>
 {% endmacro tag_badge %}

@@ -9,7 +9,7 @@
   <div class="mapTiles">
     {% for map in recent_maps %}
       <div class="mapTile">
-        <a href="{{ config.root }}map/{{ map.id }}">{{ macros::map_thumbnail(map=map, small=true) }}</a>
+        <a href="/map/{{ map.id }}">{{ macros::map_thumbnail(map=map, small=true) }}</a>
         <div class="mapTileData">
           {{ macros::nadeo_string(text=map.name) }}
           <div class="mapTileAuthor">by {{ macros::user_summary(user=map.author) }}</div>
@@ -21,12 +21,12 @@
   {% if user %}
     <h3>My maps
       {% if my_maps | first != "" -%}
-      - <a href="{{ config.root }}map/upload">Upload more</a>
+      - <a href="/map/upload">Upload more</a>
       {%- endif -%}
     </h3>
     {% for map in my_maps %}
       <p style="margin-left: 1em;">
-        <a href="{{ config.root }}map/{{ map.id }}">
+        <a href="/map/{{ map.id }}">
           {{ macros::nadeo_string(text=map.name) }}
         </a>
       </p>
@@ -34,7 +34,7 @@
     {% if my_maps | first == "" %}
       <p>
         No maps! Why not
-        <a href="{{ config.root }}map/upload">upload some?</a>
+        <a href="/map/upload">upload some?</a>
       </p>
     {% endif %}
   {% endif %}

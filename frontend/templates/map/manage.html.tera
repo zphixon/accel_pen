@@ -2,7 +2,7 @@
 {% import "macros.tera" as macros %}
 
 {% block head %}
-  <link rel="stylesheet" href="{{ config.root }}static/manageMap.css">
+  <link rel="stylesheet" href="/static/manageMap.css">
 {% endblock head %}
 
 {% block tabTitle -%}
@@ -15,11 +15,11 @@
 
 {% block content %}
   {% if map %}
-    <h2>Manage <a href="{{ config.root }}map/{{ map.id }}">{{ macros::nadeo_string(text=map.name) }}</a></h2>
+    <h2>Manage <a href="/map/{{ map.id }}">{{ macros::nadeo_string(text=map.name) }}</a></h2>
     <script type="application/json" id="mapData">{{ map | json_encode() }}</script>
     <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
     <div id="mapManage"></div>
-    <script type="module" src="{{ config.root }}static/js/manageMap.js"></script>
+    <script type="module" src="/static/js/manageMap.js"></script>
   {% else %}
     <h1>No such map</h1>
   {% endif %}

@@ -60,8 +60,6 @@ function UploadMap() {
   if (apiResponse) {
     if (apiResponse.type == "TsApiError") {
       if (apiResponse.error.type == "AlreadyUploaded") {
-        // TODO root hmmmmmmmm
-        // or just give up trying to support this because it's annoying
         response = <a href={"/map/" + apiResponse.error.map_id}>Map already uploaded</a>;
       } else {
         response = <>Could not upload map: {apiResponse.message}</>;

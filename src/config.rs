@@ -30,23 +30,19 @@ from_env::config!(
 
 impl Config {
     pub fn route_api_v1(&self, path: &str) -> String {
-        format!("{}api/v1/{}", self.net.url.path(), path)
-    }
-
-    pub fn route(&self, path: &str) -> String {
-        format!("{}{}", self.net.url.path(), path)
+        format!("/api/v1{}", path)
     }
 
     pub fn oauth_start_route(&self) -> String {
-        self.route_api_v1("oauth/start")
+        self.route_api_v1("/oauth/start")
     }
 
     pub fn oauth_finish_route(&self) -> String {
-        self.route_api_v1("oauth/finish")
+        self.route_api_v1("/oauth/finish")
     }
 
     pub fn oauth_logout_route(&self) -> String {
-        self.route_api_v1("oauth/logout")
+        self.route_api_v1("/oauth/logout")
     }
 
     pub fn oauth_redirect_url(&self) -> Url {
@@ -91,7 +87,6 @@ pub static CONFIG_CONTEXT: LazyLock<Context> = LazyLock::new(|| {
     #[derive(Serialize)]
     struct ConfigContext {
         url: String,
-        root: &'static str,
         login_path: String,
         logout_path: String,
     }
@@ -100,7 +95,6 @@ pub static CONFIG_CONTEXT: LazyLock<Context> = LazyLock::new(|| {
         "config",
         &ConfigContext {
             url: CONFIG.net.url.as_str().to_owned(),
-            root: CONFIG.net.url.path(),
             login_path: CONFIG.oauth_start_route(),
             logout_path: CONFIG.oauth_logout_route(),
         },

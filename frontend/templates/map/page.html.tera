@@ -2,7 +2,7 @@
 {% import "macros.tera" as macros %}
 
 {% block head %}
-  <link rel="stylesheet" href="{{ config.root }}static/mapview.css">
+  <link rel="stylesheet" href="/static/mapview.css">
 {% endblock head %}
 
 {% block tabTitle -%}
@@ -26,7 +26,7 @@
       {% if user and user.user_id == map.author.user_id %}
         <div class="manageMap">
           by you -
-          <a href="{{ config.root }}map/{{ map.id }}/manage">Manage map</a>
+          <a href="/map/{{ map.id }}/manage">Manage map</a>
         </div>
       {% else %}
         <span class="mapAuthor">by {{ macros::user_summary(user=map.author, class="mapAuthor") }}</span>
