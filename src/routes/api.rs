@@ -483,6 +483,7 @@ pub struct MapSearchRequest {
 }
 
 #[derive(Serialize, TS)]
+#[serde(tag = "type")]
 #[ts(export)]
 pub struct MapSearchResponse {
     maps: Vec<MapContext>,
