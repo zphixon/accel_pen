@@ -1,17 +1,19 @@
 import { createRoot } from "react-dom/client";
 import * as types from "./bindings/index";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function useSearchParams(): [URLSearchParams, (newParams: URLSearchParams) => void] {
   let [params, innerSetParams] = useState(new URLSearchParams(window.location.search));
 
   function setParams(newParams: URLSearchParams) {
-    innerSetParams(newParams);
+    let newParamsObject = new URLSearchParams();
+    newParams.forEach((value, key, _) => newParamsObject.set(key, value));
+    innerSetParams(newParamsObject);
 
     // oh my god.
     let newUrl = new URL(window.location.href);
     newUrl.searchParams.forEach((_, key, params) => params.delete(key));
-    newParams.forEach((value, key, _) => newUrl.searchParams.set(key, value));
+    newParamsObject.forEach((value, key, _) => newUrl.searchParams.set(key, value));
 
     // replace search params
     history.replaceState(null, "", newUrl);
@@ -22,6 +24,10 @@ function useSearchParams(): [URLSearchParams, (newParams: URLSearchParams) => vo
 
 function MapSearch() {
   let [params, setParams] = useSearchParams();
+
+  useEffect(() => {
+    console.log("wowee");
+  }, [params]);
 
   return <>
     <button onClick={_ => {
