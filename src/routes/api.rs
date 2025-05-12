@@ -475,3 +475,22 @@ pub async fn map_manage(
 
     Ok(Json(MapManageResponse {}))
 }
+
+#[derive(Deserialize, TS)]
+#[ts(export)]
+pub struct MapSearchRequest {
+    tagged_with: Option<TagInfo>,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+pub struct MapSearchResponse {
+    maps: Vec<MapContext>,
+}
+
+pub async fn map_search(
+    State(state): State<AppState>,
+    WithRejection(Query(request), _): WithRejection<Query<MapSearchRequest>, ApiError>,
+) -> Result<Json<MapSearchResponse>, ApiError> {
+    Ok(Json(MapSearchResponse { maps: vec![] }))
+}

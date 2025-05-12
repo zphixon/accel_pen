@@ -1,0 +1,16 @@
+{% extends "layout.html.tera" %}
+{% import "macros.tera" as macros %}
+
+{% block tabTitle -%}
+  {{ super() }} - Search
+{%- endblock tabTitle %}
+
+{% block return_path -%}
+  ?return_path=/search
+{%- endblock return_path %}
+
+{% block content %}
+  <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
+  <div id="search"></div> <!-- should there be content in this? hmm -->
+  <script type="module" src="/static/js/search.js"></script>
+{% endblock content %}

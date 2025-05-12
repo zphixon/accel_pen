@@ -403,3 +403,31 @@ pub async fn map_upload(State(state): State<AppState>, auth: Option<NadeoAuthSes
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
     }
 }
+
+pub async fn map_search(State(state): State<AppState>, auth: Option<NadeoAuthSession>) -> Response {
+    let mut context = config::context_with_auth_session(auth.as_ref());
+
+    match populate_context_with_tags(&state, &mut context).await {
+        Ok(_) => {}
+        Err(err) => {
+            return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                err,
+                "Getting tags from database",
+            );
+        }
+    }
+
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("map/search.html.tera", &context)
+        .context("Rendering map search template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
+}
