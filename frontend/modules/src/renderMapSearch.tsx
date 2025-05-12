@@ -1,9 +1,37 @@
 import { createRoot } from "react-dom/client";
 import * as types from "./bindings/index";
+import { useState } from "react";
+
+function useSearchParams(): [URLSearchParams, (newParams: URLSearchParams) => void] {
+  let [params, innerSetParams] = useState(new URLSearchParams(window.location.search));
+
+  function setParams(newParams: URLSearchParams) {
+    innerSetParams(newParams);
+
+    // oh my god.
+    let newUrl = new URL(window.location.href);
+    newUrl.searchParams.forEach((_, key, params) => params.delete(key));
+    newParams.forEach((value, key, _) => newUrl.searchParams.set(key, value));
+
+    // replace search params
+    history.replaceState(null, "", newUrl);
+  }
+
+  return [params, setParams];
+}
 
 function MapSearch() {
+  let [params, setParams] = useSearchParams();
+
   return <>
-    funkus
+    <button onClick={_ => {
+      params.set("holy", "moly");
+      setParams(params);
+    }}>juan</button>
+    <button onClick={_ => {
+      params.set("wowie", "zowie");
+      setParams(params);
+    }}>two</button>
   </>;
 }
 
