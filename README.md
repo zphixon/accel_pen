@@ -107,7 +107,7 @@ They are not automatically served however. Add a `.route()` call to the `Router`
 ```rust
     let app = Router::new()
         ...
-        .route(&CONFIG.route("map/{map_id}"), get(get_map_page))
+        .route("/map/{map_id}", get(get_map_page))
         ...
 ```
 
@@ -160,7 +160,7 @@ A little simpler. Add a route:
 ```rust
     let app = Router::new()
         ...
-        .route(&CONFIG.route_api_v1("map/upload"), post(post_map_upload))
+        .route(&CONFIG.route_api_v1("/map/upload"), post(post_map_upload))
         ...
 ```
 
