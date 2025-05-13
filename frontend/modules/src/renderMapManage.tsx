@@ -1,9 +1,9 @@
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { useOnClickOutside } from "../node_modules/usehooks-ts/dist/index";
-import React, { useRef, useState } from "react";
-import * as api from "./api.js";
+import { useOnClickOutside } from "usehooks-ts";
+import * as api from "./api";
 import * as types from "./bindings/index";
+import React, { useRef, useState } from "react";
 import TagSelect from "./components/TagSelect";
 
 let maxTags = 7;

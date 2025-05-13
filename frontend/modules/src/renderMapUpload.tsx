@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
-import React, { useEffect, useRef, useState } from "react";
+import * as api from "./api";
 import * as types from "./bindings/index";
-import * as api from "./api.js";
+import React, { useEffect, useRef, useState } from "react";
 import TagSelect from "./components/TagSelect";
 
 function MapUpload() {

@@ -1,8 +1,8 @@
 import { createRoot } from "react-dom/client";
-import * as types from "./bindings/index";
 import { useEffect, useState } from "react";
+import * as api from "./api";
+import * as types from "./bindings/index";
 import TagSelect from "./components/TagSelect";
-import * as api from "./api.js";
 
 function useSearchParams(): [URLSearchParams, (newParams: URLSearchParams) => void] {
   let [params, innerSetParams] = useState(new URLSearchParams(window.location.search));

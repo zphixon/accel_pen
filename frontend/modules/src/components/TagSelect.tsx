@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import * as types from "../bindings/index";
 
 interface TagBadgeProps {

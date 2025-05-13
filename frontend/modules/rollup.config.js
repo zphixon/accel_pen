@@ -24,14 +24,16 @@ export default {
     sourcemap: true,
   },
   plugins: [
-    replace({ "process.env.NODE_ENV": JSON.stringify("development") }),
+    replace({
+      preventAssignment: true,
+      "process.env.NODE_ENV": JSON.stringify("development"),
+    }),
     nodeResolve({ browser: true }),
     commonjs({
       include: /node_modules/,
       requireReturnsDefault: 'auto',
     }),
-    typescript({ sourceMap: false }),
+    typescript(),
   ],
   jsx: "react-jsx",
-  treeshake: false,
 };
