@@ -276,18 +276,6 @@ fn tags() -> Vec<Tag> {
                     sub: vec![],
                 },
                 Tag {
-                    id: 29,
-                    name: "WetWood",
-                    desc: None,
-                    sub: vec![],
-                },
-                Tag {
-                    id: 30,
-                    name: "WetIcyWood",
-                    desc: None,
-                    sub: vec![],
-                },
-                Tag {
                     id: 31,
                     name: "Dirt",
                     desc: None,
@@ -348,7 +336,20 @@ fn tags() -> Vec<Tag> {
                     id: 40,
                     name: "Wood",
                     desc: None,
-                    sub: vec![],
+                    sub: vec![
+                        Tag {
+                            id: 29,
+                            name: "WetWood",
+                            desc: None,
+                            sub: vec![],
+                        },
+                        Tag {
+                            id: 30,
+                            name: "WetIcyWood",
+                            desc: None,
+                            sub: vec![],
+                        },
+                    ],
                 },
                 Tag {
                     id: 41,
