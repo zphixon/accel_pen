@@ -54,6 +54,7 @@ a.tagBadge {
     border-radius: 5px;
     padding: 0.25em;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 .tagName.Style {
