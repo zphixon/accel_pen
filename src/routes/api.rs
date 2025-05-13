@@ -158,6 +158,7 @@ pub struct MapUploadResponse {
 #[serde(tag = "type")]
 struct MapUploadMeta {
     tags: Vec<String>,
+    last_modified: f64,
 }
 
 pub async fn map_upload(
@@ -319,9 +320,9 @@ pub async fn map_upload(
                 author_medal_ms, gold_medal_ms, silver_medal_ms, bronze_medal_ms 
             )
             VALUES (
-                $1, $2, $3, $4, NOW(),
-                $5, $6,
-                $7, $8, $9, $10
+                $1, $2, $3, $4, to_timestamp($5),
+                $6, $7,
+                $8, $9, $10, $11
             )
             ON CONFLICT DO NOTHING
             RETURNING ap_map_id
@@ -330,6 +331,7 @@ pub async fn map_upload(
         map_buffer,
         map_name,
         auth.user_id(),
+        map_meta.last_modified as i64,
         thumbnail_data,
         small_thumbnail_data,
         author as i32,

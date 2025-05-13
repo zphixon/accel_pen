@@ -37,6 +37,7 @@ function MapUpload() {
     api.uploadMap(mapFile, {
       type: 'MapUploadMeta',
       tags: selectedTags.map(tag => tag.name),
+      last_modified: mapFile.lastModified,
     }).then(response => {
       if (response.type == 'MapUploadResponse') {
         setSelectedTags([]);
