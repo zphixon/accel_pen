@@ -46,7 +46,10 @@ fn main() {
             for parent in parents.iter() {
                 implications.entry(parent.id).or_default().push(tag.clone());
             }
-            flat_tags.insert(tag.id, (path, tag.clone()));
+            assert!(
+                flat_tags.insert(tag.id, (path, tag.clone())).is_none(),
+                "tag ID already in use"
+            );
 
             parents.push(tag.clone());
             //println!("{parents:?} {}", tag.name);
@@ -254,97 +257,45 @@ fn tags() -> Vec<Tag> {
                     id: 25,
                     name: "Ice",
                     desc: None,
-                    sub: vec![
-                        Tag {
-                            id: 26,
-                            name: "Gear3",
-                            desc: None,
-                            sub: vec![],
-                        },
-                        Tag {
-                            id: 27,
-                            name: "Gear4",
-                            desc: None,
-                            sub: vec![],
-                        },
-                    ],
+                    sub: vec![],
                 },
                 Tag {
-                    id: 28,
+                    id: 26,
                     name: "Bobsleigh",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 31,
+                    id: 27,
                     name: "Dirt",
                     desc: None,
-                    sub: vec![
-                        Tag {
-                            id: 32,
-                            name: "Gear3",
-                            desc: None,
-                            sub: vec![],
-                        },
-                        Tag {
-                            id: 33,
-                            name: "Gear4",
-                            desc: None,
-                            sub: vec![],
-                        },
-                    ],
+                    sub: vec![],
                 },
                 Tag {
-                    id: 34,
+                    id: 28,
                     name: "Plastic",
                     desc: None,
-                    sub: vec![
-                        Tag {
-                            id: 35,
-                            name: "Gear3",
-                            desc: None,
-                            sub: vec![],
-                        },
-                        Tag {
-                            id: 36,
-                            name: "Gear4",
-                            desc: None,
-                            sub: vec![],
-                        },
-                    ],
+                    sub: vec![],
                 },
                 Tag {
-                    id: 37,
+                    id: 29,
                     name: "Grass",
                     desc: None,
-                    sub: vec![
-                        Tag {
-                            id: 38,
-                            name: "Gear3",
-                            desc: None,
-                            sub: vec![],
-                        },
-                        Tag {
-                            id: 39,
-                            name: "Gear4",
-                            desc: None,
-                            sub: vec![],
-                        },
-                    ],
+                    sub: vec![],
                 },
                 Tag {
-                    id: 40,
+                    id: 30,
                     name: "Wood",
                     desc: None,
                     sub: vec![
                         Tag {
-                            id: 29,
+                            id: 31,
                             name: "WetWood",
                             desc: None,
                             sub: vec![],
                         },
                         Tag {
-                            id: 30,
+                            id: 32,
                             name: "WetIcyWood",
                             desc: None,
                             sub: vec![],
@@ -352,7 +303,7 @@ fn tags() -> Vec<Tag> {
                     ],
                 },
                 Tag {
-                    id: 41,
+                    id: 33,
                     name: "Water",
                     desc: None,
                     sub: vec![],
@@ -360,29 +311,60 @@ fn tags() -> Vec<Tag> {
             ],
         },
         Tag {
-            id: 42,
+            id: 34,
             name: "Feature",
             desc: None,
             sub: vec![
                 Tag {
-                    id: 43,
+                    id: 35,
+                    name: "Gear",
+                    desc: None,
+                    sub: vec![
+                        Tag {
+                            id: 36,
+                            name: "2",
+                            desc: None,
+                            sub: vec![],
+                        },
+                        Tag {
+                            id: 37,
+                            name: "3",
+                            desc: None,
+                            sub: vec![],
+                        },
+                        Tag {
+                            id: 38,
+                            name: "4",
+                            desc: None,
+                            sub: vec![],
+                        },
+                        Tag {
+                            id: 39,
+                            name: "5",
+                            desc: None,
+                            sub: vec![],
+                        },
+                    ],
+                },
+                Tag {
+                    id: 40,
                     name: "TireStatus",
                     desc: None,
                     sub: vec![
                         Tag {
-                            id: 44,
+                            id: 41,
                             name: "Worn",
                             desc: None,
                             sub: vec![],
                         },
                         Tag {
-                            id: 45,
+                            id: 42,
                             name: "Wet",
                             desc: None,
                             sub: vec![],
                         },
                         Tag {
-                            id: 46,
+                            id: 43,
                             name: "Icy",
                             desc: None,
                             sub: vec![],
@@ -390,84 +372,84 @@ fn tags() -> Vec<Tag> {
                     ],
                 },
                 Tag {
-                    id: 47,
+                    id: 44,
                     name: "NoBrakes",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 48,
+                    id: 45,
                     name: "Reactor",
                     desc: None,
                     sub: vec![Tag {
-                        id: 49,
+                        id: 46,
                         name: "YEET",
                         desc: None,
                         sub: vec![],
                     }],
                 },
                 Tag {
-                    id: 50,
+                    id: 47,
                     name: "SlowMotion",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 51,
+                    id: 48,
                     name: "Fragile",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 52,
+                    id: 49,
                     name: "EngineOff",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 53,
+                    id: 50,
                     name: "CruiseControl",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 54,
+                    id: 51,
                     name: "NoSteering",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 55,
+                    id: 52,
                     name: "NoGrip",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 56,
+                    id: 53,
                     name: "Sausage",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 57,
+                    id: 54,
                     name: "Magnet",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 58,
+                    id: 55,
                     name: "Bumpers",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 59,
+                    id: 56,
                     name: "MovingItems",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 60,
+                    id: 57,
                     name: "Pipes",
                     desc: None,
                     sub: vec![],
@@ -475,30 +457,30 @@ fn tags() -> Vec<Tag> {
             ],
         },
         Tag {
-            id: 61,
+            id: 58,
             name: "OriginalCar",
             desc: None,
             sub: vec![
                 Tag {
-                    id: 62,
+                    id: 59,
                     name: "Snow",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 63,
+                    id: 60,
                     name: "Desert",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 64,
+                    id: 61,
                     name: "Rally",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 65,
+                    id: 62,
                     name: "Mixed",
                     desc: None,
                     sub: vec![],
@@ -506,88 +488,88 @@ fn tags() -> Vec<Tag> {
             ],
         },
         Tag {
-            id: 66,
+            id: 63,
             name: "Meta",
             desc: None,
             sub: vec![
                 Tag {
-                    id: 67,
+                    id: 64,
                     name: "AlteredNadeo",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 68,
+                    id: 65,
                     name: "Mini",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 69,
+                    id: 66,
                     name: "SecretLeaderboard",
                     desc: None,
                     sub: vec![Tag {
-                        id: 70,
+                        id: 67,
                         name: "WeeklyShorts",
                         desc: None,
                         sub: vec![],
                     }],
                 },
                 Tag {
-                    id: 71,
+                    id: 68,
                     name: "Scenery",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 72,
+                    id: 69,
                     name: "Signature",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 73,
+                    id: 70,
                     name: "Educational",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 74,
+                    id: 71,
                     name: "SpeedMapping",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 75,
+                    id: 72,
                     name: "PressForward",
                     desc: None,
                     sub: vec![],
                 },
                 Tag {
-                    id: 76,
+                    id: 73,
                     name: "Gamemode",
                     desc: None,
                     sub: vec![
                         Tag {
-                            id: 77,
+                            id: 74,
                             name: "Stunt",
                             desc: None,
                             sub: vec![],
                         },
                         Tag {
-                            id: 78,
+                            id: 75,
                             name: "Platform",
                             desc: None,
                             sub: vec![],
                         },
                         Tag {
-                            id: 79,
+                            id: 76,
                             name: "Royal",
                             desc: None,
                             sub: vec![],
                         },
                         Tag {
-                            id: 80,
+                            id: 77,
                             name: "Puzzle",
                             desc: None,
                             sub: vec![],
@@ -595,7 +577,7 @@ fn tags() -> Vec<Tag> {
                     ],
                 },
                 Tag {
-                    id: 81,
+                    id: 78,
                     name: "Experimental",
                     desc: None,
                     sub: vec![],
