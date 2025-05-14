@@ -37,7 +37,7 @@ function MapUpload() {
     api.uploadMap(mapFile, {
       type: 'MapUploadMeta',
       tags: selectedTags.map(tag => tag.name),
-      last_modified: mapFile.lastModified,
+      last_modified: mapFile.lastModified / 1000, // why the fuck
     }).then(response => {
       if (response.type == 'MapUploadResponse') {
         setSelectedTags([]);

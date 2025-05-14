@@ -45,7 +45,10 @@
           </span>
         </div>
         <p>{{ macros::tag_list(tags=map.tags) }}</p>
-        <p>Uploaded <span class="uploadDate">{{ map.uploaded }}</span></p>
+        <div class="uploadCreateDates">
+          <span>Uploaded</span> <span class="date">{{ map.uploaded }}</span>
+          <span>Last modified</span> <span class="date">{{ map.created }}</span>
+        </div>
         <p>
           <a href="https://trackmania.io/#/leaderboard/{{ map.gbx_uid }}" target="_blank">
             <i class="fa-solid fa-heart-pulse"></i> View on Trackmania.io
@@ -59,12 +62,13 @@
     </div>
 
     <script type="text/javascript">
-      let uploadDate = document.querySelector(".uploadDate");
-      let date = new Date(uploadDate.innerText);
-      uploadDate.innerText = new Intl.DateTimeFormat(undefined, {
-        dateStyle: "full",
-        timeStyle: "short",
-      }).format(date);
+      for (let dateNode of document.querySelectorAll(".date")) {
+        let date = new Date(dateNode.innerText);
+        dateNode.innerText = new Intl.DateTimeFormat(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(date);
+      }
 
       // Adapted from https://stackoverflow.com/a/21294619
       function formatMillis(millis) {

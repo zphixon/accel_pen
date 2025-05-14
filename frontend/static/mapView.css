@@ -37,3 +37,8 @@
 .bronze {
   color: rgb(198, 146, 69);
 }
+
+.uploadCreateDates {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+}

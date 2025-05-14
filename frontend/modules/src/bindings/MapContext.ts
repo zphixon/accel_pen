@@ -4,4 +4,4 @@ import type { Medals } from "./Medals";
 import type { TagInfo } from "./TagInfo";
 import type { UserResponse } from "./UserResponse";
 
-export type MapContext = { id: number, gbx_uid: string, plain_name: string, name: FormattedString, votes: number, uploaded: string, author: UserResponse, tags: Array<TagInfo>, medals: Medals | null, };
+export type MapContext = { id: number, gbx_uid: string, plain_name: string, name: FormattedString, votes: number, uploaded: string, created: string, author: UserResponse, tags: Array<TagInfo>, medals: Medals | null, };

@@ -55,7 +55,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
     if let Some(auth) = auth {
         match sqlx::query!(
             "
-                SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded
+                SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created
                 FROM map
                 WHERE map.ap_author_id = $1
                 LIMIT 20
@@ -77,6 +77,15 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
                         votes: map.votes,
                         uploaded: map
                             .uploaded
+                            .format(
+                                &time::format_description::well_known::Iso8601::DATE_TIME_OFFSET,
+                            )
+                            .context("Formatting map upload time")
+                            .expect(
+                                "this is why i wanted to use regular Results for error handling",
+                            ),
+                        created: map
+                            .created
                             .format(
                                 &time::format_description::well_known::Iso8601::DATE_TIME_OFFSET,
                             )
@@ -111,7 +120,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
     match sqlx::query!(
         "
             SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
-                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag
+                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag, map.created
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
             ORDER BY map.ap_map_id DESC
             LIMIT 6
@@ -135,6 +144,15 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
                         .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
                         .context("Formatting map upload time")
                         .expect("this is why i wanted to use regular Results for error handling"),
+                        created: map
+                            .created
+                            .format(
+                                &time::format_description::well_known::Iso8601::DATE_TIME_OFFSET,
+                            )
+                            .context("Formatting map upload time")
+                            .expect(
+                                "this is why i wanted to use regular Results for error handling",
+                            ),
                     author: UserResponse {
                         display_name: map.nadeo_display_name.clone(),
                         account_id: map.nadeo_id.clone(),
@@ -177,7 +195,7 @@ async fn populate_context_with_map_data(
 ) -> Result<Option<MapContext>, ApiError> {
     let map = sqlx::query!(
         "
-            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded,
+            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created,
                 map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
                 ap_user.nadeo_club_tag,
                 map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms
@@ -225,6 +243,11 @@ async fn populate_context_with_map_data(
                 .uploaded
                 .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
                 .unwrap(),
+            created: map
+                .created
+                .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+                .context("Formatting map upload time")
+                .expect("this is why i wanted to use regular Results for error handling"),
             author: UserResponse {
                 display_name: map.nadeo_display_name,
                 account_id: map.nadeo_id,

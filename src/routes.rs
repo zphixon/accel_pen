@@ -24,6 +24,7 @@ struct MapContext {
     name: nadeo::FormattedString,
     votes: i32,
     uploaded: String,
+    created: String,
     author: UserResponse,
     tags: Vec<TagInfo>,
     medals: Option<Medals>,

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT DISTINCT ON (map.ap_map_id)\n                map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,\n                map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms,\n                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag\n            FROM map_tag\n                JOIN map ON map_tag.ap_map_id = map.ap_map_id\n                JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id\n            WHERE map_tag.tag_id = $1\n            LIMIT 20\n        ",
+  "query": "\n            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created,\n                map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,\n                ap_user.nadeo_club_tag,\n                map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms\n            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id\n            WHERE map.ap_map_id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -30,48 +30,53 @@
       },
       {
         "ordinal": 5,
+        "name": "created",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
         "name": "ap_author_id",
         "type_info": "Int4"
       },
       {
-        "ordinal": 6,
-        "name": "author_medal_ms",
-        "type_info": "Int4"
-      },
-      {
         "ordinal": 7,
-        "name": "gold_medal_ms",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 8,
-        "name": "silver_medal_ms",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 9,
-        "name": "bronze_medal_ms",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 10,
         "name": "nadeo_display_name",
         "type_info": "Text"
       },
       {
-        "ordinal": 11,
+        "ordinal": 8,
         "name": "ap_user_id",
         "type_info": "Int4"
       },
       {
-        "ordinal": 12,
+        "ordinal": 9,
         "name": "nadeo_id",
         "type_info": "Text"
       },
       {
-        "ordinal": 13,
+        "ordinal": 10,
         "name": "nadeo_club_tag",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "author_medal_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "gold_medal_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "silver_medal_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
+        "name": "bronze_medal_ms",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -90,11 +95,12 @@
       false,
       false,
       false,
+      true,
       false,
       false,
       false,
-      true
+      false
     ]
   },
-  "hash": "2d6b1b87c10d634cfc06ee27c44aa18f1274e7c8e9a23d3381932a80af5657d5"
+  "hash": "4f1fd98284faf64d8f23fde7bf35d7e3b97ce688f73e6508ae10730535207f56"
 }

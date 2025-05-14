@@ -212,6 +212,13 @@ pub async fn map_upload(
     let map_meta =
         serde_json::from_slice::<MapUploadMeta>(&map_meta).context("Parsing map meta as JSON")?;
 
+    if map_meta.last_modified > i32::MAX as f64 {
+        return Err(ApiErrorInner::MissingFromMultipart {
+            error: "Last modified time within the next few hundred years",
+        }
+        .into());
+    }
+
     let mut map_tags: HashSet<i32> = HashSet::new();
     for tag in map_meta.tags.iter() {
         let Some(tag_id) = sqlx::query!("SELECT tag_id FROM tag WHERE tag_name = $1", tag)
@@ -504,7 +511,8 @@ pub async fn map_search(
             SELECT DISTINCT ON (map.ap_map_id)
                 map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
                 map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms,
-                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag
+                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag,
+                map.created
             FROM map_tag
                 JOIN map ON map_tag.ap_map_id = map.ap_map_id
                 JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
@@ -560,6 +568,11 @@ pub async fn map_search(
                         .uploaded
                         .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
                         .unwrap(),
+                    created: row
+                        .created
+                        .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+                        .context("Formatting map upload time")
+                        .expect("this is why i wanted to use regular Results for error handling"),
                     author: UserResponse {
                         display_name: row.nadeo_display_name,
                         account_id: row.nadeo_id,
