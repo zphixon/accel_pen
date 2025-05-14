@@ -30,7 +30,12 @@ function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTag
   if (selectedTags.length >= maxTags) {
     options = selectedTags.map(tag => ({value: tag, label: tag.name} as TagOption));
   }
-  let selected = options.filter(tag => selectedTags.find(selectedTag => tag.value.id == selectedTag.id));
+
+  // selected needs to contain the same TagOption objects as in options
+  let selected = [];
+  for (let select of selectedTags) {
+    selected.push(options.find(option => option.value.id == select.id)!);
+  }
 
   return <>
     <div className="tagSelectContainer">
