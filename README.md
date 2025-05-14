@@ -72,8 +72,8 @@ To build for the first time:
 Create your *.ts*/*.tsx* file in *frontend/modules/src*.
 
 ```ts
-import * as api from './api.js'; // .js extension required for modules to work
-import * as types from './bindings/index'; // no extension necessary, doesn't contain module exports
+import * as api from './api';
+import * as types from './bindings/index';
 ```
 
 Build it with the same command from earlier. The compiled JS will be placed in
@@ -86,6 +86,30 @@ Build it with the same command from earlier. The compiled JS will be placed in
 Note that since it's a module, it can't interact with other `script` elements.
 Write anything you need to run on page load directly in the *.ts* file. Use the
 `rollup` command from earlier to build, and refresh.
+
+If you're adding a new dependency, add it to tsconfig.json:
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      // e.g.
+      "react-select": ["./node_modules/react-select/dist/react-select.cjs.d.ts"],
+      "usehooks-ts": ["./node_modules/usehooks-ts/dist/index"],
+
+      // you kind of have to guess what to put here. really annoying that rollup
+      // can't figure this out, even with the nodeResolve plugin
+      "your-package": ["./node_modules/your-package/somewhere"],
+    },
+  }
+}
+```
+
+Then you can use it in typescript:
+
+```typescript
+import Select, { MultiValueProps, OptionProps, components } from "react-select";
+```
 
 
 ### Adding SSR pages
@@ -213,9 +237,7 @@ sqlx migrate run
 ```
 
 We prefer revertable migrations with sequential names (rather than date-based
-ones). Theoretically you should be able to `revert`, edit the migration, and
-`run` it again but I haven't tried this. If you screw up then GG, you might need
-to restart from scratch lol
+ones).
 
 
 ### Modifying an existing schema
@@ -237,6 +259,15 @@ cargo sqlx prepare -D "postgres://$user:$pass@$address:5432/accel_pen"
 
 Sometimes also restart rust_analyzer (in VS Code at least). Once you're happy,
 don't forget to include changes to the *.sqlx* directory in your commit.
+
+
+### Changing tags
+
+Don't modify *0002_tags.up.sql*, instead edit *build.rs* with the new tags. If
+the accel pen instance is up and running, don't change tag IDs.
+
+Since the *build.rs* script generates *0002_tags.up.sql*, which is a migration
+file, you will need to revert the existing migrations before running them again.
 
 
 ## Architecture
