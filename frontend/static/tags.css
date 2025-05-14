@@ -1,20 +1,9 @@
-
-#tagSelectHeader {
+.tagSelectContainer {
     display: flex;
-    min-height: 2em;
 }
 
-#selectedTagsContainer {
+.tagSelect {
     flex-grow: 1;
-    display: flex;
-    align-items: center;
-}
-
-#selectedTagList {
-    padding-left: 0.3em;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
 }
 
 .tagList {
@@ -24,27 +13,9 @@
     row-gap: 0.6em;
 }
 
-.tagList.tagSelectGrid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    padding-top: 0.3em;
-    padding-bottom: 0.3em;
-}
-
 a.tagBadge {
     color: inherit;
     text-decoration: none;
-}
-
-.tagBadge:has(.tagCheckbox.tagCheckboxSelected) .tagName {
-    color: rgb(65, 64, 64);
-    background-color: lightgrey;
-    border: 1px solid rgb(62, 62, 62);
-}
-
-.tagSelectGrid.fullSelection .tagName {
-    color: grey;
-    background-color: rgb(240, 240, 240);
 }
 
 .rootName {
@@ -57,24 +28,25 @@ a.tagBadge {
     padding: 0.25em;
     cursor: pointer;
     white-space: nowrap;
+    color: black;
 }
 
-.tagName.Style {
+.tagName.Style, .selectMultiValue.Style > * {
     background-color: rgb(255, 195, 128);
 }
 
-.tagName.Surface {
+.tagName.Surface, .selectMultiValue.Surface > * {
     background-color: rgb(255, 113, 47);
 }
 
-.tagName.Feature {
+.tagName.Feature, .selectMultiValue.Feature > * {
     background-color: rgb(153, 230, 255);
 }
 
-.tagName.OriginalCar {
+.tagName.OriginalCar, .selectMultiValue.OriginalCar > * {
     background-color: rgb(253, 236, 0);
 }
 
-.tagName.Meta {
+.tagName.Meta, .selectMultiValue.Meta > * {
     background-color: rgb(255, 194, 242);
 }
