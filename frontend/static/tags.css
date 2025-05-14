@@ -26,7 +26,6 @@ a.tagBadge {
 .tagName {
     border-radius: 5px;
     padding: 0.25em;
-    cursor: pointer;
     white-space: nowrap;
     color: black;
 }

@@ -1,6 +1,17 @@
 import Select, { MultiValueProps, OptionProps, components } from "react-select";
 import * as types from "../bindings/index";
 
+function SelectTagBadge({ tag }: { tag: types.TagInfo }) {
+  let parts = tag.name.split("/");
+  let rootName = parts[0];
+  let rest = parts.slice(1).join("/");
+  return <>
+    <span className={["tagName", rootName].join(" ")}>
+      <span className="rootName">{rootName}/</span>{rest}
+    </span>
+  </>;
+}
+
 interface TagOption {
   value: types.TagInfo,
   label: string,
@@ -16,6 +27,9 @@ interface TagSelectProps {
 }
 function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTags = [], maySelectTags = true, maxTags }: TagSelectProps) {
   let options = tagInfo.map(tag => ({value: tag, label: tag.name} as TagOption));
+  if (selectedTags.length >= maxTags) {
+    options = selectedTags.map(tag => ({value: tag, label: tag.name} as TagOption));
+  }
   let selected = options.filter(tag => selectedTags.find(selectedTag => tag.value.id == selectedTag.id));
 
   return <>
@@ -33,22 +47,16 @@ function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTag
         }}
         classNames={{
           multiValue: (state) => ["selectMultiValue", state.data.value.name.split("/")[0]].join(" "),
-          //option: (state) => state.isSelected ? "" : ["tagName", state.data.value.name.split("/")[0]].join(" "),
         }}
         components={{
           MultiValue: (props: MultiValueProps<TagOption>) => <components.MultiValue {...props}>
-            <span className={["tagName", props.data.value.name.split("/")[0]].join(" ")}>
-              <span className="rootName">{props.data.value.name.split("/")[0]}</span>/{props.data.value.name.split("/").slice(1)}
-            </span>
+            <SelectTagBadge tag={props.data.value} />
           </components.MultiValue>,
-          Option: (props: OptionProps<TagOption>) => <>
-            <components.Option {...props}>
-              <span className={["tagName", props.data.value.name.split("/")[0]].join(" ")}>
-                <span className="rootName">{props.data.value.name.split("/")[0]}</span>/{props.data.value.name.split("/").slice(1)}
-              </span>
-            </components.Option>
-          </>
+          Option: (props: OptionProps<TagOption>) => <components.Option {...props}>
+            <SelectTagBadge tag={props.data.value} />
+          </components.Option>,
         }}
+        isDisabled={!maySelectTags}
       />
       <button onClick={_ => setSelectedTags(originalSelectedTags)}>
         {originalSelectedTags.length == 0 ? "Clear" : "Reset"}
