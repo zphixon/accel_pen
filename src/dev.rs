@@ -17,12 +17,12 @@ pub fn reload_task(tera: Arc<RwLock<Tera>>) {
             )
             .unwrap();
 
-        watcher
-            .watch(
-                &PathBuf::from("frontend/modules/src"),
-                notify::RecursiveMode::Recursive,
-            )
-            .unwrap();
+        //watcher
+        //    .watch(
+        //        &PathBuf::from("frontend/modules/src"),
+        //        notify::RecursiveMode::Recursive,
+        //    )
+        //    .unwrap();
 
         while let Ok(event) = rx.recv() {
             match event {
@@ -54,16 +54,16 @@ pub fn reload_task(tera: Arc<RwLock<Tera>>) {
                             + &next.display().to_string())
                     );
 
-                    if paths
-                        .iter()
-                        .any(|path| path.ancestors().any(|unc| unc.ends_with("modules")))
-                    {
-                        let output = std::process::Command::new("./node_modules/.bin/rollup")
-                            .arg("-c")
-                            .current_dir("frontend/modules")
-                            .output();
-                        println!("tsc: {:?}", output);
-                    }
+                    //if paths
+                    //    .iter()
+                    //    .any(|path| path.ancestors().any(|unc| unc.ends_with("modules")))
+                    //{
+                    //    let output = std::process::Command::new("./node_modules/.bin/rollup")
+                    //        .arg("-c")
+                    //        .current_dir("frontend/modules")
+                    //        .output();
+                    //    println!("tsc: {:?}", output);
+                    //}
 
                     match tera.write().unwrap().full_reload() {
                         Ok(_) => {}
