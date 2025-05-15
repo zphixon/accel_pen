@@ -39,7 +39,7 @@ pub struct Medals {
     bronze: u32,
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]
 pub struct TagInfo {
     pub id: i32,

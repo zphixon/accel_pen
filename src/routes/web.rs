@@ -12,7 +12,7 @@ use axum::{
 };
 use tera::Context as TeraContext;
 
-fn render_error(
+pub fn render_error(
     state: &AppState,
     mut context: TeraContext,
     status: StatusCode,

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT implied.tag_id, implied.tag_name\n            FROM tag AS implyer\n            JOIN tag_implies ON tag_implies.implied = implyer.tag_id\n            JOIN tag AS implied ON implied.tag_id = tag_implies.implyer\n            WHERE implyer.tag_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tag_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "tag_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b7b44aafa4369d66a309f2453e82d7ab0dbc20514e0a1e1df052deaa41fe54db"
+}

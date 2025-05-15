@@ -14,7 +14,13 @@
     .searchResult {
       display: grid;
       grid-auto-flow: column;
-      grid-auto-columns: 1fr;
+      grid-auto-columns: 1fr 2fr 1fr;
+    }
+
+    #searchResults {
+      display: grid;
+      grid-auto-flow: row;
+      row-gap: 1em;
     }
   </style>
 {% endblock head %}

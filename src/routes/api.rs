@@ -505,7 +505,29 @@ pub async fn map_search(
 ) -> Result<Json<MapSearchResponse>, ApiError> {
     let mut maps = HashMap::new();
 
+    let mut tag_infos: Vec<TagInfo> = Vec::new();
     for tag in request.tagged_with.iter() {
+        let implied_by_tag = sqlx::query!(
+            "
+            SELECT implied.tag_id, implied.tag_name
+            FROM tag AS implyer
+            JOIN tag_implies ON tag_implies.implied = implyer.tag_id
+            JOIN tag AS implied ON implied.tag_id = tag_implies.implyer
+            WHERE implyer.tag_id = $1
+        ",
+            tag.id
+        )
+        .fetch_all(&state.pool)
+        .await
+        .context("Fetching tags implied by a tag")?;
+        tag_infos.push(tag.clone());
+        tag_infos.extend(implied_by_tag.into_iter().map(|row| TagInfo {
+            id: row.tag_id,
+            name: row.tag_name,
+        }));
+    }
+
+    for tag in tag_infos {
         let mut stream = sqlx::query!(
             "
             SELECT DISTINCT ON (map.ap_map_id)

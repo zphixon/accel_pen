@@ -1,16 +1,6 @@
-import Select, { MultiValueProps, OptionProps, components } from "react-select";
+import { TagBadge } from "./TagBadge";
 import * as types from "../bindings/index";
-
-function SelectTagBadge({ tag }: { tag: types.TagInfo }) {
-  let parts = tag.name.split("/");
-  let rootName = parts[0];
-  let rest = parts.slice(1).join("/");
-  return <>
-    <span className={["tagName", rootName].join(" ")}>
-      <span className="rootName">{rootName}/</span>{rest}
-    </span>
-  </>;
-}
+import Select, { MultiValueProps, OptionProps, components } from "react-select";
 
 interface TagOption {
   value: types.TagInfo,
@@ -55,10 +45,10 @@ function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTag
         }}
         components={{
           MultiValue: (props: MultiValueProps<TagOption>) => <components.MultiValue {...props}>
-            <SelectTagBadge tag={props.data.value} />
+            <TagBadge tag={props.data.value} />
           </components.MultiValue>,
           Option: (props: OptionProps<TagOption>) => <components.Option {...props}>
-            <SelectTagBadge tag={props.data.value} />
+            <TagBadge tag={props.data.value} />
           </components.Option>,
         }}
         isDisabled={!maySelectTags}

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import * as api from "./api";
 import * as types from "./bindings/index";
 import TagSelect from "./components/TagSelect";
+import { TagBadge } from "./components/TagBadge";
 
 function useSearchParams(): [URLSearchParams, (newParams: URLSearchParams) => void] {
   let [params, innerSetParams] = useState(new URLSearchParams(window.location.search));
@@ -53,18 +54,42 @@ function MapSearch() {
   }, [params]);
 
   let dateFormat = new Intl.DateTimeFormat(undefined, {
-    dateStyle: "full",
+    dateStyle: "medium",
     timeStyle: "short",
   })
+
+  let [matchAll, setMatchAll] = useState(false);
   let searchResults = [];
   if (searchResponse?.type == "MapSearchResponse") {
     searchResponse.maps.sort((a, b) => a.uploaded.localeCompare(b.uploaded));
+    searchResponse.maps.reverse();
     for (let map of searchResponse.maps) {
-      searchResults.push(<div className="searchResult" key={map.gbx_uid}>
-        <div><a href={"/map/" + map.id}>{map.plain_name}</a></div>
-        <div>{map.author.display_name}</div>
-        <div>{dateFormat.format(new Date(map.uploaded))}</div>
-      </div>);
+      if (
+        matchAll
+        && selectedTags.filter(selected =>
+          // retain items from selectedTags that do not appear in map.tags
+          map.tags.find(tag => tag.id == selected.id) == undefined
+        ).length != 0
+      ) {
+        continue;
+      }
+
+      let tags = [];
+      for (let tag of map.tags) {
+        tags.push(<TagBadge key={tag.name + map.gbx_uid} tag={tag} searchLink />);
+      }
+
+      let uploadedDate = new Date(map.uploaded);
+      let uploadedText = dateFormat.format(uploadedDate);
+
+      searchResults.push(
+        <div className="searchResult" key={map.gbx_uid}>
+          <div><a href={"/map/" + map.id}>{map.plain_name}</a></div>
+          <div className="tagList">{tags}</div>
+          <div>{map.author.display_name}</div>
+          <div>{uploadedText}</div>
+        </div>
+      );
     }
   }
 
@@ -75,7 +100,16 @@ function MapSearch() {
       setSelectedTags={updateParamsForTags}
       maxTags={7}
     />
+    <input id="matchAll" type="checkbox" checked={matchAll} onChange={_ => setMatchAll(!matchAll)} />
+    <label htmlFor="matchAll">Maps must have all tags</label>
+    <hr/>
     <div id="searchResults">
+      <div className="searchResult">
+        <div>Name</div>
+        <div>Tags</div>
+        <div>Author</div>
+        <div>Uploaded</div>
+      </div>
       {searchResults}
     </div>
   </>;
