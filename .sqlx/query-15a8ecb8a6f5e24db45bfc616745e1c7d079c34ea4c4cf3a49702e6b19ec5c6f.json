@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT thumbnail_small FROM map WHERE ap_map_id = $1",
+  "query": "SELECT thumbnail_small FROM map_thumbnail WHERE ap_map_id = $1",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       false
     ]
   },
-  "hash": "7defa4c06aa0b0e0f14274ee955622be5b232371f15651603266d5525fc2a390"
+  "hash": "15a8ecb8a6f5e24db45bfc616745e1c7d079c34ea4c4cf3a49702e6b19ec5c6f"
 }

@@ -13,14 +13,11 @@ CREATE TABLE ap_user (
 CREATE TABLE map (
     ap_map_id SERIAL UNIQUE NOT NULL,
     gbx_mapuid TEXT UNIQUE NOT NULL,
-    gbx_data BYTEA NOT NULL,
     mapname TEXT NOT NULL,
     ap_author_id INTEGER NOT NULL,
     votes INTEGER NOT NULL DEFAULT 1,
     uploaded TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
     created TIMESTAMP WITH TIME ZONE NOT NULL,
-    thumbnail BYTEA NOT NULL,
-    thumbnail_small BYTEA NOT NULL,
 
     author_medal_ms INTEGER NOT NULL,
     gold_medal_ms INTEGER NOT NULL,
@@ -30,6 +27,25 @@ CREATE TABLE map (
     CONSTRAINT pk_map PRIMARY KEY (ap_map_id, gbx_mapuid),
     CONSTRAINT fk_map_author FOREIGN KEY (ap_author_id)
         REFERENCES ap_user (ap_user_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE map_thumbnail (
+    ap_map_id INTEGER UNIQUE NOT NULL,
+    thumbnail BYTEA NOT NULL,
+    thumbnail_small BYTEA NOT NULL,
+
+    CONSTRAINT fk_ap_map_id FOREIGN KEY (ap_map_id)
+        REFERENCES map (ap_map_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE map_data (
+    ap_map_id INTEGER UNIQUE NOT NULL,
+    gbx_data BYTEA NOT NULL,
+
+    CONSTRAINT fk_ap_map_id FOREIGN KEY (ap_map_id)
+        REFERENCES map (ap_map_id)
         ON UPDATE CASCADE ON DELETE CASCADE
 );
 

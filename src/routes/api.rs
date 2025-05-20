@@ -123,7 +123,7 @@ async fn map_thumbnail_inner(state: AppState, path: ThumbnailPath) -> Result<Res
     let thumbnail = match path.size {
         ThumbnailSize::Small => {
             sqlx::query!(
-                "SELECT thumbnail_small FROM map WHERE ap_map_id = $1",
+                "SELECT thumbnail_small FROM map_thumbnail WHERE ap_map_id = $1",
                 path.map_id
             )
             .fetch_one(&state.pool)
@@ -133,7 +133,7 @@ async fn map_thumbnail_inner(state: AppState, path: ThumbnailPath) -> Result<Res
         }
         ThumbnailSize::Large => {
             sqlx::query!(
-                "SELECT thumbnail FROM map WHERE ap_map_id = $1",
+                "SELECT thumbnail FROM map_thumbnail WHERE ap_map_id = $1",
                 path.map_id
             )
             .fetch_one(&state.pool)
@@ -288,6 +288,52 @@ pub async fn map_upload(
         .into());
     };
 
+    let map_response = match sqlx::query!(
+        "
+            INSERT INTO map (
+                gbx_mapuid, mapname, ap_author_id, created,
+                author_medal_ms, gold_medal_ms, silver_medal_ms, bronze_medal_ms 
+            )
+            VALUES (
+                $1, $2, $3, to_timestamp($4),
+                $5, $6, $7, $8
+            )
+            ON CONFLICT DO NOTHING
+            RETURNING ap_map_id
+        ",
+        map_info.id,
+        map_name,
+        auth.user_id(),
+        map_meta.last_modified as i64,
+        author as i32,
+        gold as i32,
+        silver as i32,
+        bronze as i32
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .context("Adding map to database")?
+    {
+        // you really can't get this from the function signature?
+        Some(row) => MapUploadResponse {
+            map_id: row.ap_map_id,
+            map_name: nadeo::FormattedString::parse(map_name).strip_formatting(),
+        },
+        None => {
+            let map_id = sqlx::query!(
+                "SELECT ap_map_id FROM map WHERE gbx_mapuid = $1",
+                map_info.id
+            )
+            .fetch_one(&state.pool)
+            .await
+            .context("Fetching map ID for existing map")?;
+            return Err(ApiErrorInner::AlreadyUploaded {
+                map_id: map_id.ap_map_id,
+            }
+            .into());
+        }
+    };
+
     let thumbnail = image::ImageReader::new(std::io::Cursor::new(thumbnail_data))
         .with_guessed_format()
         .context("Reading thumbnail image")?
@@ -319,56 +365,24 @@ pub async fn map_upload(
 
     let map_buffer = map_data.to_vec();
 
-    let map_response = match sqlx::query!(
-        "
-            INSERT INTO map (
-                gbx_mapuid, gbx_data, mapname, ap_author_id, created,
-                thumbnail, thumbnail_small,
-                author_medal_ms, gold_medal_ms, silver_medal_ms, bronze_medal_ms 
-            )
-            VALUES (
-                $1, $2, $3, $4, to_timestamp($5),
-                $6, $7,
-                $8, $9, $10, $11
-            )
-            ON CONFLICT DO NOTHING
-            RETURNING ap_map_id
-        ",
-        map_info.id,
-        map_buffer,
-        map_name,
-        auth.user_id(),
-        map_meta.last_modified as i64,
-        thumbnail_data,
-        small_thumbnail_data,
-        author as i32,
-        gold as i32,
-        silver as i32,
-        bronze as i32
+    sqlx::query!(
+        "INSERT INTO map_data (ap_map_id, gbx_data) VALUES ($1, $2)",
+        map_response.map_id,
+        map_buffer
     )
-    .fetch_optional(&state.pool)
+    .execute(&state.pool)
     .await
-    .context("Adding map to database")?
-    {
-        // you really can't get this from the function signature?
-        Some(row) => MapUploadResponse {
-            map_id: row.ap_map_id,
-            map_name: nadeo::FormattedString::parse(map_name).strip_formatting(),
-        },
-        None => {
-            let map_id = sqlx::query!(
-                "SELECT ap_map_id FROM map WHERE gbx_mapuid = $1",
-                map_info.id
-            )
-            .fetch_one(&state.pool)
-            .await
-            .context("Fetching map ID for existing map")?;
-            return Err(ApiErrorInner::AlreadyUploaded {
-                map_id: map_id.ap_map_id,
-            }
-            .into());
-        }
-    };
+    .context("Inserting map into map_data")?;
+
+    sqlx::query!(
+        "INSERT INTO map_thumbnail (ap_map_id, thumbnail, thumbnail_small) VALUES ($1, $2, $3)",
+        map_response.map_id,
+        thumbnail_data,
+        small_thumbnail_data
+    )
+    .execute(&state.pool)
+    .await
+    .context("Inserting thumbnail data")?;
 
     for tag in map_tags {
         sqlx::query!(

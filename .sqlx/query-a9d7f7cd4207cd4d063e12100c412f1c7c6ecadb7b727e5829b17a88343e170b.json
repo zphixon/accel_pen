@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO map_thumbnail (ap_map_id, thumbnail, thumbnail_small) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Bytea",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a9d7f7cd4207cd4d063e12100c412f1c7c6ecadb7b727e5829b17a88343e170b"
+}
