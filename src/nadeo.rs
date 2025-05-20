@@ -56,7 +56,7 @@ impl Format {
     }
 }
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, TS, Clone)]
 #[ts(export)]
 pub struct FormattedChar {
     pub char: char,
@@ -85,7 +85,7 @@ impl FormattedChar {
     }
 }
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, TS, Clone)]
 #[ts(export)]
 #[repr(transparent)]
 #[serde(transparent)]

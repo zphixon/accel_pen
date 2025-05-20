@@ -98,6 +98,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
                             account_id: auth.account_id().to_owned(),
                             user_id: auth.user_id(),
                             club_tag: auth.club_tag().map(nadeo::FormattedString::parse),
+                            registered: Some(super::format_time(auth.registered()))
                         },
                         medals: None,
                         tags: vec![],
@@ -120,7 +121,8 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
     match sqlx::query!(
         "
             SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
-                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag, map.created
+                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag, map.created,
+                ap_user.registered
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
             ORDER BY map.ap_map_id DESC
             LIMIT 6
@@ -158,6 +160,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
                         account_id: map.nadeo_id.clone(),
                         user_id: map.ap_author_id,
                         club_tag: map.nadeo_club_tag.as_deref().map(nadeo::FormattedString::parse),
+                        registered: map.registered.map(super::format_time)
                     },
                     medals: None,
                     tags: vec!(),
@@ -197,7 +200,7 @@ async fn populate_context_with_map_data(
         "
             SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created,
                 map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
-                ap_user.nadeo_club_tag,
+                ap_user.nadeo_club_tag, ap_user.registered,
                 map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms
             FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
             WHERE map.ap_map_id = $1
@@ -256,6 +259,7 @@ async fn populate_context_with_map_data(
                     .nadeo_club_tag
                     .as_deref()
                     .map(nadeo::FormattedString::parse),
+                registered: map.registered.map(super::format_time),
             },
             tags,
             medals: Some(Medals {
@@ -454,6 +458,151 @@ pub async fn map_search(State(state): State<AppState>, auth: Option<NadeoAuthSes
         .unwrap()
         .render("map/search.html.tera", &context)
         .context("Rendering map search template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
+}
+
+pub async fn user_page(
+    State(state): State<AppState>,
+    auth: Option<NadeoAuthSession>,
+    Path(user_id): Path<i32>,
+) -> Response {
+    let mut context = config::context_with_auth_session(auth.as_ref());
+
+    let user = match sqlx::query!("SELECT * FROM ap_user WHERE ap_user_id = $1", user_id)
+        .fetch_optional(&state.pool)
+        .await
+        .context("Reading user")
+    {
+        Ok(row) => row,
+        Err(error) => {
+            return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                error,
+                "Reading user",
+            )
+        }
+    };
+
+    let user_response = user.map(|row| UserResponse {
+        display_name: row.nadeo_display_name,
+        account_id: row.nadeo_id,
+        user_id: row.ap_user_id,
+        club_tag: row
+            .nadeo_club_tag
+            .as_deref()
+            .map(crate::nadeo::FormattedString::parse),
+        registered: row.registered.map(super::format_time),
+    });
+
+    if let Some(user) = user_response.as_ref() {
+        match sqlx::query!(
+            "
+                SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created
+                FROM map
+                WHERE map.ap_author_id = $1
+                LIMIT 20
+            ",
+            user.user_id,
+        )
+        .fetch_all(&state.pool)
+        .await
+        {
+            Ok(my_maps) => {
+                let mut maps_context = Vec::new();
+                for map in my_maps {
+                    let name = nadeo::FormattedString::parse(&map.mapname);
+                    maps_context.push(MapContext {
+                        id: map.ap_map_id,
+                        gbx_uid: map.gbx_mapuid,
+                        plain_name: name.strip_formatting(),
+                        name,
+                        votes: map.votes,
+                        uploaded: super::format_time(map
+                            .uploaded),
+                        created: super::format_time(map
+                            .created)
+                            ,
+                        author: user.clone(),
+                        medals: None,
+                        tags: vec![],
+                    });
+                }
+                context.insert("user_maps", &maps_context);
+            }
+            Err(err) => {
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error getting my maps",
+                    err,
+                );
+            }
+        }
+
+        if Some(user.user_id) == auth.map(|auth| auth.user_id()) {
+            match sqlx::query!(
+                "
+                    SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created,
+                        map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
+                        ap_user.nadeo_club_tag, ap_user.registered,
+                        map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms
+                    FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+                    WHERE map.ap_uploader_id = $1 AND map.ap_author_id != $1
+                ",
+                user.user_id,
+            )
+            .fetch_all(&state.pool)
+            .await
+            {
+                Ok(managed_maps) => {
+                    let mut maps_context = Vec::new();
+                    for map in managed_maps {
+                        let name = nadeo::FormattedString::parse(&map.mapname);
+                        maps_context.push(MapContext {
+                            id: map.ap_map_id,
+                            gbx_uid: map.gbx_mapuid,
+                            plain_name: name.strip_formatting(),
+                            name,
+                            votes: map.votes,
+                            uploaded: super::format_time(map
+                                .uploaded),
+                            created: super::format_time(map
+                                .created)
+                                ,
+                            author: UserResponse { display_name: map.nadeo_display_name, account_id: map.nadeo_id , user_id: map.ap_user_id, club_tag: map.nadeo_club_tag.as_deref().map(nadeo::FormattedString::parse), registered: None } ,
+                            medals: None,
+                            tags: vec![],
+                        });
+                    }
+                    context.insert("managed_maps", &maps_context);
+                }
+                Err(err) => {
+                    return render_error(
+                        &state,
+                        context,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Database error getting my maps",
+                        err,
+                    );
+                }
+            }
+        }
+    }
+
+    context.insert("page_user", &user_response);
+
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("user.html.tera", &context)
+        .context("Rendering user template")
     {
         Ok(page) => Html(page).into_response(),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),

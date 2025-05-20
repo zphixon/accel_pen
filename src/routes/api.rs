@@ -294,14 +294,14 @@ pub async fn map_upload(
             .context("Get self club tag")?;
 
         match sqlx::query!(
-            "SELECT ap_user_id FROM ap_user WHERE nadeo_id = $1",
+            "SELECT ap_user_id FROM ap_user WHERE nadeo_id = $1 AND registered IS NULL",
             author_account_id
         )
         .fetch_optional(&state.pool)
         .await
         .context("Fetching AP account ID for author")?
         {
-            Some(row) => row.ap_user_id,
+            Some(_) => return Err(ApiErrorInner::NotYourMap.into()),
             None => {
                 sqlx::query!(
                     "
@@ -586,7 +586,7 @@ pub async fn map_search(
                 map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
                 map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms,
                 ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag,
-                map.created
+                map.created, ap_user.registered
             FROM map_tag
                 JOIN map ON map_tag.ap_map_id = map.ap_map_id
                 JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
@@ -653,6 +653,7 @@ pub async fn map_search(
                             .nadeo_club_tag
                             .as_deref()
                             .map(crate::nadeo::FormattedString::parse),
+                        registered: row.registered.map(super::format_time)
                     },
                     tags,
                     medals: Some(Medals {

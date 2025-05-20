@@ -5,7 +5,7 @@ use ts_rs::TS;
 pub mod api;
 pub mod web;
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, TS, Clone)]
 #[ts(export)]
 #[serde(tag = "type")]
 pub struct UserResponse {
@@ -13,6 +13,7 @@ pub struct UserResponse {
     pub account_id: String,
     pub user_id: i32,
     pub club_tag: Option<nadeo::FormattedString>,
+    pub registered: Option<String>,
 }
 
 #[derive(Serialize, TS)]
@@ -44,4 +45,9 @@ pub struct Medals {
 pub struct TagInfo {
     pub id: i32,
     pub name: String,
+}
+
+pub fn format_time(time: time::OffsetDateTime) -> String {
+    time.format(&
+    time::format_description::well_known::Iso8601::DATE_TIME_OFFSET).unwrap()
 }

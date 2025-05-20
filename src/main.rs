@@ -93,6 +93,7 @@ async fn main() -> anyhow::Result<()> {
             .route("/map/{map_id}", get(routes::web::map_page))
             .route("/map/{map_id}/manage", get(routes::web::map_manage_page))
             .route("/map/search", get(routes::web::map_search))
+            .route("/user/{user_id}", get(routes::web::user_page))
             .route(
                 &CONFIG.route_api_v1("/map/upload"),
                 post(routes::api::map_upload),

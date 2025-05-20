@@ -19,12 +19,12 @@
 {%- endmacro nadeo_string %}
 
 {% macro user_summary(user, class="") -%}
-  <span class="userSummary {{ class }}">
+  <a class="userSummary {{ class }}" href="/user/{{ user.user_id }}">
     {%- if user.club_tag -%}
       {{ self::nadeo_string(text=user.club_tag, class="clubTag") }}
     {%- endif %}
     {{ user.display_name }}
-  </span>
+  </a>
 {%- endmacro user_summary %}
 
 {% macro map_thumbnail(map, small=false) -%}
@@ -36,6 +36,22 @@
   {%- endif -%}
   <img class="{{ class_list | join(sep=' ') }}" src="/api/v1/map/{{ map.id }}/{{ resource }}" />
 {%- endmacro map_thumbnail %}
+
+{% macro map_tiles(maps, include_author=true) -%}
+  <div class="mapTiles">
+    {% for map in maps %}
+      <div class="mapTile">
+        <a href="/map/{{ map.id }}">{{ self::map_thumbnail(map=map, small=true) }}</a>
+        <div class="mapTileData">
+          {{ self::nadeo_string(text=map.name) }}
+          {%- if include_author -%}
+            <div class="mapTileAuthor">by {{ self::user_summary(user=map.author) }}</div>
+          {%- endif -%}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{%- endmacro %}
 
 {% macro tag_badge(tag) %}
   {%- set parts = tag.name | split(pat="/") -%}

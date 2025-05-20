@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT DISTINCT ON (map.ap_map_id)\n                map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,\n                map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms,\n                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag,\n                map.created\n            FROM map_tag\n                JOIN map ON map_tag.ap_map_id = map.ap_map_id\n                JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id\n            WHERE map_tag.tag_id = $1\n            LIMIT 20\n        ",
+  "query": "\n            SELECT DISTINCT ON (map.ap_map_id)\n                map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,\n                map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms,\n                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag,\n                map.created, ap_user.registered\n            FROM map_tag\n                JOIN map ON map_tag.ap_map_id = map.ap_map_id\n                JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id\n            WHERE map_tag.tag_id = $1\n            LIMIT 20\n        ",
   "describe": {
     "columns": [
       {
@@ -77,6 +77,11 @@
         "ordinal": 14,
         "name": "created",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "registered",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -99,8 +104,9 @@
       false,
       false,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "cbb1946257b4685d783a9ed2c227ef0840f0264f3eabbf3cdecc6c462f66abb0"
+  "hash": "8bc07a27c1f3e6b45f591132f54a318c73ceee93c43c15a7062a4058fc1b69ef"
 }

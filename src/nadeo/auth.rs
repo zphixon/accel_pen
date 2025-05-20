@@ -70,6 +70,7 @@ pub struct NadeoAuthSessionInner {
     club_tag: Option<String>,
     user_id: i32,
     issued: time::OffsetDateTime,
+    registered: time::OffsetDateTime,
 }
 
 impl Deref for NadeoAuthSessionInner {
@@ -94,7 +95,7 @@ impl NadeoAuthSessionInner {
                 ON CONFLICT (nadeo_id) DO UPDATE
                     SET nadeo_display_name = excluded.nadeo_display_name,
                         nadeo_club_tag = excluded.nadeo_club_tag
-                RETURNING ap_user_id
+                RETURNING ap_user_id, registered
             ",
             user.display_name,
             &user.account_id,
@@ -111,6 +112,7 @@ impl NadeoAuthSessionInner {
             club_tag,
             user_id: user_id.ap_user_id,
             issued,
+            registered: user_id.registered.expect("registered")
         })
     }
 
@@ -128,6 +130,10 @@ impl NadeoAuthSessionInner {
 
     pub fn user_id(&self) -> i32 {
         self.user_id
+    }
+
+    pub fn registered(&self) -> time::OffsetDateTime {
+        self.registered
     }
 
     //pub fn oauth_access_token(&self) -> &str {

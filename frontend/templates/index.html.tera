@@ -6,17 +6,7 @@
   <!-- insert commonly recently liked maps here -->
 
   <h3>Recently uploaded maps</h3>
-  <div class="mapTiles">
-    {% for map in recent_maps %}
-      <div class="mapTile">
-        <a href="/map/{{ map.id }}">{{ macros::map_thumbnail(map=map, small=true) }}</a>
-        <div class="mapTileData">
-          {{ macros::nadeo_string(text=map.name) }}
-          <div class="mapTileAuthor">by {{ macros::user_summary(user=map.author) }}</div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
+  {{ macros::map_tiles(maps=recent_maps) }}
 
   {% if user %}
     <h3>My maps

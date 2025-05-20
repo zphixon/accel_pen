@@ -114,6 +114,7 @@ pub fn context_with_auth_session(auth: Option<&crate::nadeo::auth::NadeoAuthSess
                 display_name: auth.display_name().to_owned(),
                 club_tag: auth.club_tag().map(crate::nadeo::FormattedString::parse),
                 user_id: auth.user_id(),
+                registered: Some(crate::routes::format_time(auth.registered())),
             }),
         );
     }

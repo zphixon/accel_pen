@@ -152,7 +152,7 @@ pub enum ApiErrorInner {
     #[error("Map already uploaded")]
     AlreadyUploaded { map_id: i32 },
 
-    #[error("Please don't upload maps that aren't yours")]
+    #[error("This map was created by a user already on Accel Pen")]
     NotYourMap,
 
     #[error("Invalid map thumbnail: {error}")]
@@ -290,7 +290,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::NoSuchTag { .. }
             | ApiErrorInner::TooManyTags { .. }
             | ApiErrorInner::InvalidThumbnail { .. }
-            | ApiErrorInner::NotValidated
+            | ApiErrorInner::NotValidated 
             | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
             ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,

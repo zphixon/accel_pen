@@ -1,0 +1,49 @@
+{% extends "layout.html.tera" %}
+{% import "macros.tera" as macros %}
+
+{% block tabTitle -%}
+  {%- if page_user -%}
+    {{ super() }} - {{ page_user.display_name }}
+  {%- else -%}
+    {{ super() }} - No such user
+  {%- endif -%}
+{%- endblock tabTitle %}
+
+{% block return_path -%}
+  {%- if page_user -%}
+    ?return_path=/user/{{ page_user.user_id }}
+  {%- endif -%}
+{%- endblock return_path %}
+
+{% block title -%}
+  {%- if page_user -%}
+    {%- if page_user.club_tag -%}
+      {{ super() }} - {{ macros::nadeo_string(text=page_user.club_tag) }} {{ page_user.display_name }}
+    {%- else -%}
+      {{ super() }} - {{ page_user.display_name }}
+    {%- endif -%}
+  {%- else -%}
+    No such user
+  {%- endif -%}
+{%- endblock title %}
+
+{% block content %}
+  {%- if page_user -%}
+    <h3>Maps by {{ page_user.display_name }}</h3>
+    {%- if not page_user.registered -%}
+      <p>
+        This user is not registered. Maps on this page are managed by other Accel Pen users.
+        They may claim ownership of these maps by logging in above.
+      </p>
+    {%- endif -%}
+
+    {{ macros::map_tiles(maps=user_maps, include_author=false) }}
+
+    {% if managed_maps %}
+      <h3>Maps managed by you</h3>
+      {{ macros::map_tiles(maps=managed_maps) }}
+    {% endif %}
+  {%- else -%}
+    No such user
+  {%- endif -%}
+{% endblock content %}

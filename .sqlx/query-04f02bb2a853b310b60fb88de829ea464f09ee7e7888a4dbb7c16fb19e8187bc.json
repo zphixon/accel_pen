@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT ap_user_id FROM ap_user WHERE nadeo_id = $1",
+  "query": "SELECT ap_user_id FROM ap_user WHERE nadeo_id = $1 AND registered IS NULL",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       false
     ]
   },
-  "hash": "1bf7bb91100258467b7137aab80cdd21f67ae55b7c0cb393918a07dd4d047f81"
+  "hash": "04f02bb2a853b310b60fb88de829ea464f09ee7e7888a4dbb7c16fb19e8187bc"
 }
