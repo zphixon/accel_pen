@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT tag.tag_id, tag.tag_name\n            FROM tag\n            JOIN map_tag ON map_tag.tag_id = tag.tag_id\n            JOIN map ON map_tag.ap_map_id = $1\n            GROUP BY tag.tag_id\n            ORDER BY tag.tag_id ASC\n        ",
+  "query": "\n            SELECT DISTINCT ON (tag.tag_id) tag.tag_id, tag.tag_name\n            FROM tag\n            JOIN map_tag ON map_tag.tag_id = tag.tag_id\n            JOIN map ON map_tag.ap_map_id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "31d2d330d7b4973f19cd57196942b7d788096710f05e50dbfbfdd952c95b9210"
+  "hash": "700bcae6e686e422f9cfb1818d2caa0ceebbbaebdb663ffd1893a64e0643a3d1"
 }

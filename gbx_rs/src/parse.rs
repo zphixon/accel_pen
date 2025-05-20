@@ -1,6 +1,6 @@
 use crate::{
     cursor::{BodyCursor, CursorExt},
-    Context, GbxError, GbxErrorInner, Meta,
+    Context, GbxError, GbxErrorInner, MapKind, Meta,
 };
 use byteorder::{ReadBytesExt, LE};
 use std::io::Seek;
@@ -209,20 +209,29 @@ fn class_wrap(class_id: u32) -> u32 {
     }
 }
 
+fn negative_none(num: i32) -> Option<i32> {
+    if num < 0 {
+        None
+    } else {
+        Some(num)
+    }
+}
+
 parser!(
     0x03043000 CtnChallenge {
         map_name: Option<&'node str>,
         vehicle_model: Option<Meta<'node>>,
         block_stock: Option<CtnCollectorList<'node>>,
         challenge_parameters: Option<CtnChallengeParameters<'node>>,
-        map_kind: Option<u32>,
+        map_kind: Option<MapKind>,
+        header_map_kind: Option<MapKind>,
         map_info: Option<Meta<'node>>,
         decoration: Option<Meta<'node>>,
         size: Option<[u32; 3]>,
-        bronze_time: Option<u32>,
-        silver_time: Option<u32>,
-        gold_time: Option<u32>,
-        author_time: Option<u32>,
+        bronze_time: Option<i32>,
+        silver_time: Option<i32>,
+        gold_time: Option<i32>,
+        author_time: Option<i32>,
         cost: Option<u32>,
         header_version: Option<u32>,
         xml_data: Option<&'node str>,
@@ -244,10 +253,10 @@ parser!(
             let _unknown = cursor.read_u32::<LE>().context("Reading map info 1 unknown 1");
 
             if version >= 1 {
-                this.bronze_time = Some(cursor.read_u32::<LE>().context("Reading map info 1 bronze time")?);
-                this.silver_time = Some(cursor.read_u32::<LE>().context("Reading map info 1 silver time")?);
-                this.gold_time = Some(cursor.read_u32::<LE>().context("Reading map info 1 gold time")?);
-                this.author_time = Some(cursor.read_u32::<LE>().context("Reading map info 1 author time")?);
+                this.bronze_time = negative_none(cursor.read_i32::<LE>().context("Reading map info 1 bronze time")?);
+                this.silver_time = negative_none(cursor.read_i32::<LE>().context("Reading map info 1 silver time")?);
+                this.gold_time = negative_none(cursor.read_i32::<LE>().context("Reading map info 1 gold time")?);
+                this.author_time = negative_none(cursor.read_i32::<LE>().context("Reading map info 1 author time")?);
             }
 
             if version == 2 {
@@ -299,7 +308,7 @@ parser!(
 
             this.map_info = Some(cursor.read_meta().context("Reading map info 2 map info")?);
             this.map_name = Some(cursor.read_string().context("Reading map info 2 map name")?);
-            let _map_kind = cursor.read_u8().context("Reading map info 2 map kind")?;
+            this.header_map_kind = MapKind::from_repr(cursor.read_u8().context("Reading map info 2 map kind")?);
 
             if version >= 1 {
                 let _unknown = cursor.read_u32::<LE>().context("Reading map info 2 unknown 1")?;
@@ -388,7 +397,7 @@ parser!(
             this.challenge_parameters = cursor
                 .expect_node_ref::<CtnChallengeParameters>()
                 .context("Reading challenge parameters")?;
-            this.map_kind = Some(cursor.read_u32::<LE>().context("Reading map kind")?);
+            this.map_kind = MapKind::from_repr(cursor.read_u32::<LE> ().context("Reading map info 2 map kind")? as u8);
             Ok(())
         },
 
@@ -478,16 +487,16 @@ parser!(
     },
 
     0x0305b000 CtnChallengeParameters {
-        author_score: Option<u32>,
-        bronze_time: Option<u32>,
-        silver_time: Option<u32>,
-        gold_time: Option<u32>,
-        author_time: Option<u32>,
+        author_score: Option<i32>,
+        bronze_time: Option<i32>,
+        silver_time: Option<i32>,
+        gold_time: Option<i32>,
+        author_time: Option<i32>,
         map_type: Option<&'node str>,
         map_style: Option<&'node str>,
         is_validated: Option<bool>,
         validation_ghost: Option<CtnGhost<'node>>,
-        time_limit: Option<u32>,
+        time_limit: Option<i32>,
         tip: Option<&'node str>,
         tip1: Option<&'node str>,
         tip2: Option<&'node str>,
@@ -505,30 +514,30 @@ parser!(
 
         0x0305b004 => |this: &mut CtnChallengeParameters<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
             tracing::trace!("medal times");
-            this.bronze_time = Some(cursor.read_u32::<LE>().context("Reading bronze time")?);
-            this.silver_time = Some(cursor.read_u32::<LE>().context("Reading silver time")?);
-            this.gold_time = Some(cursor.read_u32::<LE>().context("Reading gold time")?);
-            this.author_time = Some(cursor.read_u32::<LE>().context("Reading author time")?);
+            this.bronze_time = negative_none(cursor.read_i32::<LE>().context("Reading bronze time")?);
+            this.silver_time = negative_none(cursor.read_i32::<LE>().context("Reading silver time")?);
+            this.gold_time = negative_none(cursor.read_i32::<LE>().context("Reading gold time")?);
+            this.author_time = negative_none(cursor.read_i32::<LE>().context("Reading author time")?);
             let _unknown = cursor.read_u32::<LE>().context("Reading unknown medal time parameter")?;
             Ok(())
         },
 
         0x0305b008 => |this: &mut CtnChallengeParameters<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
             tracing::trace!("stunt info");
-            this.time_limit = Some(cursor.read_u32::<LE>().context("Reading time limit")?);
-            this.author_score = Some(cursor.read_u32::<LE>().context("Reading author score")?);
+            this.time_limit = negative_none(cursor.read_i32::<LE>().context("Reading time limit")?);
+            this.author_score = negative_none(cursor.read_i32::<LE>().context("Reading author score")?);
             Ok(())
         },
 
         0x0305b00a => |this: &mut CtnChallengeParameters<'node>, cursor: &mut BodyCursor<'node>| -> Result<(), GbxError> {
             tracing::trace!("skippable medal times");
             this.tip = Some(cursor.read_string().context("Reading skippable medal times tip")?);
-            this.bronze_time = Some(cursor.read_u32::<LE>().context("Reading skippable bronze time")?);
-            this.silver_time = Some(cursor.read_u32::<LE>().context("Reading skippable silver time")?);
-            this.gold_time = Some(cursor.read_u32::<LE>().context("Reading skippable gold time")?);
-            this.author_time = Some(cursor.read_u32::<LE>().context("Reading skippable author time")?);
-            this.time_limit = Some(cursor.read_u32::<LE>().context("Reading skippable time limit")?);
-            this.author_score = Some(cursor.read_u32::<LE>().context("Reading skippable author score")?);
+            this.bronze_time = negative_none(cursor.read_i32::<LE>().context("Reading skippable bronze time")?);
+            this.silver_time = negative_none(cursor.read_i32::<LE>().context("Reading skippable silver time")?);
+            this.gold_time = negative_none(cursor.read_i32::<LE>().context("Reading skippable gold time")?);
+            this.author_time = negative_none(cursor.read_i32::<LE>().context("Reading skippable author time")?);
+            this.time_limit = negative_none(cursor.read_i32::<LE>().context("Reading skippable time limit")?);
+            this.author_score = negative_none(cursor.read_i32::<LE>().context("Reading skippable author score")?);
             Ok(())
         },
 

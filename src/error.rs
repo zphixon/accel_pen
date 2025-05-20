@@ -135,6 +135,9 @@ pub enum ApiErrorInner {
         error: &'static str,
     },
 
+    #[error("Map has not been validated")]
+    NotValidated,
+
     #[error("Invalid GBX data: {error}")]
     InvalidGbx {
         #[serde(skip)]
@@ -287,6 +290,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::NoSuchTag { .. }
             | ApiErrorInner::TooManyTags { .. }
             | ApiErrorInner::InvalidThumbnail { .. }
+            | ApiErrorInner::NotValidated
             | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
             ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,

@@ -266,26 +266,21 @@ pub async fn map_upload(
         return Err(ApiErrorInner::MissingFromMultipart { error: "Thumbnail" }.into());
     };
 
+    if map.header_map_kind == Some(gbx_rs::MapKind::InProgress) {
+        return Err(ApiErrorInner::NotValidated.into());
+    }
+
     let Some(author) = map.author_time else {
-        return Err(ApiErrorInner::MissingFromMultipart {
-            error: "Author time",
-        }
-        .into());
+        return Err(ApiErrorInner::NotValidated.into());
     };
     let Some(gold) = map.gold_time else {
-        return Err(ApiErrorInner::MissingFromMultipart { error: "Gold time" }.into());
+        return Err(ApiErrorInner::NotValidated.into());
     };
     let Some(silver) = map.silver_time else {
-        return Err(ApiErrorInner::MissingFromMultipart {
-            error: "Silver time",
-        }
-        .into());
+        return Err(ApiErrorInner::NotValidated.into());
     };
     let Some(bronze) = map.bronze_time else {
-        return Err(ApiErrorInner::MissingFromMultipart {
-            error: "Bronze time",
-        }
-        .into());
+        return Err(ApiErrorInner::NotValidated.into());
     };
 
     let map_response = match sqlx::query!(
@@ -571,12 +566,10 @@ pub async fn map_search(
 
             let tags = sqlx::query!(
                 "
-            SELECT tag.tag_id, tag.tag_name
+            SELECT DISTINCT ON (tag.tag_id) tag.tag_id, tag.tag_name
             FROM tag
             JOIN map_tag ON map_tag.tag_id = tag.tag_id
             JOIN map ON map_tag.ap_map_id = $1
-            GROUP BY tag.tag_id
-            ORDER BY tag.tag_id ASC
         ",
                 row.ap_map_id
             )

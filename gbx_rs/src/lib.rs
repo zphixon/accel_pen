@@ -320,9 +320,7 @@ impl Debug for Node<'_> {
 }
 
 impl<'data> Node<'data> {
-    pub fn read_from<B: AsRef<[u8]> + 'data>(
-        data: &'data B,
-    ) -> Result<Node<'data>, GbxError> {
+    pub fn read_from<B: AsRef<[u8]> + 'data>(data: &'data B) -> Result<Node<'data>, GbxError> {
         let data = data.as_ref();
         let mut cursor = Cursor::new(data);
         let header = parse_header(&mut cursor).context("Parsing header")?;
@@ -372,4 +370,22 @@ pub struct Meta<'node> {
     pub id: &'node str,
     pub collection: &'node str,
     pub author: &'node str,
+}
+
+#[derive(Debug, Clone, strum::FromRepr, PartialEq)]
+#[repr(u8)]
+pub enum MapKind {
+    EndMarker = 0,
+    Campaign = 1,
+    Puzzle = 2,
+    Retro = 3,
+    TimeAttack = 4,
+    Rounds = 5,
+    InProgress = 6,
+    Campaign7 = 7,
+    Multi = 8,
+    Solo = 9,
+    Site = 10,
+    SoloNadeo = 11,
+    MultiNadeo = 12,
 }
