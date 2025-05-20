@@ -4,6 +4,7 @@ use crate::{
     error::{ApiError, ApiErrorInner, Context as _},
     nadeo::{
         self,
+        api::{NadeoClubTag, NadeoUser},
         auth::{NadeoAuthSession, NadeoOauthFinishRequest, RandomStateSession},
     },
     routes::{Medals, UserResponse},
@@ -253,10 +254,8 @@ pub async fn map_upload(
         .into());
     };
 
-    let author = nadeo::login_to_account_id(map_info.author).context("Parsing map author")?;
-    if auth.account_id() != author {
-        return Err(ApiErrorInner::NotYourMap.into());
-    }
+    let author_account_id =
+        nadeo::login_to_account_id(map_info.author).context("Parsing map author")?;
 
     let Some(map_name) = map.map_name else {
         return Err(ApiErrorInner::MissingFromMultipart { error: "Map name" }.into());
@@ -270,40 +269,84 @@ pub async fn map_upload(
         return Err(ApiErrorInner::NotValidated.into());
     }
 
-    let Some(author) = map.author_time else {
+    let Some(author_time) = map.author_time else {
         return Err(ApiErrorInner::NotValidated.into());
     };
-    let Some(gold) = map.gold_time else {
+    let Some(gold_time) = map.gold_time else {
         return Err(ApiErrorInner::NotValidated.into());
     };
-    let Some(silver) = map.silver_time else {
+    let Some(silver_time) = map.silver_time else {
         return Err(ApiErrorInner::NotValidated.into());
     };
-    let Some(bronze) = map.bronze_time else {
+    let Some(bronze_time) = map.bronze_time else {
         return Err(ApiErrorInner::NotValidated.into());
+    };
+
+    let ap_uploader_id = auth.user_id();
+    let ap_author_id = if auth.account_id() == author_account_id {
+        ap_uploader_id
+    } else {
+        let user = NadeoUser::get_from_account_id(&*auth, &author_account_id)
+            .await
+            .context("Getting author account info")?;
+        let club_tag = NadeoClubTag::get(&user.account_id)
+            .await
+            .context("Get self club tag")?;
+
+        match sqlx::query!(
+            "SELECT ap_user_id FROM ap_user WHERE nadeo_id = $1",
+            author_account_id
+        )
+        .fetch_optional(&state.pool)
+        .await
+        .context("Fetching AP account ID for author")?
+        {
+            Some(row) => row.ap_user_id,
+            None => {
+                sqlx::query!(
+                    "
+                INSERT INTO ap_user (nadeo_display_name, nadeo_id, nadeo_login, nadeo_club_tag)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (nadeo_id) DO UPDATE
+                    SET nadeo_display_name = excluded.nadeo_display_name,
+                        nadeo_club_tag = excluded.nadeo_club_tag
+                RETURNING ap_user_id
+            ",
+                    user.display_name,
+                    &user.account_id,
+                    crate::nadeo::account_id_to_login(&user.account_id)?,
+                    club_tag,
+                )
+                .fetch_one(&state.pool)
+                .await
+                .context("Adding user to users table")?
+                .ap_user_id
+            }
+        }
     };
 
     let map_response = match sqlx::query!(
         "
             INSERT INTO map (
-                gbx_mapuid, mapname, ap_author_id, created,
+                gbx_mapuid, mapname, ap_author_id, ap_uploader_id, created,
                 author_medal_ms, gold_medal_ms, silver_medal_ms, bronze_medal_ms 
             )
             VALUES (
-                $1, $2, $3, to_timestamp($4),
-                $5, $6, $7, $8
+                $1, $2, $3, $4, to_timestamp($5),
+                $6, $7, $8, $9
             )
             ON CONFLICT DO NOTHING
             RETURNING ap_map_id
         ",
         map_info.id,
         map_name,
-        auth.user_id(),
+        ap_author_id,
+        ap_uploader_id,
         map_meta.last_modified as i64,
-        author as i32,
-        gold as i32,
-        silver as i32,
-        bronze as i32
+        author_time as i32,
+        gold_time as i32,
+        silver_time as i32,
+        bronze_time as i32
     )
     .fetch_optional(&state.pool)
     .await

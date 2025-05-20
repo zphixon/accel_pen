@@ -1,6 +1,6 @@
 use crate::{
     config::CONFIG,
-    error::{ApiError, Context},
+    error::{ApiError, ApiErrorInner, Context},
     nadeo::auth::NadeoTokensInner,
     ubi::UbiTokens,
 };
@@ -42,55 +42,55 @@ impl NadeoUser {
             .context("Parsing JSON response from Nadeo for user")?)
     }
 
-    //const DISPLAY_NAMES_ENDPOINT: &str = "https://api.trackmania.com/api/display-names";
+    const DISPLAY_NAMES_ENDPOINT: &str = "https://api.trackmania.com/api/display-names";
 
-    //pub async fn get_from_account_id(
-    //    token: &NadeoTokensInner,
-    //    account_id: &str,
-    //) -> Result<NadeoUser, ApiError> {
-    //    let response: serde_json::Value = CLIENT
-    //        .clone()
-    //        .get(
-    //            Url::parse_with_params(
-    //                Self::DISPLAY_NAMES_ENDPOINT,
-    //                &[("accountId[]", account_id)],
-    //            )
-    //            .context("Parse URL for display name request")?,
-    //        )
-    //        .bearer_auth(token.access_token())
-    //        .send()
-    //        .await
-    //        .context("Sending request for user display name")?
-    //        .error_for_status()
-    //        .context("User display name returned non-OK status")?
-    //        .json()
-    //        .await
-    //        .context("Parsing JSON response from Nadeo for user display name")?;
+    pub async fn get_from_account_id(
+        token: &NadeoTokensInner,
+        account_id: &str,
+    ) -> Result<NadeoUser, ApiError> {
+        let response: serde_json::Value = CLIENT
+            .clone()
+            .get(
+                Url::parse_with_params(
+                    Self::DISPLAY_NAMES_ENDPOINT,
+                    &[("accountId[]", account_id)],
+                )
+                .context("Parse URL for display name request")?,
+            )
+            .bearer_auth(token.access_token())
+            .send()
+            .await
+            .context("Sending request for user display name")?
+            .error_for_status()
+            .context("User display name returned non-OK status")?
+            .json()
+            .await
+            .context("Parsing JSON response from Nadeo for user display name")?;
 
-    //    let Some(object) = response.as_object() else {
-    //        return Err(ApiErrorInner::UnexpectedResponse {
-    //            error: "Response for display name was not an object",
-    //        }
-    //        .into());
-    //    };
-    //    let Some(display_name) = object.get(account_id) else {
-    //        return Err(ApiErrorInner::UnexpectedResponse {
-    //            error: "Response for display name did not have a display name for the account ID",
-    //        }
-    //        .into());
-    //    };
-    //    let Some(display_name) = display_name.as_str() else {
-    //        return Err(ApiErrorInner::UnexpectedResponse {
-    //            error: "Response for display name was not a string",
-    //        }
-    //        .into());
-    //    };
+        let Some(object) = response.as_object() else {
+            return Err(ApiErrorInner::UnexpectedResponse {
+                error: "Response for display name was not an object",
+            }
+            .into());
+        };
+        let Some(display_name) = object.get(account_id) else {
+            return Err(ApiErrorInner::UnexpectedResponse {
+                error: "Response for display name did not have a display name for the account ID",
+            }
+            .into());
+        };
+        let Some(display_name) = display_name.as_str() else {
+            return Err(ApiErrorInner::UnexpectedResponse {
+                error: "Response for display name was not a string",
+            }
+            .into());
+        };
 
-    //    Ok(NadeoUser {
-    //        account_id: account_id.to_owned(),
-    //        display_name: display_name.to_owned(),
-    //    })
-    //}
+        Ok(NadeoUser {
+            account_id: account_id.to_owned(),
+            display_name: display_name.to_owned(),
+        })
+    }
 }
 
 //#[derive(Deserialize)]

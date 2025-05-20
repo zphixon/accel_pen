@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO ap_user (nadeo_display_name, nadeo_id, nadeo_login, nadeo_club_tag, registered)\n                VALUES ($1, $2, $3, $4, NOW())\n                ON CONFLICT (nadeo_id) DO UPDATE\n                    SET nadeo_display_name = excluded.nadeo_display_name,\n                        nadeo_club_tag = excluded.nadeo_club_tag\n                RETURNING ap_user_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ap_user_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a0047c46908a4df84c1a96553043179bd76682e1103bfd4333ce973dcef08bb4"
+}

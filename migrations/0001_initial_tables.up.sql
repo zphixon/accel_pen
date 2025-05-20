@@ -4,7 +4,7 @@ CREATE TABLE ap_user (
     nadeo_id TEXT UNIQUE NOT NULL,
     nadeo_login TEXT UNIQUE NOT NULL,
     site_admin BOOLEAN NOT NULL DEFAULT FALSE,
-    registered TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
+    registered TIMESTAMP WITH TIME ZONE,
     nadeo_club_tag TEXT,
 
     CONSTRAINT pk_user PRIMARY KEY (ap_user_id)
@@ -15,6 +15,7 @@ CREATE TABLE map (
     gbx_mapuid TEXT UNIQUE NOT NULL,
     mapname TEXT NOT NULL,
     ap_author_id INTEGER NOT NULL,
+    ap_uploader_id INTEGER NOT NULL,
     votes INTEGER NOT NULL DEFAULT 1,
     uploaded TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (timezone('utc', now())),
     created TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -26,6 +27,9 @@ CREATE TABLE map (
 
     CONSTRAINT pk_map PRIMARY KEY (ap_map_id, gbx_mapuid),
     CONSTRAINT fk_map_author FOREIGN KEY (ap_author_id)
+        REFERENCES ap_user (ap_user_id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_map_uploader FOREIGN KEY (ap_uploader_id)
         REFERENCES ap_user (ap_user_id)
         ON UPDATE CASCADE ON DELETE CASCADE
 );

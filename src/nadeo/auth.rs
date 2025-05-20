@@ -92,7 +92,8 @@ impl NadeoAuthSessionInner {
                 INSERT INTO ap_user (nadeo_display_name, nadeo_id, nadeo_login, nadeo_club_tag, registered)
                 VALUES ($1, $2, $3, $4, NOW())
                 ON CONFLICT (nadeo_id) DO UPDATE
-                    SET nadeo_display_name=excluded.nadeo_display_name
+                    SET nadeo_display_name = excluded.nadeo_display_name,
+                        nadeo_club_tag = excluded.nadeo_club_tag
                 RETURNING ap_user_id
             ",
             user.display_name,
