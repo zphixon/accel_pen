@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "gbx_rs", "lzokay-native-rs", "from_env", "migration"]
+
 [package]
 name = "accel_pen"
 version = "0.1.0"

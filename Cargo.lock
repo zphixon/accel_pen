@@ -1176,7 +1176,10 @@ version = "0.1.0"
 dependencies = [
  "macros",
  "serde",
+ "serde_json",
  "thiserror 2.0.12",
+ "toml",
+ "url",
 ]
 
 [[package]]
@@ -1306,10 +1309,13 @@ dependencies = [
  "byteorder",
  "bytes",
  "derivative",
+ "image",
  "lzokay-native",
+ "random",
  "strum 0.27.1",
  "thiserror 2.0.12",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2150,6 +2156,8 @@ name = "lzokay-native"
 version = "0.1.0"
 dependencies = [
  "byteorder",
+ "minilzo-rs",
+ "sha1",
  "thiserror 1.0.69",
 ]
 
@@ -2225,6 +2233,15 @@ checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
 dependencies = [
  "mime",
  "unicase",
+]
+
+[[package]]
+name = "minilzo-rs"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c71a19a4b57d7712a7946e51a7a998f1d8252e16000706ae63243e951fcfce09"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
