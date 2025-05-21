@@ -20,6 +20,7 @@ function TagSelect({ tagInfo, selectedTags, setSelectedTags, originalSelectedTag
   if (selectedTags.length >= maxTags) {
     options = selectedTags.map(tag => ({value: tag, label: tag.name} as TagOption));
   }
+  options.sort((a, b) => a.value.id - b.value.id);
 
   // selected needs to contain the same TagOption objects as in options
   let selected = [];
