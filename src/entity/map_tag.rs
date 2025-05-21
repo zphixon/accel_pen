@@ -6,7 +6,7 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "map_tag")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub dummy: i32,
+    pub row_id: i32,
     pub ap_map_id: i32,
     pub tag_id: i32,
 }

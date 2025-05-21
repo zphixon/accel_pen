@@ -51,7 +51,7 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(MapThumbnail::Table)
-                    .col(pk_auto(MapThumbnail::Dummy))
+                    .col(pk_auto(MapThumbnail::RowId))
                     .col(integer(MapThumbnail::ApMapId))
                     .col(binary(MapThumbnail::Thumbnail))
                     .col(binary(MapThumbnail::ThumbnailSmall))
@@ -71,7 +71,7 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(MapData::Table)
-                    .col(pk_auto(MapData::Dummy))
+                    .col(pk_auto(MapData::RowId))
                     .col(integer(MapData::ApMapId))
                     .col(binary(MapData::GbxData))
                     .foreign_key(
@@ -102,7 +102,7 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(TagImplies::Table)
-                    .col(pk_auto(TagImplies::Dummy))
+                    .col(pk_auto(TagImplies::RowId))
                     .col(integer(TagImplies::Implication))
                     .col(integer(TagImplies::Implyer))
                     .col(integer(TagImplies::Implied))
@@ -128,7 +128,7 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(MapTag::Table)
-                    .col(pk_auto(MapTag::Dummy))
+                    .col(pk_auto(MapTag::RowId))
                     .col(integer(MapTag::ApMapId))
                     .col(integer(MapTag::TagId))
                     .foreign_key(
@@ -214,7 +214,7 @@ enum Map {
 #[derive(DeriveIden)]
 enum MapThumbnail {
     Table,
-    Dummy,
+    RowId,
     ApMapId,
     Thumbnail,
     ThumbnailSmall,
@@ -223,7 +223,7 @@ enum MapThumbnail {
 #[derive(DeriveIden)]
 enum MapData {
     Table,
-    Dummy,
+    RowId,
     ApMapId,
     GbxData,
 }
@@ -240,7 +240,7 @@ pub enum Tag {
 #[derive(DeriveIden)]
 pub enum TagImplies {
     Table,
-    Dummy,
+    RowId,
     Implication,
     Implyer,
     Implied,
@@ -249,7 +249,7 @@ pub enum TagImplies {
 #[derive(DeriveIden)]
 pub enum MapTag {
     Table,
-    Dummy,
+    RowId,
     ApMapId,
     TagId,
 }

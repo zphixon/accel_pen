@@ -6,7 +6,7 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "tag_implies")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub dummy: i32,
+    pub row_id: i32,
     pub implication: i32,
     pub implyer: i32,
     pub implied: i32,
