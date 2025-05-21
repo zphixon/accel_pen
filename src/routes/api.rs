@@ -372,7 +372,7 @@ pub async fn map_upload(
     };
     let map_response = MapUploadResponse {
         map_id: map_row.ap_map_id,
-        map_name: map_row.map_name,
+        map_name: nadeo::FormattedString::parse(&map_row.map_name).strip_formatting(),
     };
 
     let thumbnail = image::ImageReader::new(std::io::Cursor::new(thumbnail_data))
