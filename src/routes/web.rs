@@ -1,6 +1,7 @@
 use super::{MapContext, Medals, TagInfo, UserResponse};
 use crate::{
     config,
+    entity::{ap_user, map, map_tag, tag},
     error::{ApiError, Context},
     nadeo::{self, auth::NadeoAuthSession},
     AppState,
@@ -10,6 +11,7 @@ use axum::{
     http::{StatusCode, Uri},
     response::{Html, IntoResponse, Response},
 };
+use sea_orm::{ColumnTrait as _, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use tera::Context as TeraContext;
 
 pub fn render_error(
@@ -53,131 +55,104 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
     let mut context = config::context_with_auth_session(auth.as_ref());
 
     if let Some(auth) = auth {
-        match sqlx::query!(
-            "
-                SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created
-                FROM map
-                WHERE map.ap_author_id = $1
-                LIMIT 20
-            ",
-            auth.user_id(),
-        )
-        .fetch_all(&state.pool)
-        .await
+        let my_maps = match map::Entity::find()
+            .filter(map::Column::Author.eq(auth.user_id()))
+            .limit(20)
+            .all(&state.db)
+            .await
         {
-            Ok(my_maps) => {
-                let mut maps_context = Vec::new();
-                for map in my_maps {
-                    let name = nadeo::FormattedString::parse(&map.mapname);
-                    maps_context.push(MapContext {
-                        id: map.ap_map_id,
-                        gbx_uid: map.gbx_mapuid,
-                        plain_name: name.strip_formatting(),
-                        name,
-                        votes: map.votes,
-                        uploaded: map
-                            .uploaded
-                            .format(
-                                &time::format_description::well_known::Iso8601::DATE_TIME_OFFSET,
-                            )
-                            .context("Formatting map upload time")
-                            .expect(
-                                "this is why i wanted to use regular Results for error handling",
-                            ),
-                        created: map
-                            .created
-                            .format(
-                                &time::format_description::well_known::Iso8601::DATE_TIME_OFFSET,
-                            )
-                            .context("Formatting map upload time")
-                            .expect(
-                                "this is why i wanted to use regular Results for error handling",
-                            ),
-                        author: UserResponse {
-                            display_name: auth.display_name().to_owned(),
-                            account_id: auth.account_id().to_owned(),
-                            user_id: auth.user_id(),
-                            club_tag: auth.club_tag().map(nadeo::FormattedString::parse),
-                            registered: Some(super::format_time(auth.registered()))
-                        },
-                        medals: None,
-                        tags: vec![],
-                    });
-                }
-                context.insert("my_maps", &maps_context);
-            }
+            Ok(maps) => maps,
             Err(err) => {
                 return render_error(
                     &state,
                     context,
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "Database error getting my maps",
                     err,
-                );
+                    "Reading my maps",
+                )
             }
+        };
+
+        let mut maps_context = Vec::new();
+        for map in my_maps {
+            let name = nadeo::FormattedString::parse(&map.map_name);
+            maps_context.push(MapContext {
+                id: map.ap_map_id,
+                gbx_uid: map.gbx_mapuid,
+                plain_name: name.strip_formatting(),
+                name,
+                votes: map.votes,
+                uploaded: crate::format_time(map.uploaded),
+                created: crate::format_time(map.created),
+                author: UserResponse {
+                    display_name: auth.display_name().to_owned(),
+                    account_id: auth.account_id().to_owned(),
+                    user_id: auth.user_id(),
+                    club_tag: auth.club_tag().map(nadeo::FormattedString::parse),
+                    registered: Some(super::format_time(auth.registered())),
+                },
+                medals: None,
+                tags: vec![],
+            });
         }
+        context.insert("my_maps", &maps_context);
     }
 
-    match sqlx::query!(
-        "
-            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
-                ap_user.nadeo_display_name, ap_user.nadeo_id, ap_user.nadeo_club_tag, map.created,
-                ap_user.registered
-            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-            ORDER BY map.ap_map_id DESC
-            LIMIT 6
-        ",
-    )
-    .fetch_all(&state.pool)
-    .await
+    let recent_rows = match map::Entity::find()
+        .find_also_related(ap_user::Entity)
+        .limit(6)
+        .order_by_desc(map::Column::ApMapId)
+        .all(&state.db)
+        .await
     {
-        Ok(recent_rows) => {
-            let mut recent_maps = Vec::new();
-            for map in recent_rows {
-                let name = nadeo::FormattedString::parse(&map.mapname);
-                recent_maps.push(MapContext {
-                    id: map.ap_map_id,
-                    gbx_uid: map.gbx_mapuid,
-                    plain_name: name.strip_formatting(),
-                    name,
-                    votes: map.votes,
-                    uploaded: map
-                        .uploaded
-                        .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
-                        .context("Formatting map upload time")
-                        .expect("this is why i wanted to use regular Results for error handling"),
-                        created: map
-                            .created
-                            .format(
-                                &time::format_description::well_known::Iso8601::DATE_TIME_OFFSET,
-                            )
-                            .context("Formatting map upload time")
-                            .expect(
-                                "this is why i wanted to use regular Results for error handling",
-                            ),
-                    author: UserResponse {
-                        display_name: map.nadeo_display_name.clone(),
-                        account_id: map.nadeo_id.clone(),
-                        user_id: map.ap_author_id,
-                        club_tag: map.nadeo_club_tag.as_deref().map(nadeo::FormattedString::parse),
-                        registered: map.registered.map(super::format_time)
-                    },
-                    medals: None,
-                    tags: vec!(),
-                });
-            }
-            context.insert("recent_maps", &recent_maps);
-        }
-        Err(err) => {
+        Ok(recent) => recent,
+        Err(error) => {
             return render_error(
                 &state,
                 context,
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Database error getting recently uploaded maps",
-                err,
-            );
+                error,
+            )
         }
+    };
+
+    let mut recent_maps = Vec::new();
+    for (map, author) in recent_rows {
+        let Some(author) = author else {
+            return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Missing author",
+                "Missing author for map",
+            );
+        };
+
+        let name = nadeo::FormattedString::parse(&map.map_name);
+        recent_maps.push(MapContext {
+            id: map.ap_map_id,
+            gbx_uid: map.gbx_mapuid,
+            plain_name: name.strip_formatting(),
+            name,
+            votes: map.votes,
+            uploaded: crate::format_time(map.uploaded),
+            created: crate::format_time(map.created),
+            author: UserResponse {
+                display_name: author.nadeo_display_name.clone(),
+                account_id: author.nadeo_account_id.clone(),
+                user_id: author.ap_user_id,
+                club_tag: author
+                    .nadeo_club_tag
+                    .as_deref()
+                    .map(nadeo::FormattedString::parse),
+                registered: author.registered.map(super::format_time),
+            },
+            medals: None,
+            tags: vec![],
+        });
     }
+    context.insert("recent_maps", &recent_maps);
 
     match state
         .tera
@@ -196,86 +171,63 @@ async fn populate_context_with_map_data(
     map_id: i32,
     context: &mut TeraContext,
 ) -> Result<Option<MapContext>, ApiError> {
-    let map = sqlx::query!(
-        "
-            SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created,
-                map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
-                ap_user.nadeo_club_tag, ap_user.registered,
-                map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms
-            FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-            WHERE map.ap_map_id = $1
-        ",
-        map_id,
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .context("Reading map from database")?;
+    let Some((map, Some(author))) = map::Entity::find_by_id(map_id)
+        .find_also_related(ap_user::Entity)
+        .one(&state.db)
+        .await?
+    else {
+        return Ok(None);
+    };
 
-    if let Some(map) = map {
-        let tags = sqlx::query!(
-            "
-            SELECT tag.tag_id, tag.tag_name
-            FROM tag
-                JOIN map_tag ON map_tag.tag_id = tag.tag_id
-                JOIN map ON map_tag.ap_map_id = $1
-            WHERE tag.implication IS NOT NULL
-            GROUP BY tag.tag_id
-            ORDER BY tag.tag_id ASC
-        ",
-            map.ap_map_id
-        )
-        .fetch_all(&state.pool)
-        .await
-        .context("Reading tags from map")?
-        .into_iter()
-        .map(|row| TagInfo {
-            id: row.tag_id,
-            name: row.tag_name,
-        })
-        .collect::<Vec<_>>();
+    let tag_models = map_tag::Entity::find()
+        .filter(map_tag::Column::ApMapId.eq(map_id))
+        .find_also_related(tag::Entity)
+        .all(&state.db)
+        .await?;
 
-        let name = nadeo::FormattedString::parse(&map.mapname);
-
-        let map_context = MapContext {
-            id: map.ap_map_id,
-            gbx_uid: map.gbx_mapuid,
-            plain_name: name.strip_formatting(),
-            name,
-            votes: map.votes,
-            uploaded: map
-                .uploaded
-                .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
-                .unwrap(),
-            created: map
-                .created
-                .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
-                .context("Formatting map upload time")
-                .expect("this is why i wanted to use regular Results for error handling"),
-            author: UserResponse {
-                display_name: map.nadeo_display_name,
-                account_id: map.nadeo_id,
-                user_id: map.ap_user_id,
-                club_tag: map
-                    .nadeo_club_tag
-                    .as_deref()
-                    .map(nadeo::FormattedString::parse),
-                registered: map.registered.map(super::format_time),
-            },
-            tags,
-            medals: Some(Medals {
-                author: map.author_medal_ms as u32,
-                gold: map.gold_medal_ms as u32,
-                silver: map.silver_medal_ms as u32,
-                bronze: map.bronze_medal_ms as u32,
-            }),
+    let mut tags = Vec::new();
+    for (tag_id, tag_name) in tag_models.into_iter() {
+        let Some(tag_name) = tag_name else {
+            return Ok(None);
         };
 
-        context.insert("map", &map_context);
-
-        Ok(Some(map_context))
-    } else {
-        Ok(None)
+        tags.push(TagInfo {
+            id: tag_id.tag_id,
+            name: tag_name.tag_name,
+        });
     }
+
+    let name = nadeo::FormattedString::parse(&map.map_name);
+
+    let map_context = MapContext {
+        id: map.ap_map_id,
+        gbx_uid: map.gbx_mapuid,
+        plain_name: name.strip_formatting(),
+        name,
+        votes: map.votes,
+        uploaded: crate::format_time(map.uploaded),
+        created: crate::format_time(map.created),
+        author: UserResponse {
+            display_name: author.nadeo_display_name,
+            account_id: author.nadeo_account_id,
+            user_id: author.ap_user_id,
+            club_tag: author
+                .nadeo_club_tag
+                .as_deref()
+                .map(nadeo::FormattedString::parse),
+            registered: author.registered.map(super::format_time),
+        },
+        tags,
+        medals: Some(Medals {
+            author: map.author_time as u32,
+            gold: map.gold_time as u32,
+            silver: map.silver_time as u32,
+            bronze: map.bronze_time as u32,
+        }),
+    };
+
+    context.insert("map", &map_context);
+    Ok(Some(map_context))
 }
 
 pub async fn map_page(
@@ -322,16 +274,10 @@ async fn populate_context_with_tags(
     state: &AppState,
     context: &mut TeraContext,
 ) -> Result<(), ApiError> {
-    let tag_names = sqlx::query!(
-        "
-            SELECT tag.tag_id, tag.tag_name
-            FROM tag
-            WHERE tag.implication IS NOT NULL
-        "
-    )
-    .fetch_all(&state.pool)
-    .await
-    .context("Getting tag names")?;
+    let tag_names = tag::Entity::find()
+        .filter(tag::Column::Implication.is_not_null())
+        .all(&state.db)
+        .await?;
 
     let tag_names = tag_names
         .into_iter()
@@ -471,11 +417,7 @@ pub async fn user_page(
 ) -> Response {
     let mut context = config::context_with_auth_session(auth.as_ref());
 
-    let user = match sqlx::query!("SELECT * FROM ap_user WHERE ap_user_id = $1", user_id)
-        .fetch_optional(&state.pool)
-        .await
-        .context("Reading user")
-    {
+    let user = match ap_user::Entity::find_by_id(user_id).one(&state.db).await {
         Ok(row) => row,
         Err(error) => {
             return render_error(
@@ -490,7 +432,7 @@ pub async fn user_page(
 
     let user_response = user.map(|row| UserResponse {
         display_name: row.nadeo_display_name,
-        account_id: row.nadeo_id,
+        account_id: row.nadeo_account_id,
         user_id: row.ap_user_id,
         club_tag: row
             .nadeo_club_tag
@@ -500,40 +442,13 @@ pub async fn user_page(
     });
 
     if let Some(user) = user_response.as_ref() {
-        match sqlx::query!(
-            "
-                SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created
-                FROM map
-                WHERE map.ap_author_id = $1
-                LIMIT 20
-            ",
-            user.user_id,
-        )
-        .fetch_all(&state.pool)
-        .await
+        let user_maps = match map::Entity::find()
+            .filter(map::Column::Author.eq(user.user_id))
+            .limit(20)
+            .all(&state.db)
+            .await
         {
-            Ok(my_maps) => {
-                let mut maps_context = Vec::new();
-                for map in my_maps {
-                    let name = nadeo::FormattedString::parse(&map.mapname);
-                    maps_context.push(MapContext {
-                        id: map.ap_map_id,
-                        gbx_uid: map.gbx_mapuid,
-                        plain_name: name.strip_formatting(),
-                        name,
-                        votes: map.votes,
-                        uploaded: super::format_time(map
-                            .uploaded),
-                        created: super::format_time(map
-                            .created)
-                            ,
-                        author: user.clone(),
-                        medals: None,
-                        tags: vec![],
-                    });
-                }
-                context.insert("user_maps", &maps_context);
-            }
+            Ok(rows) => rows,
             Err(err) => {
                 return render_error(
                     &state,
@@ -543,55 +458,74 @@ pub async fn user_page(
                     err,
                 );
             }
+        };
+
+        let mut maps_context = Vec::new();
+        for map in user_maps {
+            let name = nadeo::FormattedString::parse(&map.map_name);
+            maps_context.push(MapContext {
+                id: map.ap_map_id,
+                gbx_uid: map.gbx_mapuid,
+                plain_name: name.strip_formatting(),
+                name,
+                votes: map.votes,
+                uploaded: super::format_time(map.uploaded),
+                created: super::format_time(map.created),
+                author: user.clone(),
+                medals: None,
+                tags: vec![],
+            });
         }
+        context.insert("user_maps", &maps_context);
 
         if Some(user.user_id) == auth.map(|auth| auth.user_id()) {
-            match sqlx::query!(
-                "
-                    SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created,
-                        map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
-                        ap_user.nadeo_club_tag, ap_user.registered,
-                        map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms
-                    FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-                    WHERE map.ap_uploader_id = $1 AND map.ap_author_id != $1
-                ",
-                user.user_id,
-            )
-            .fetch_all(&state.pool)
-            .await
-            {
-                Ok(managed_maps) => {
-                    let mut maps_context = Vec::new();
-                    for map in managed_maps {
-                        let name = nadeo::FormattedString::parse(&map.mapname);
-                        maps_context.push(MapContext {
-                            id: map.ap_map_id,
-                            gbx_uid: map.gbx_mapuid,
-                            plain_name: name.strip_formatting(),
-                            name,
-                            votes: map.votes,
-                            uploaded: super::format_time(map
-                                .uploaded),
-                            created: super::format_time(map
-                                .created)
-                                ,
-                            author: UserResponse { display_name: map.nadeo_display_name, account_id: map.nadeo_id , user_id: map.ap_user_id, club_tag: map.nadeo_club_tag.as_deref().map(nadeo::FormattedString::parse), registered: None } ,
-                            medals: None,
-                            tags: vec![],
-                        });
-                    }
-                    context.insert("managed_maps", &maps_context);
-                }
-                Err(err) => {
-                    return render_error(
-                        &state,
-                        context,
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Database error getting my maps",
-                        err,
-                    );
-                }
-            }
+            // TODO
+            //match sqlx::query!(
+            //    "
+            //        SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created,
+            //            map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
+            //            ap_user.nadeo_club_tag, ap_user.registered,
+            //            map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms
+            //        FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
+            //        WHERE map.ap_uploader_id = $1 AND map.ap_author_id != $1
+            //    ",
+            //    user.user_id,
+            //)
+            //.fetch_all(state.db.get_postgres_connection_pool())
+            //.await
+            //{
+            //    Ok(managed_maps) => {
+            //        let mut maps_context = Vec::new();
+            //        for map in managed_maps {
+            //            let name = nadeo::FormattedString::parse(&map.mapname);
+            //            maps_context.push(MapContext {
+            //                id: map.ap_map_id,
+            //                gbx_uid: map.gbx_mapuid,
+            //                plain_name: name.strip_formatting(),
+            //                name,
+            //                votes: map.votes,
+            //                uploaded: super::format_time(map
+            //                    .uploaded),
+            //                created: super::format_time(map
+            //                    .created)
+            //                    ,
+            //                author: UserResponse { display_name: map.nadeo_display_name, account_id: map.nadeo_id , user_id: map.ap_user_id, club_tag: map.nadeo_club_tag.as_deref().map(nadeo::FormattedString::parse), registered: None } ,
+            //                medals: None,
+            //                tags: vec![],
+            //            });
+            //        }
+            //        context.insert("managed_maps", &maps_context);
+            //    }
+            //    Err(err) => {
+            //        return render_error(
+            //            &state,
+            //            context,
+            //            StatusCode::INTERNAL_SERVER_ERROR,
+            //            "Database error getting my maps",
+            //            err,
+            //        );
+            //    }
+            //}
         }
     }
 

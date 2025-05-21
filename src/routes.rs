@@ -48,6 +48,6 @@ pub struct TagInfo {
 }
 
 pub fn format_time(time: time::OffsetDateTime) -> String {
-    time.format(&
-    time::format_description::well_known::Iso8601::DATE_TIME_OFFSET).unwrap()
+    time.format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+        .unwrap()
 }

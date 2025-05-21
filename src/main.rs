@@ -4,7 +4,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use migration::{Migrator, MigratorTrait as _};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::sync::Arc;
 use tera::Tera;
 use tokio::net::TcpListener;
@@ -22,6 +23,8 @@ use tracing_subscriber::EnvFilter;
 
 mod config;
 mod dev;
+#[allow(unused_imports)]
+mod entity;
 mod error;
 mod nadeo;
 mod routes;
@@ -33,7 +36,7 @@ use ubi::UbiTokens;
 
 #[derive(Clone)]
 pub struct AppState {
-    pool: PgPool,
+    db: DatabaseConnection,
     tera: Arc<std::sync::RwLock<Tera>>,
 }
 
@@ -61,16 +64,11 @@ async fn main() -> anyhow::Result<()> {
     let ubi_auth_task = tokio::spawn(UbiTokens::auth_task());
 
     let server_task = tokio::spawn(async {
-        let pool = PgPoolOptions::new()
-            .acquire_timeout(std::time::Duration::from_secs(3))
-            .connect(CONFIG.db.url.as_str())
-            .await
-            .context("Connecting to database")?;
+        let mut opt = ConnectOptions::new(CONFIG.db.url.clone());
+        opt.sqlx_logging(false); // >:(
 
-        sqlx::migrate!()
-            .run(&pool)
-            .await
-            .context("Running migrations")?;
+        let db = Database::connect(opt).await?;
+        Migrator::up(&db, None).await?;
 
         let session_store = MemoryStore::default();
         let session_layer = SessionManagerLayer::new(session_store)
@@ -117,7 +115,7 @@ async fn main() -> anyhow::Result<()> {
             .route(&CONFIG.oauth_start_route(), get(routes::api::oauth_start))
             .route(&CONFIG.oauth_finish_route(), get(routes::api::oauth_finish))
             .route(&CONFIG.oauth_logout_route(), get(routes::api::oauth_logout))
-            .with_state(AppState { pool, tera })
+            .with_state(AppState { db, tera })
             .layer(session_layer)
             .layer(DefaultBodyLimit::disable())
             .layer(RequestBodyLimitLayer::new(20 * 1000 * 1000))
@@ -144,4 +142,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+pub fn format_time(time: time::OffsetDateTime) -> String {
+    time.format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
+        .context("Formatting map upload time")
+        .expect("this is why i wanted to use regular Results for error handling")
 }

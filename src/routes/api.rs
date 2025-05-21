@@ -1,13 +1,14 @@
 use super::{MapContext, TagInfo};
 use crate::{
     config::CONFIG,
+    entity::{ap_user, map, map_data, map_tag, map_thumbnail, tag, tag_implies},
     error::{ApiError, ApiErrorInner, Context as _},
     nadeo::{
         self,
         api::{NadeoClubTag, NadeoUser},
         auth::{NadeoAuthSession, NadeoOauthFinishRequest, RandomStateSession},
     },
-    routes::{Medals, UserResponse},
+    routes::UserResponse,
     AppState,
 };
 use axum::{
@@ -17,8 +18,12 @@ use axum::{
     Json,
 };
 use axum_extra::extract::WithRejection;
+use migration::OnConflict;
+use sea_orm::{
+    ActiveModelTrait as _, ActiveValue::Set, ColumnTrait as _, EntityTrait as _, QueryFilter,
+    QuerySelect, TransactionTrait,
+};
 use serde::{Deserialize, Serialize};
-use sqlx::Acquire;
 use std::collections::{HashMap, HashSet};
 use tower_sessions::Session;
 use ts_rs::TS;
@@ -121,29 +126,26 @@ pub async fn map_thumbnail_size(
 }
 
 async fn map_thumbnail_inner(state: AppState, path: ThumbnailPath) -> Result<Response, ApiError> {
-    let thumbnail = match path.size {
-        ThumbnailSize::Small => {
-            sqlx::query!(
-                "SELECT thumbnail_small FROM map_thumbnail WHERE ap_map_id = $1",
-                path.map_id
-            )
-            .fetch_one(&state.pool)
-            .await
-            .context("Reading small thumbnail from database")?
-            .thumbnail_small
+    let Some(thumbnail) = map_thumbnail::Entity::find()
+        .filter(map_thumbnail::Column::ApMapId.eq(path.map_id))
+        .one(&state.db)
+        .await?
+    else {
+        return Err(ApiErrorInner::MapNotFound {
+            map_id: path.map_id,
         }
-        ThumbnailSize::Large => {
-            sqlx::query!(
-                "SELECT thumbnail FROM map_thumbnail WHERE ap_map_id = $1",
-                path.map_id
-            )
-            .fetch_one(&state.pool)
-            .await
-            .context("Reading thumbnail from database")?
-            .thumbnail
-        }
+        .into());
     };
-    Ok(([(header::CONTENT_TYPE, "image/webp")], thumbnail).into_response())
+
+    // TODO don't select both columns
+    Ok((
+        [(header::CONTENT_TYPE, "image/webp")],
+        match path.size {
+            ThumbnailSize::Small => thumbnail.thumbnail_small,
+            ThumbnailSize::Large => thumbnail.thumbnail,
+        },
+    )
+        .into_response())
 }
 
 #[derive(Serialize, TS)]
@@ -222,17 +224,17 @@ pub async fn map_upload(
 
     let mut map_tags: HashSet<i32> = HashSet::new();
     for tag in map_meta.tags.iter() {
-        let Some(tag_id) = sqlx::query!("SELECT tag_id FROM tag WHERE tag_name = $1", tag)
-            .fetch_optional(&state.pool)
-            .await
-            .context("Looking up tag name")?
+        let Some(tag) = tag::Entity::find()
+            .filter(tag::Column::TagName.eq(tag))
+            .one(&state.db)
+            .await?
         else {
             return Err(ApiErrorInner::NoSuchTag {
                 tag: tag.to_owned(),
             }
             .into());
         };
-        map_tags.insert(tag_id.tag_id);
+        map_tags.insert(tag.tag_id);
     }
 
     // TODO configure this, and also pass to frontend
@@ -293,83 +295,84 @@ pub async fn map_upload(
             .await
             .context("Get self club tag")?;
 
-        match sqlx::query!(
-            "SELECT ap_user_id FROM ap_user WHERE nadeo_id = $1 AND registered IS NULL",
-            author_account_id
-        )
-        .fetch_optional(&state.pool)
-        .await
-        .context("Fetching AP account ID for author")?
+        if ap_user::Entity::find()
+            .filter(
+                ap_user::Column::NadeoAccountId
+                    .eq(&author_account_id)
+                    .and(ap_user::Column::Registered.is_null()),
+            )
+            .one(&state.db)
+            .await?
+            .is_some()
         {
-            Some(_) => return Err(ApiErrorInner::NotYourMap.into()),
-            None => {
-                sqlx::query!(
-                    "
-                INSERT INTO ap_user (nadeo_display_name, nadeo_id, nadeo_login, nadeo_club_tag)
-                VALUES ($1, $2, $3, $4)
-                ON CONFLICT (nadeo_id) DO UPDATE
-                    SET nadeo_display_name = excluded.nadeo_display_name,
-                        nadeo_club_tag = excluded.nadeo_club_tag
-                RETURNING ap_user_id
-            ",
-                    user.display_name,
-                    &user.account_id,
-                    crate::nadeo::account_id_to_login(&user.account_id)?,
-                    club_tag,
-                )
-                .fetch_one(&state.pool)
-                .await
-                .context("Adding user to users table")?
-                .ap_user_id
-            }
+            return Err(ApiErrorInner::NotYourMap.into());
         }
+
+        let user = ap_user::ActiveModel {
+            nadeo_display_name: Set(user.display_name.clone()),
+            nadeo_login: Set(nadeo::account_id_to_login(&user.account_id)?),
+            nadeo_account_id: Set(user.account_id.clone()),
+            nadeo_club_tag: Set(club_tag),
+            ..Default::default()
+        };
+
+        ap_user::Entity::insert(user)
+            .on_conflict(
+                OnConflict::column(ap_user::Column::NadeoAccountId)
+                    .update_columns([
+                        ap_user::Column::NadeoDisplayName,
+                        ap_user::Column::NadeoClubTag,
+                    ])
+                    .to_owned(),
+            )
+            .exec_with_returning(&state.db)
+            .await?
+            .ap_user_id
     };
 
-    let map_response = match sqlx::query!(
-        "
-            INSERT INTO map (
-                gbx_mapuid, mapname, ap_author_id, ap_uploader_id, created,
-                author_medal_ms, gold_medal_ms, silver_medal_ms, bronze_medal_ms 
-            )
-            VALUES (
-                $1, $2, $3, $4, to_timestamp($5),
-                $6, $7, $8, $9
-            )
-            ON CONFLICT DO NOTHING
-            RETURNING ap_map_id
-        ",
-        map_info.id,
-        map_name,
-        ap_author_id,
-        ap_uploader_id,
-        map_meta.last_modified as i64,
-        author_time as i32,
-        gold_time as i32,
-        silver_time as i32,
-        bronze_time as i32
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .context("Adding map to database")?
+    let tx = state.db.begin().await?;
+
+    let map_row = match (map::ActiveModel {
+        author: Set(ap_author_id),
+        gbx_mapuid: Set(map_info.id.to_string()),
+        map_name: Set(map_name.to_string()),
+        uploaded: Set(time::OffsetDateTime::now_utc()),
+        created: Set(
+            time::OffsetDateTime::from_unix_timestamp(map_meta.last_modified as i64).map_err(
+                |_| {
+                    ApiError::from(ApiErrorInner::MissingFromMultipart {
+                        error: "Good timestamp for last modified",
+                    })
+                },
+            )?,
+        ),
+        author_time: Set(author_time),
+        gold_time: Set(gold_time),
+        silver_time: Set(silver_time),
+        bronze_time: Set(bronze_time),
+        ..Default::default()
+    }
+    .insert(&state.db)
+    .await)
     {
-        // you really can't get this from the function signature?
-        Some(row) => MapUploadResponse {
-            map_id: row.ap_map_id,
-            map_name: nadeo::FormattedString::parse(map_name).strip_formatting(),
-        },
-        None => {
-            let map_id = sqlx::query!(
-                "SELECT ap_map_id FROM map WHERE gbx_mapuid = $1",
-                map_info.id
-            )
-            .fetch_one(&state.pool)
-            .await
-            .context("Fetching map ID for existing map")?;
-            return Err(ApiErrorInner::AlreadyUploaded {
-                map_id: map_id.ap_map_id,
+        Ok(map) => map,
+        Err(err) => match map::Entity::find()
+            .filter(map::Column::GbxMapuid.eq(map_info.id))
+            .one(&state.db)
+            .await?
+        {
+            Some(map) => {
+                return Err(ApiErrorInner::AlreadyUploaded {
+                    map_id: map.ap_map_id,
+                }
+                .into())
             }
-            .into());
-        }
+            None => Err(err)?,
+        },
+    };
+    let map_response = MapUploadResponse {
+        map_id: map_row.ap_map_id,
+        map_name: map_row.map_name,
     };
 
     let thumbnail = image::ImageReader::new(std::io::Cursor::new(thumbnail_data))
@@ -403,35 +406,34 @@ pub async fn map_upload(
 
     let map_buffer = map_data.to_vec();
 
-    sqlx::query!(
-        "INSERT INTO map_data (ap_map_id, gbx_data) VALUES ($1, $2)",
-        map_response.map_id,
-        map_buffer
-    )
-    .execute(&state.pool)
-    .await
-    .context("Inserting map into map_data")?;
+    map_data::ActiveModel {
+        ap_map_id: Set(map_response.map_id),
+        gbx_data: Set(map_buffer),
+        ..Default::default()
+    }
+    .insert(&state.db)
+    .await?;
 
-    sqlx::query!(
-        "INSERT INTO map_thumbnail (ap_map_id, thumbnail, thumbnail_small) VALUES ($1, $2, $3)",
-        map_response.map_id,
-        thumbnail_data,
-        small_thumbnail_data
-    )
-    .execute(&state.pool)
-    .await
-    .context("Inserting thumbnail data")?;
+    map_thumbnail::ActiveModel {
+        ap_map_id: Set(map_response.map_id),
+        thumbnail: Set(thumbnail_data),
+        thumbnail_small: Set(small_thumbnail_data),
+        ..Default::default()
+    }
+    .insert(&state.db)
+    .await?;
 
     for tag in map_tags {
-        sqlx::query!(
-            "INSERT INTO map_tag (ap_map_id, tag_id) VALUES ($1, $2)",
-            map_response.map_id,
-            tag
-        )
-        .execute(&state.pool)
-        .await
-        .context("Adding tag to map")?;
+        map_tag::ActiveModel {
+            ap_map_id: Set(map_response.map_id),
+            tag_id: Set(tag),
+            ..Default::default()
+        }
+        .insert(&state.db)
+        .await?;
     }
+
+    tx.commit().await?;
 
     Ok(Json(map_response))
 }
@@ -462,32 +464,25 @@ pub async fn map_manage(
     auth: NadeoAuthSession,
     WithRejection(Json(request), _): WithRejection<Json<MapManageRequest>, ApiError>,
 ) -> Result<Json<MapManageResponse>, ApiError> {
-    let Some(_) = sqlx::query!(
-        "SELECT FROM map WHERE ap_map_id = $1 AND ap_author_id = $2 LIMIT 1",
-        map_id,
-        auth.user_id()
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .context("Checking map by user exists")?
-    else {
+    if map::Entity::find_by_id(map_id)
+        .filter(map::Column::Author.eq(auth.user_id()))
+        .one(&state.db)
+        .await?
+        .is_none()
+    {
         return Err(ApiErrorInner::MapNotFound { map_id }.into());
-    };
+    }
 
     match &request.command {
         MapManageCommand::SetTags { tags } => {
             // 1. make sure tags exist
-
             for tag in tags.iter() {
-                let Some(_) = sqlx::query!(
-                    "SELECT FROM tag WHERE tag_id = $1 AND tag_name = $2 LIMIT 1",
-                    tag.id,
-                    tag.name
-                )
-                .fetch_optional(&state.pool)
-                .await
-                .context("Checking if tags exist")?
-                else {
+                if tag::Entity::find_by_id(tag.id)
+                    .filter(tag::Column::TagName.eq(&tag.name))
+                    .one(&state.db)
+                    .await?
+                    .is_none()
+                {
                     return Err(ApiErrorInner::NoSuchTag {
                         tag: tag.name.clone(),
                     }
@@ -495,43 +490,28 @@ pub async fn map_manage(
                 };
             }
 
-            let mut conn = state
-                .pool
-                .acquire()
-                .await
-                .context("Acquiring connection for transaction")?;
-            let mut transaction = conn.begin().await.context("Starting transaction")?;
+            let tx = state.db.begin().await?;
 
             // 2. remove map from `tag`
+            map_tag::Entity::delete_many()
+                .filter(map_tag::Column::ApMapId.eq(map_id))
+                .exec(&state.db)
+                .await?;
+
             // 3. re-add map to tag with tags from `tags`
+            map_tag::Entity::insert_many(tags.into_iter().map(|tag| map_tag::ActiveModel {
+                ap_map_id: Set(map_id),
+                tag_id: Set(tag.id),
+                ..Default::default()
+            }))
+            .exec(&state.db)
+            .await?;
 
-            sqlx::query!("DELETE FROM map_tag WHERE ap_map_id = $1", map_id)
-                .execute(&mut *transaction)
-                .await
-                .context("Deleting map from tag")?;
-
-            for tag in tags.iter() {
-                sqlx::query!(
-                    "INSERT INTO map_tag (ap_map_id, tag_id) VALUES ($1, $2)",
-                    map_id,
-                    tag.id
-                )
-                .execute(&mut *transaction)
-                .await
-                .context("Applying tag to map")?;
-            }
-
-            transaction
-                .commit()
-                .await
-                .context("Committing transaction")?;
+            tx.commit().await?;
         }
 
         MapManageCommand::Delete => {
-            sqlx::query!("DELETE FROM map WHERE ap_map_id = $1", map_id)
-                .execute(&state.pool)
-                .await
-                .context("Deleting map")?;
+            map::Entity::delete_by_id(map_id).exec(&state.db).await?;
         }
     }
 
@@ -555,113 +535,85 @@ pub async fn map_search(
     State(state): State<AppState>,
     WithRejection(Json(request), _): WithRejection<Json<MapSearchRequest>, ApiError>,
 ) -> Result<Json<MapSearchResponse>, ApiError> {
-    let mut maps = HashMap::new();
+    let mut maps = HashMap::<i32, MapContext>::new();
 
     let mut tag_infos: Vec<TagInfo> = Vec::new();
     for tag in request.tagged_with.iter() {
-        let implied_by_tag = sqlx::query!(
-            "
-            SELECT implied.tag_id, implied.tag_name
-            FROM tag AS implyer
-            JOIN tag_implies ON tag_implies.implied = implyer.tag_id
-            JOIN tag AS implied ON implied.tag_id = tag_implies.implyer
-            WHERE implyer.tag_id = $1
-        ",
-            tag.id
-        )
-        .fetch_all(&state.pool)
-        .await
-        .context("Fetching tags implied by a tag")?;
         tag_infos.push(tag.clone());
-        tag_infos.extend(implied_by_tag.into_iter().map(|row| TagInfo {
-            id: row.tag_id,
-            name: row.tag_name,
-        }));
+        let implications = tag_implies::Entity::find()
+            .filter(tag_implies::Column::Implyer.eq(tag.id))
+            .all(&state.db)
+            .await?;
+        for implication in implications {
+            let Some(implied) = tag::Entity::find_by_id(implication.implied)
+                .one(&state.db)
+                .await?
+            else {
+                return Err(ApiErrorInner::NoSuchTag {
+                    tag: tag.name.clone(),
+                }
+                .into());
+            };
+            tag_infos.push(TagInfo {
+                id: implied.tag_id,
+                name: implied.tag_name,
+            });
+        }
     }
 
     for tag in tag_infos {
-        let mut stream = sqlx::query!(
-            "
-            SELECT DISTINCT ON (map.ap_map_id)
-                map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.ap_author_id,
-                map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms,
-                ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id, ap_user.nadeo_club_tag,
-                map.created, ap_user.registered
-            FROM map_tag
-                JOIN map ON map_tag.ap_map_id = map.ap_map_id
-                JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-            WHERE map_tag.tag_id = $1
-            LIMIT 20
-        ",
-            tag.id,
-        )
-        .fetch(&state.pool);
-
-        use futures_util::stream::TryStreamExt;
-        while let Some(row) = stream
-            .try_next()
-            .await
-            .context("Reading row from database")?
+        for (map, author, _) in map::Entity::find()
+            .distinct()
+            .find_also_related(ap_user::Entity)
+            .find_also_related(map_tag::Entity)
+            .filter(map_tag::Column::TagId.eq(tag.id))
+            .limit(20)
+            .all(&state.db)
+            .await?
         {
-            if maps.contains_key(&row.ap_map_id) {
-                continue;
-            }
+            let Some(author) = author else {
+                // hmmmmm
+                return Err(ApiErrorInner::MapNotFound {
+                    map_id: map.ap_map_id,
+                }
+                .into());
+            };
 
-            let tags = sqlx::query!(
-                "
-            SELECT DISTINCT ON (tag.tag_id) tag.tag_id, tag.tag_name
-            FROM tag
-            JOIN map_tag ON map_tag.tag_id = tag.tag_id
-            JOIN map ON map_tag.ap_map_id = $1
-        ",
-                row.ap_map_id
-            )
-            .fetch_all(&state.pool)
-            .await
-            .context("Reading tags from map")?
-            .into_iter()
-            .map(|row| TagInfo {
-                id: row.tag_id,
-                name: row.tag_name,
-            })
-            .collect::<Vec<_>>();
+            let tags = map_tag::Entity::find()
+                .find_also_related(tag::Entity)
+                .filter(map_tag::Column::ApMapId.eq(map.ap_map_id))
+                .all(&state.db)
+                .await?
+                .into_iter()
+                .flat_map(|(_, tag)| tag)
+                .map(|tag| TagInfo {
+                    id: tag.tag_id,
+                    name: tag.tag_name,
+                }).collect();
 
-            let name = crate::nadeo::FormattedString::parse(&row.mapname);
-
+            let name = nadeo::FormattedString::parse(&map.map_name);
             maps.insert(
-                row.ap_map_id,
+                map.ap_map_id,
                 MapContext {
-                    id: row.ap_map_id,
-                    gbx_uid: row.gbx_mapuid,
+                    id: map.ap_map_id,
+                    gbx_uid: map.gbx_mapuid,
                     plain_name: name.strip_formatting(),
                     name,
-                    votes: row.votes,
-                    uploaded: row
-                        .uploaded
-                        .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
-                        .unwrap(),
-                    created: row
-                        .created
-                        .format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
-                        .context("Formatting map upload time")
-                        .expect("this is why i wanted to use regular Results for error handling"),
+                    votes: map.votes,
+                    uploaded: crate::format_time(map.uploaded),
+                    created: crate::format_time(map.created),
                     author: UserResponse {
-                        display_name: row.nadeo_display_name,
-                        account_id: row.nadeo_id,
-                        user_id: row.ap_user_id,
-                        club_tag: row
+                        display_name: author.nadeo_display_name,
+                        account_id: author.nadeo_account_id,
+                        user_id: author.ap_user_id,
+                        club_tag: author
                             .nadeo_club_tag
                             .as_deref()
-                            .map(crate::nadeo::FormattedString::parse),
-                        registered: row.registered.map(super::format_time)
+                            .map(nadeo::FormattedString::parse),
+                        registered: author.registered.map(crate::format_time),
                     },
                     tags,
-                    medals: Some(Medals {
-                        author: row.author_medal_ms as u32,
-                        gold: row.gold_medal_ms as u32,
-                        silver: row.silver_medal_ms as u32,
-                        bronze: row.bronze_medal_ms as u32,
-                    }),
+                    medals: None,
                 },
             );
         }

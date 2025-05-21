@@ -10,20 +10,12 @@ use ts_rs::TS;
 #[serde(tag = "type")]
 #[ts(export)]
 pub enum ApiErrorInner {
-    #[error("Database error: {error}")]
+    #[error("DB error: {error}")]
     Database {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        error: sqlx::Error,
-    },
-
-    #[error("Migration error: {error}")]
-    Migration {
-        #[serde(skip)]
-        #[ts(skip)]
-        #[from]
-        error: sqlx::migrate::MigrateError,
+        error: migration::DbErr,
     },
 
     #[error("Invalid query: {error}")]
@@ -262,7 +254,6 @@ impl IntoResponse for ApiError {
 
         let status_code = match &*self {
             ApiErrorInner::Database { .. }
-            | ApiErrorInner::Migration { .. }
             | ApiErrorInner::UrlParseError { .. }
             | ApiErrorInner::SessionError { .. }
             | ApiErrorInner::AxumError { .. }
@@ -290,7 +281,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::NoSuchTag { .. }
             | ApiErrorInner::TooManyTags { .. }
             | ApiErrorInner::InvalidThumbnail { .. }
-            | ApiErrorInner::NotValidated 
+            | ApiErrorInner::NotValidated
             | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
             ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,

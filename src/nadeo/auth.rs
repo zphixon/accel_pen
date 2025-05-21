@@ -1,5 +1,6 @@
 use crate::{
     config::CONFIG,
+    entity::ap_user,
     error::{ApiError, ApiErrorInner, Context},
     nadeo::api::{NadeoClubTag, NadeoUser, CLIENT},
     AppState,
@@ -8,7 +9,9 @@ use axum::{
     extract::{FromRequestParts, OptionalFromRequestParts},
     http::{request::Parts, StatusCode},
 };
+use migration::OnConflict;
 use reqwest::header;
+use sea_orm::{ActiveValue::Set, EntityTrait};
 use serde::{Deserialize, Serialize};
 use std::{
     ops::Deref,
@@ -88,31 +91,34 @@ impl NadeoAuthSessionInner {
             .await
             .context("Get self club tag")?;
 
-        let user_id = sqlx::query!(
-            "
-                INSERT INTO ap_user (nadeo_display_name, nadeo_id, nadeo_login, nadeo_club_tag, registered)
-                VALUES ($1, $2, $3, $4, NOW())
-                ON CONFLICT (nadeo_id) DO UPDATE
-                    SET nadeo_display_name = excluded.nadeo_display_name,
-                        nadeo_club_tag = excluded.nadeo_club_tag
-                RETURNING ap_user_id, registered
-            ",
-            user.display_name,
-            &user.account_id,
-            super::account_id_to_login(&user.account_id)?,
-            club_tag,
-        )
-        .fetch_one(&state.pool)
-        .await
-        .context("Adding user to users table")?;
+        let ap_user = ap_user::ActiveModel {
+            nadeo_display_name: Set(user.display_name.clone()),
+            nadeo_login: Set(super::account_id_to_login(&user.account_id)?),
+            nadeo_account_id: Set(user.account_id.clone()),
+            nadeo_club_tag: Set(club_tag),
+            registered: Set(Some(time::OffsetDateTime::now_utc())),
+            ..Default::default()
+        };
+
+        let ap_user = ap_user::Entity::insert(ap_user)
+            .on_conflict(
+                OnConflict::column(ap_user::Column::NadeoAccountId)
+                    .update_columns([
+                        ap_user::Column::NadeoDisplayName,
+                        ap_user::Column::NadeoClubTag,
+                    ])
+                    .to_owned(),
+            )
+            .exec_with_returning(&state.db)
+            .await?;
 
         Ok(NadeoAuthSessionInner {
             inner,
             user,
-            club_tag,
-            user_id: user_id.ap_user_id,
+            club_tag: ap_user.nadeo_club_tag,
+            user_id: ap_user.ap_user_id,
             issued,
-            registered: user_id.registered.expect("registered")
+            registered: ap_user.registered.expect("registered"),
         })
     }
 

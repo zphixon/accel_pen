@@ -230,44 +230,17 @@ Add images, CSS, or plain JS files to *frontend/static*. They are served by a
 
 ### Creating a new migration
 
-```shell
-sqlx migrate add -rs $migration_name
-# edit migration up/down
-sqlx migrate run
-```
-
-We prefer revertable migrations with sequential names (rather than date-based
-ones).
+In *migration*, run `cargo r -- generate <name> -u <database url>`
 
 
 ### Modifying an existing schema
 
-```shell
-sqlx migrate revert --target-version 0
-# edit migration up+down
-sqlx migrate run # alternatively, since we use the sqlx::migrate! macro, just run the backend
-```
-
-
-### Adding new queries or modifying existing ones
-
-Edit the `query!` macro invocation, then run
-
-```shell
-cargo sqlx prepare -D "postgres://$user:$pass@$address:5432/accel_pen"
-```
-
-Sometimes also restart rust_analyzer (in VS Code at least). Once you're happy,
-don't forget to include changes to the *.sqlx* directory in your commit.
+In *migration*, `cargo r -- reset -u <dataase url>`; edit; `cargo r -- up -u <database url>`
 
 
 ### Changing tags
 
-Don't modify *0002_tags.up.sql*, instead edit *build.rs* with the new tags. If
-the accel pen instance is up and running, don't change tag IDs.
-
-Since the *build.rs* script generates *0002_tags.up.sql*, which is a migration
-file, you will need to revert the existing migrations before running them again.
+Modify *migration/src/m20250521_000658_tags.rs*
 
 
 ## Architecture
