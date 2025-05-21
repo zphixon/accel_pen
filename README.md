@@ -43,7 +43,7 @@ To build for the first time:
 
 - Install build dependencies
   - Node 23.11 (through node version manager is easiest)
-  - [SQLx CLI](https://github.com/launchbadge/sqlx/blob/6b2e0247d47d020d91dc6f7402d42e4e6131af11/sqlx-cli/README.md)
+  - sea-orm-cli 1.1.0 (through cargo install)
   - Postgres (alternatively, `docker compose -f dev.docker-compose.yml up --build` will bring up a containerized installation)
 
 - Build the backend, and typescript bindings for the frontend
@@ -232,10 +232,16 @@ Add images, CSS, or plain JS files to *frontend/static*. They are served by a
 
 In *migration*, run `cargo r -- generate <name> -u <database url>`
 
+Edit
+
+In the repo root, run `sea-orm-cli generate entity -o src/entity -u <database url> --date-time-crate time`
+
 
 ### Modifying an existing schema
 
 In *migration*, `cargo r -- reset -u <dataase url>`; edit; `cargo r -- up -u <database url>`
+
+In the repo root, run `sea-orm-cli generate entity -o src/entity -u <database url> --date-time-crate time`
 
 
 ### Changing tags
