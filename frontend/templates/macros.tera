@@ -37,18 +37,29 @@
   <img class="{{ class_list | join(sep=' ') }}" src="/api/v1/map/{{ map.id }}/{{ resource }}" />
 {%- endmacro map_thumbnail %}
 
-{% macro map_tiles(maps, include_author=true) -%}
+{% macro map_tile(map, author="map_author", author_arg="") %}
+  {%- set map_author = map.author -%}
+  {%- if author == "map_author" -%}
+  {%- elif author == "author_arg" -%}
+    {%- set map_author = author_arg -%}
+  {%- elif author == "none" %}
+    {%- set map_author = [] -%}
+  {%- endif -%}
+  <div class="mapTile">
+    <a href="/map/{{ map.id }}">{{ self::map_thumbnail(map=map, small=true) }}</a>
+    <div class="mapTileData">
+      {{ self::nadeo_string(text=map.name) }}
+      {%- if map_author -%}
+        <div class="mapTileAuthor">by {{ self::user_summary(user=map_author) }}</div>
+      {%- endif -%}
+    </div>
+  </div>
+{% endmacro map_tile %}
+
+{% macro map_tiles(maps, author="map_author") -%}
   <div class="mapTiles">
     {% for map in maps %}
-      <div class="mapTile">
-        <a href="/map/{{ map.id }}">{{ self::map_thumbnail(map=map, small=true) }}</a>
-        <div class="mapTileData">
-          {{ self::nadeo_string(text=map.name) }}
-          {%- if include_author -%}
-            <div class="mapTileAuthor">by {{ self::user_summary(user=map.author) }}</div>
-          {%- endif -%}
-        </div>
-      </div>
+      {{ self::map_tile(map=map, author=author) }}
     {% endfor %}
   </div>
 {%- endmacro %}

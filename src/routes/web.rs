@@ -12,6 +12,7 @@ use axum::{
 };
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
+use serde::Serialize;
 use tera::Context as TeraContext;
 
 pub fn render_error(
@@ -399,28 +400,91 @@ pub async fn map_manage_page(
         );
     };
 
-    match populate_context_with_map_data(&state, map_id, &mut context).await {
-        Ok(Some(map)) if map.author.user_id != auth.user_id() => {
-            return render_error(
-                &state,
-                context,
-                StatusCode::UNAUTHORIZED,
-                "Unauthorized",
-                "This isn't your map >:(",
-            );
-        }
-
-        Ok(_) => {}
-
-        Err(error) => {
+    let mut conn = match state.db.get().await {
+        Ok(conn) => conn,
+        Err(err) => {
             return render_error(
                 &state,
                 context,
                 StatusCode::INTERNAL_SERVER_ERROR,
-                error,
-                "Fetching map from database",
+                "Getting database connection",
+                err,
+            );
+        }
+    };
+
+    let map = match crate::schema::map::dsl::map
+        .select(crate::models::Map::as_select())
+        .find(map_id)
+        .get_result(&mut conn)
+        .await
+        .optional()
+    {
+        Ok(Some(map)) => map,
+        Ok(None) => {
+            return render_error(
+                &state,
+                context,
+                StatusCode::NOT_FOUND,
+                "Map not found",
+                "Map not found",
             )
         }
+        Err(err) => {
+            return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Getting map hmmmmmmmm i hate this thing",
+                err,
+            );
+        }
+    };
+
+    let users: Vec<(crate::models::User, crate::models::MapUser)> =
+        match crate::models::MapUser::belonging_to(&map)
+            .inner_join(crate::schema::ap_user::table)
+            .select((
+                crate::models::User::as_select(),
+                crate::models::MapUser::as_select(),
+            ))
+            .get_results(&mut conn)
+            .await
+        {
+            Ok(users) => users,
+            Err(err) => {
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Getting map hmmmmmmmm i hate this thing",
+                    err,
+                );
+            }
+        };
+
+    if !users
+        .iter()
+        .find(|(user, perms)| user.ap_user_id == auth.user_id() && perms.may_manage)
+        .is_some()
+    {
+        return render_error(
+            &state,
+            context,
+            StatusCode::UNAUTHORIZED,
+            "Not allowed",
+            "You are not allowed to manage this map",
+        );
+    }
+
+    if let Err(error) = populate_context_with_map_data(&state, map_id, &mut context).await {
+        return render_error(
+            &state,
+            context,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            error,
+            "Fetching map from database",
+        );
     }
 
     if let Err(error) = populate_context_with_tags(&state, &mut context).await {
@@ -539,7 +603,7 @@ pub async fn user_page(
         }
     };
 
-    let user_maps = match crate::models::MapUser::belonging_to(&user)
+    let authored_maps: Vec<crate::models::Map> = match crate::models::MapUser::belonging_to(&user)
         .inner_join(crate::schema::map::table)
         .select(crate::models::Map::as_select())
         .filter(crate::schema::map_user::dsl::is_author.eq(true))
@@ -570,11 +634,11 @@ pub async fn user_page(
     };
 
     let mut maps_context = Vec::new();
-    for map in user_maps {
+    for map in authored_maps.iter() {
         let name = nadeo::FormattedString::parse(&map.map_name);
         maps_context.push(MapContext {
             id: map.ap_map_id,
-            gbx_uid: map.gbx_mapuid,
+            gbx_uid: map.gbx_mapuid.clone(),
             plain_name: name.strip_formatting(),
             name,
             votes: map.votes,
@@ -669,6 +733,70 @@ pub async fn user_page(
         }
 
         context.insert("managed_maps", &map_contexts);
+
+        #[derive(Serialize)]
+        struct ManagedByOtherUser {
+            map: MapContext,
+            user: UserResponse,
+        }
+    
+        let mut managed_by_others = Vec::new();
+        for map in authored_maps.iter() {
+            let users: Vec<(crate::models::MapUser, crate::models::User)> =
+                match crate::models::MapUser::belonging_to(map)
+                    .inner_join(crate::schema::ap_user::table)
+                    .select((
+                        crate::models::MapUser::as_select(),
+                        crate::models::User::as_select(),
+                    ))
+                    .get_results(&mut conn)
+                    .await
+                {
+                    Ok(users) => users,
+                    Err(err) => {
+                        // TODO less repetition
+                        return render_error(
+                            &state,
+                            context,
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "Getting maps user has participated in",
+                            err,
+                        );
+                    }
+                };
+    
+            if let Some((_, other_user)) = users
+                .iter()
+                .find(|(perms, user)| user.ap_user_id != user_response.user_id && perms.may_manage)
+            {
+                let name = nadeo::FormattedString::parse(&map.map_name);
+                managed_by_others.push(ManagedByOtherUser {
+                    user: UserResponse {
+                        display_name: other_user.nadeo_display_name.clone(),
+                        account_id: other_user.nadeo_account_id.clone(),
+                        user_id: other_user.ap_user_id,
+                        club_tag: other_user
+                            .nadeo_club_tag
+                            .as_deref()
+                            .map(nadeo::FormattedString::parse),
+                        registered: other_user.registered.map(crate::format_time),
+                    },
+                    map: MapContext {
+                        id: map.ap_map_id,
+                        gbx_uid: map.gbx_mapuid.clone(),
+                        plain_name: name.strip_formatting(),
+                        name,
+                        votes: map.votes,
+                        uploaded: crate::format_time(map.uploaded),
+                        created: crate::format_time(map.created),
+                        author: user_response.clone(),
+                        tags: vec![],
+                        medals: None,
+                    },
+                });
+            }
+        }
+        context.insert("managed_by_others", &managed_by_others);
     }
 
     context.insert("page_user", &user_response);

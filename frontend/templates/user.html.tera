@@ -29,11 +29,27 @@
 
 {% block content %}
   {%- if page_user -%}
-    <h3>Maps by {{ page_user.display_name }}</h3>
+    {% if managed_by_others %}
+      <h3>Managed by other users</h3>
+      <p>
+        <a href="/api/v1/map/claim">Click here to claim ownership of your maps</a>
+      </p>
+      {% for managed in managed_by_others %}
+        <div class="mapTiles">
+          {{ macros::map_tile(map=managed.map, author="author_arg", author_arg=managed.user) }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {%- if user and page_user.user_id == user.user_id -%}
+      <h3>Maps by you</h3>
+    {%- else -%}
+      <h3>Maps by {{ page_user.display_name }}</h3>
+    {%- endif -%}
     {%- if not page_user.registered -%}
       <p>
         This user is not registered. Maps on this page are managed by other Accel Pen users.
-        They may claim ownership of these maps by logging in above.
+        {{ page_user.display_name }} may claim ownership of these maps by logging in above.
       </p>
     {%- endif -%}
 

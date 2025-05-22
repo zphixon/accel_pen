@@ -90,6 +90,8 @@ impl NadeoAuthSessionInner {
             .await
             .context("Get self club tag")?;
 
+        let registered = time::OffsetDateTime::now_utc();
+
         let mut conn = state.db.get().await?;
         let new_user: crate::models::User = diesel::insert_into(crate::schema::ap_user::table)
             .values(crate::models::NewUser {
@@ -97,13 +99,14 @@ impl NadeoAuthSessionInner {
                 nadeo_login: crate::nadeo::account_id_to_login(&user.account_id)?,
                 nadeo_account_id: user.account_id.clone(),
                 nadeo_club_tag: club_tag.clone(),
-                registered: Some(time::OffsetDateTime::now_utc()),
+                registered: Some(registered.clone()),
             })
             .on_conflict(crate::schema::ap_user::dsl::nadeo_account_id)
             .do_update()
             .set((
                 crate::schema::ap_user::dsl::nadeo_display_name.eq(user.display_name.clone()),
                 crate::schema::ap_user::dsl::nadeo_club_tag.eq(club_tag),
+                crate::schema::ap_user::dsl::registered.eq(Some(registered)),
             ))
             .returning(crate::models::User::as_returning())
             .get_result(&mut conn)
