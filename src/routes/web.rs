@@ -244,21 +244,27 @@ async fn populate_context_with_map_data(
         })
         .collect();
 
-    let author: crate::models::User = match crate::models::MapUser::belonging_to(&map)
-        .inner_join(crate::schema::ap_user::table)
-        .select(crate::models::User::as_select())
-        .filter(crate::schema::map_user::dsl::is_author.eq(true))
-        .get_result(&mut conn)
-        .await
-        .optional()
-    {
-        Ok(Some(user)) => user,
-        Ok(None) => {
-            return Err(ApiErrorInner::MissingFromMultipart { error: "TODO1" }.into());
+    let users: Vec<(crate::models::MapUser, crate::models::User)> =
+        match crate::models::MapUser::belonging_to(&map)
+            .inner_join(crate::schema::ap_user::table)
+            .select((
+                crate::models::MapUser::as_select(),
+                crate::models::User::as_select(),
+            ))
+            .get_results(&mut conn)
+            .await
+        {
+            Ok(users) => users,
+            Err(err) => {
+                return Err(err.into());
+            }
+        };
+
+    let Some((author_perms, author)) = users.iter().find(|(user, _)| user.is_author) else {
+        return Err(ApiErrorInner::MissingFromMultipart {
+            error: "gheawjhoewjifoewaojfie",
         }
-        Err(err) => {
-            return Err(err.into());
-        }
+        .into());
     };
 
     let name = nadeo::FormattedString::parse(&map.map_name);
@@ -272,8 +278,8 @@ async fn populate_context_with_map_data(
         uploaded: crate::format_time(map.uploaded),
         created: crate::format_time(map.created),
         author: UserResponse {
-            display_name: author.nadeo_display_name,
-            account_id: author.nadeo_account_id,
+            display_name: author.nadeo_display_name.clone(),
+            account_id: author.nadeo_account_id.clone(),
             user_id: author.ap_user_id,
             club_tag: author
                 .nadeo_club_tag
@@ -289,6 +295,29 @@ async fn populate_context_with_map_data(
             bronze: map.bronze_time as u32,
         }),
     };
+
+    if !author_perms.is_uploader {
+        let Some((_, uploader)) = users.iter().find(|(user, _)| user.is_uploader) else {
+            return Err(ApiErrorInner::MissingFromMultipart {
+                error: "Missing uploader jafiowejoifeawiofjio",
+            }
+            .into());
+        };
+
+        context.insert(
+            "uploader",
+            &UserResponse {
+                display_name: uploader.nadeo_display_name.clone(),
+                account_id: uploader.nadeo_account_id.clone(),
+                user_id: uploader.ap_user_id,
+                club_tag: uploader
+                    .nadeo_club_tag
+                    .as_deref()
+                    .map(nadeo::FormattedString::parse),
+                registered: uploader.registered.map(super::format_time),
+            },
+        );
+    }
 
     context.insert("map", &map_context);
     Ok(Some(map_context))
@@ -492,7 +521,7 @@ pub async fn user_page(
         }
     };
 
-    let user = match crate::schema::ap_user::dsl::ap_user
+    let user: crate::models::User = match crate::schema::ap_user::dsl::ap_user
         .select(crate::models::User::as_select())
         .find(user_id)
         .get_result(&mut conn)
@@ -513,6 +542,7 @@ pub async fn user_page(
     let user_maps = match crate::models::MapUser::belonging_to(&user)
         .inner_join(crate::schema::map::table)
         .select(crate::models::Map::as_select())
+        .filter(crate::schema::map_user::dsl::is_author.eq(true))
         .get_results(&mut conn)
         .await
     {
@@ -529,9 +559,9 @@ pub async fn user_page(
     };
 
     let user_response = UserResponse {
-        display_name: user.nadeo_display_name,
-        account_id: user.nadeo_account_id,
-        user_id: user.ap_user_id,
+        display_name: user.nadeo_display_name.clone(),
+        account_id: user.nadeo_account_id.clone(),
+        user_id: user.ap_user_id.clone(),
         club_tag: user
             .nadeo_club_tag
             .as_deref()
@@ -558,53 +588,87 @@ pub async fn user_page(
     context.insert("user_maps", &maps_context);
 
     if Some(user_response.user_id) == auth.map(|auth| auth.user_id()) {
-        // TODO
-        //match sqlx::query!(
-        //    "
-        //        SELECT map.ap_map_id, map.gbx_mapuid, map.mapname, map.votes, map.uploaded, map.created,
-        //            map.ap_author_id, ap_user.nadeo_display_name, ap_user.ap_user_id, ap_user.nadeo_id,
-        //            ap_user.nadeo_club_tag, ap_user.registered,
-        //            map.author_medal_ms, map.gold_medal_ms, map.silver_medal_ms, map.bronze_medal_ms
-        //        FROM map JOIN ap_user ON map.ap_author_id = ap_user.ap_user_id
-        //        WHERE map.ap_uploader_id = $1 AND map.ap_author_id != $1
-        //    ",
-        //    user.user_id,
-        //)
-        //.fetch_all(state.db.get_postgres_connection_pool())
-        //.await
-        //{
-        //    Ok(managed_maps) => {
-        //        let mut maps_context = Vec::new();
-        //        for map in managed_maps {
-        //            let name = nadeo::FormattedString::parse(&map.mapname);
-        //            maps_context.push(MapContext {
-        //                id: map.ap_map_id,
-        //                gbx_uid: map.gbx_mapuid,
-        //                plain_name: name.strip_formatting(),
-        //                name,
-        //                votes: map.votes,
-        //                uploaded: super::format_time(map
-        //                    .uploaded),
-        //                created: super::format_time(map
-        //                    .created)
-        //                    ,
-        //                author: UserResponse { display_name: map.nadeo_display_name, account_id: map.nadeo_id , user_id: map.ap_user_id, club_tag: map.nadeo_club_tag.as_deref().map(nadeo::FormattedString::parse), registered: None } ,
-        //                medals: None,
-        //                tags: vec![],
-        //            });
-        //        }
-        //        context.insert("managed_maps", &maps_context);
-        //    }
-        //    Err(err) => {
-        //        return render_error(
-        //            &state,
-        //            context,
-        //            StatusCode::INTERNAL_SERVER_ERROR,
-        //            "Database error getting my maps",
-        //            err,
-        //        );
-        //    }
-        //}
+        let managed_maps: Vec<crate::models::Map> =
+            match crate::models::MapUser::belonging_to(&user)
+                .inner_join(crate::schema::map::table)
+                .select(crate::models::Map::as_select())
+                .filter(
+                    crate::schema::map_user::dsl::may_manage
+                        .eq(true)
+                        .and(crate::schema::map_user::dsl::is_author.eq(false)),
+                )
+                .get_results(&mut conn)
+                .await
+            {
+                Ok(managed) => managed,
+                Err(error) => {
+                    return render_error(
+                        &state,
+                        context,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        error,
+                        "Getting maps managed  by user",
+                    )
+                }
+            };
+
+        let mut map_contexts = Vec::<MapContext>::new();
+        for map in managed_maps {
+            let author: crate::models::User = match crate::models::MapUser::belonging_to(&map)
+                .inner_join(crate::schema::ap_user::table)
+                .select(crate::models::User::as_select())
+                .filter(crate::schema::map_user::dsl::is_author.eq(true))
+                .get_result(&mut conn)
+                .await
+                .optional()
+            {
+                Ok(Some(user)) => user,
+                Ok(None) => {
+                    return render_error(
+                        &state,
+                        context,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Missing author",
+                        "Missing author for map",
+                    )
+                }
+                Err(err) => {
+                    // TODO less repetition
+                    return render_error(
+                        &state,
+                        context,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Database error getting recently uploaded maps",
+                        err,
+                    );
+                }
+            };
+
+            let name = nadeo::FormattedString::parse(&map.map_name);
+            map_contexts.push(MapContext {
+                id: map.ap_map_id,
+                gbx_uid: map.gbx_mapuid,
+                plain_name: name.strip_formatting(),
+                name,
+                votes: map.votes,
+                uploaded: crate::format_time(map.uploaded),
+                created: crate::format_time(map.created),
+                author: UserResponse {
+                    display_name: author.nadeo_display_name,
+                    account_id: author.nadeo_account_id,
+                    user_id: author.ap_user_id,
+                    club_tag: author
+                        .nadeo_club_tag
+                        .as_deref()
+                        .map(nadeo::FormattedString::parse),
+                    registered: author.registered.map(crate::format_time),
+                },
+                tags: vec![],
+                medals: None,
+            });
+        }
+
+        context.insert("managed_maps", &map_contexts);
     }
 
     context.insert("page_user", &user_response);
