@@ -1,6 +1,5 @@
 use crate::{
     config::CONFIG,
-    entity::ap_user,
     error::{ApiError, ApiErrorInner, Context},
     nadeo::api::{NadeoClubTag, NadeoUser, CLIENT},
     AppState,
@@ -9,9 +8,9 @@ use axum::{
     extract::{FromRequestParts, OptionalFromRequestParts},
     http::{request::Parts, StatusCode},
 };
-use migration::OnConflict;
+use diesel::prelude::*;
+use diesel_async::{RunQueryDsl};
 use reqwest::header;
-use sea_orm::{ActiveValue::Set, EntityTrait};
 use serde::{Deserialize, Serialize};
 use std::{
     ops::Deref,
@@ -91,34 +90,32 @@ impl NadeoAuthSessionInner {
             .await
             .context("Get self club tag")?;
 
-        let ap_user = ap_user::ActiveModel {
-            nadeo_display_name: Set(user.display_name.clone()),
-            nadeo_login: Set(super::account_id_to_login(&user.account_id)?),
-            nadeo_account_id: Set(user.account_id.clone()),
-            nadeo_club_tag: Set(club_tag),
-            registered: Set(Some(time::OffsetDateTime::now_utc())),
-            ..Default::default()
-        };
-
-        let ap_user = ap_user::Entity::insert(ap_user)
-            .on_conflict(
-                OnConflict::column(ap_user::Column::NadeoAccountId)
-                    .update_columns([
-                        ap_user::Column::NadeoDisplayName,
-                        ap_user::Column::NadeoClubTag,
-                    ])
-                    .to_owned(),
-            )
-            .exec_with_returning(&state.db)
+        let mut conn = state.db.get().await?;
+        let new_user: crate::models::User = diesel::insert_into(crate::schema::ap_user::table)
+            .values(crate::models::NewUser {
+                nadeo_display_name: user.display_name.clone(),
+                nadeo_login: crate::nadeo::account_id_to_login(&user.account_id)?,
+                nadeo_account_id: user.account_id.clone(),
+                nadeo_club_tag: club_tag.clone(),
+                registered: Some(time::OffsetDateTime::now_utc()),
+            })
+            .on_conflict(crate::schema::ap_user::dsl::nadeo_account_id)
+            .do_update()
+            .set((
+                crate::schema::ap_user::dsl::nadeo_display_name.eq(user.display_name.clone()),
+                crate::schema::ap_user::dsl::nadeo_club_tag.eq(club_tag),
+            ))
+            .returning(crate::models::User::as_returning())
+            .get_result(&mut conn)
             .await?;
 
         Ok(NadeoAuthSessionInner {
             inner,
             user,
-            club_tag: ap_user.nadeo_club_tag,
-            user_id: ap_user.ap_user_id,
+            club_tag: new_user.nadeo_club_tag,
+            user_id: new_user.ap_user_id,
             issued,
-            registered: ap_user.registered.expect("registered"),
+            registered: new_user.registered.expect("registered"),
         })
     }
 

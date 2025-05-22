@@ -1,0 +1,2 @@
+DELETE FROM tag CASCADE;
+DELETE FROM tag_implies CASCADE;

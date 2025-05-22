@@ -1,7 +1,6 @@
 use super::{MapContext, TagInfo};
 use crate::{
     config::CONFIG,
-    entity::{ap_user, map, map_data, map_tag, map_thumbnail, tag, tag_implies},
     error::{ApiError, ApiErrorInner, Context as _},
     nadeo::{
         self,
@@ -18,11 +17,8 @@ use axum::{
     Json,
 };
 use axum_extra::extract::WithRejection;
-use migration::OnConflict;
-use sea_orm::{
-    ActiveModelTrait as _, ActiveValue::Set, ColumnTrait as _, EntityTrait as _, QueryFilter,
-    QuerySelect, TransactionTrait,
-};
+use diesel::prelude::*;
+use diesel_async::RunQueryDsl;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tower_sessions::Session;
@@ -126,10 +122,14 @@ pub async fn map_thumbnail_size(
 }
 
 async fn map_thumbnail_inner(state: AppState, path: ThumbnailPath) -> Result<Response, ApiError> {
-    let Some(thumbnail) = map_thumbnail::Entity::find()
-        .filter(map_thumbnail::Column::ApMapId.eq(path.map_id))
-        .one(&state.db)
-        .await?
+    let mut conn = state.db.get().await?;
+
+    let Some(map) = crate::schema::map::dsl::map
+        .select(crate::models::Map::as_select())
+        .find(path.map_id)
+        .get_result(&mut conn)
+        .await
+        .optional()?
     else {
         return Err(ApiErrorInner::MapNotFound {
             map_id: path.map_id,
@@ -137,15 +137,25 @@ async fn map_thumbnail_inner(state: AppState, path: ThumbnailPath) -> Result<Res
         .into());
     };
 
+    let thumbnail_data: Vec<u8> = match path.size {
+        ThumbnailSize::Small => {
+            crate::models::MapThumbnailSmall::belonging_to(&map)
+                .select(crate::models::MapThumbnailSmall::as_select())
+                .get_result(&mut conn)
+                .await?
+                .thumbnail_small
+        }
+        ThumbnailSize::Large => {
+            crate::models::MapThumbnailLarge::belonging_to(&map)
+                .select(crate::models::MapThumbnailLarge::as_select())
+                .get_result(&mut conn)
+                .await?
+                .thumbnail
+        }
+    };
+
     // TODO don't select both columns
-    Ok((
-        [(header::CONTENT_TYPE, "image/webp")],
-        match path.size {
-            ThumbnailSize::Small => thumbnail.thumbnail_small,
-            ThumbnailSize::Large => thumbnail.thumbnail,
-        },
-    )
-        .into_response())
+    Ok(([(header::CONTENT_TYPE, "image/webp")], thumbnail_data).into_response())
 }
 
 #[derive(Serialize, TS)]
@@ -222,18 +232,23 @@ pub async fn map_upload(
         .into());
     }
 
+    let mut conn = state.db.get().await?;
+
     let mut map_tags: HashSet<i32> = HashSet::new();
     for tag in map_meta.tags.iter() {
-        let Some(tag) = tag::Entity::find()
-            .filter(tag::Column::TagName.eq(tag))
-            .one(&state.db)
-            .await?
+        let Some(tag): Option<crate::models::Tag> = crate::schema::tag::dsl::tag
+            .select(crate::models::Tag::as_select())
+            .filter(crate::schema::tag::dsl::tag_name.eq(tag))
+            .get_result(&mut conn)
+            .await
+            .optional()?
         else {
             return Err(ApiErrorInner::NoSuchTag {
                 tag: tag.to_owned(),
             }
             .into());
         };
+
         map_tags.insert(tag.tag_id);
     }
 
@@ -288,91 +303,37 @@ pub async fn map_upload(
     let ap_author_id = if auth.account_id() == author_account_id {
         ap_uploader_id
     } else {
-        let user = NadeoUser::get_from_account_id(&*auth, &author_account_id)
+        let maybe_user: Option<crate::models::User> = crate::schema::ap_user::dsl::ap_user
+            .select(crate::models::User::as_select())
+            .filter(crate::schema::ap_user::dsl::nadeo_account_id.eq(&author_account_id))
+            .get_result(&mut conn)
             .await
-            .context("Getting author account info")?;
-        let club_tag = NadeoClubTag::get(&user.account_id)
-            .await
-            .context("Get self club tag")?;
+            .optional()?;
 
-        if ap_user::Entity::find()
-            .filter(
-                ap_user::Column::NadeoAccountId
-                    .eq(&author_account_id)
-                    .and(ap_user::Column::Registered.is_null()),
-            )
-            .one(&state.db)
-            .await?
-            .is_some()
-        {
+        if maybe_user.and_then(|user| user.registered).is_some() {
             return Err(ApiErrorInner::NotYourMap.into());
         }
 
-        let user = ap_user::ActiveModel {
-            nadeo_display_name: Set(user.display_name.clone()),
-            nadeo_login: Set(nadeo::account_id_to_login(&user.account_id)?),
-            nadeo_account_id: Set(user.account_id.clone()),
-            nadeo_club_tag: Set(club_tag),
-            ..Default::default()
-        };
+        let user = NadeoUser::get_from_account_id(&*auth, &author_account_id)
+            .await
+            .context("Getting new author account info for upload")?;
+        let club_tag = NadeoClubTag::get(&user.account_id)
+            .await
+            .context("Get new author club tag for upload")?;
 
-        ap_user::Entity::insert(user)
-            .on_conflict(
-                OnConflict::column(ap_user::Column::NadeoAccountId)
-                    .update_columns([
-                        ap_user::Column::NadeoDisplayName,
-                        ap_user::Column::NadeoClubTag,
-                    ])
-                    .to_owned(),
-            )
-            .exec_with_returning(&state.db)
-            .await?
-            .ap_user_id
-    };
+        let new_user: crate::models::User = diesel::insert_into(crate::schema::ap_user::table)
+            .values(crate::models::NewUser {
+                nadeo_display_name: user.display_name.clone(),
+                nadeo_login: crate::nadeo::account_id_to_login(&user.account_id)?,
+                nadeo_account_id: user.account_id.clone(),
+                nadeo_club_tag: club_tag.clone(),
+                registered: None,
+            })
+            .returning(crate::models::User::as_returning())
+            .get_result(&mut conn)
+            .await?;
 
-    let tx = state.db.begin().await?;
-
-    let map_row = match (map::ActiveModel {
-        author: Set(ap_author_id),
-        gbx_mapuid: Set(map_info.id.to_string()),
-        map_name: Set(map_name.to_string()),
-        uploaded: Set(time::OffsetDateTime::now_utc()),
-        created: Set(
-            time::OffsetDateTime::from_unix_timestamp(map_meta.last_modified as i64).map_err(
-                |_| {
-                    ApiError::from(ApiErrorInner::MissingFromMultipart {
-                        error: "Good timestamp for last modified",
-                    })
-                },
-            )?,
-        ),
-        author_time: Set(author_time),
-        gold_time: Set(gold_time),
-        silver_time: Set(silver_time),
-        bronze_time: Set(bronze_time),
-        ..Default::default()
-    }
-    .insert(&state.db)
-    .await)
-    {
-        Ok(map) => map,
-        Err(err) => match map::Entity::find()
-            .filter(map::Column::GbxMapuid.eq(map_info.id))
-            .one(&state.db)
-            .await?
-        {
-            Some(map) => {
-                return Err(ApiErrorInner::AlreadyUploaded {
-                    map_id: map.ap_map_id,
-                }
-                .into())
-            }
-            None => Err(err)?,
-        },
-    };
-    let map_response = MapUploadResponse {
-        map_id: map_row.ap_map_id,
-        map_name: nadeo::FormattedString::parse(&map_row.map_name).strip_formatting(),
+        new_user.ap_user_id
     };
 
     let thumbnail = image::ImageReader::new(std::io::Cursor::new(thumbnail_data))
@@ -406,36 +367,105 @@ pub async fn map_upload(
 
     let map_buffer = map_data.to_vec();
 
-    map_data::ActiveModel {
-        ap_map_id: Set(map_response.map_id),
-        gbx_data: Set(map_buffer),
-        ..Default::default()
-    }
-    .insert(&state.db)
-    .await?;
+    let new_map = match diesel::insert_into(crate::schema::map::table)
+        .values(crate::models::NewMap {
+            gbx_mapuid: map_info.id.to_string(),
+            map_name: map_name.to_string(),
+            uploaded: time::OffsetDateTime::now_utc(),
+            created: time::OffsetDateTime::from_unix_timestamp(map_meta.last_modified as i64)?,
+            author_time,
+            gold_time,
+            silver_time,
+            bronze_time,
+        })
+        .returning(crate::models::Map::as_returning())
+        .get_result(&mut conn)
+        .await
+    {
+        Ok(new_map) => new_map,
+        Err(err) => {
+            if let Some(exists) = crate::schema::map::dsl::map
+                .select(crate::models::Map::as_select())
+                .filter(crate::schema::map::dsl::gbx_mapuid.eq(map_info.id))
+                .get_result(&mut conn)
+                .await
+                .optional()?
+            {
+                return Err(ApiErrorInner::AlreadyUploaded {
+                    map_id: exists.ap_map_id,
+                }
+                .into());
+            } else {
+                return Err(err.into());
+            }
+        }
+    };
 
-    map_thumbnail::ActiveModel {
-        ap_map_id: Set(map_response.map_id),
-        thumbnail: Set(thumbnail_data),
-        thumbnail_small: Set(small_thumbnail_data),
-        ..Default::default()
-    }
-    .insert(&state.db)
-    .await?;
+    diesel::insert_into(crate::schema::map_data::table)
+        .values(crate::models::MapData {
+            ap_map_id: new_map.ap_map_id,
+            gbx_data: map_buffer,
+        })
+        .execute(&mut conn)
+        .await?;
+
+    diesel::insert_into(crate::schema::map_thumbnail::table)
+        .values(crate::models::MapThumbnail {
+            ap_map_id: new_map.ap_map_id,
+            thumbnail: thumbnail_data,
+            thumbnail_small: small_thumbnail_data,
+        })
+        .execute(&mut conn)
+        .await?;
 
     for tag in map_tags {
-        map_tag::ActiveModel {
-            ap_map_id: Set(map_response.map_id),
-            tag_id: Set(tag),
-            ..Default::default()
-        }
-        .insert(&state.db)
-        .await?;
+        diesel::insert_into(crate::schema::map_tag::table)
+            .values(crate::models::MapTag {
+                ap_map_id: new_map.ap_map_id,
+                tag_id: tag,
+            })
+            .execute(&mut conn)
+            .await?;
     }
 
-    tx.commit().await?;
+    if ap_author_id == ap_uploader_id {
+        diesel::insert_into(crate::schema::map_permission::table)
+            .values(crate::models::MapPermission {
+                ap_map_id: new_map.ap_map_id,
+                ap_user_id: ap_author_id,
+                is_author: true,
+                is_uploader: true,
+                may_manage: true,
+            })
+            .execute(&mut conn)
+            .await?;
+    } else {
+        diesel::insert_into(crate::schema::map_permission::table)
+            .values(crate::models::MapPermission {
+                ap_map_id: new_map.ap_map_id,
+                ap_user_id: ap_author_id,
+                is_author: true,
+                is_uploader: false,
+                may_manage: true,
+            })
+            .execute(&mut conn)
+            .await?;
+        diesel::insert_into(crate::schema::map_permission::table)
+            .values(crate::models::MapPermission {
+                ap_map_id: new_map.ap_map_id,
+                ap_user_id: ap_uploader_id,
+                is_author: false,
+                is_uploader: true,
+                may_manage: true,
+            })
+            .execute(&mut conn)
+            .await?;
+    }
 
-    Ok(Json(map_response))
+    Ok(Json(MapUploadResponse {
+        map_id: new_map.ap_map_id,
+        map_name: nadeo::FormattedString::parse(&new_map.map_name).strip_formatting(),
+    }))
 }
 
 #[derive(Deserialize, TS)]
@@ -464,23 +494,43 @@ pub async fn map_manage(
     auth: NadeoAuthSession,
     WithRejection(Json(request), _): WithRejection<Json<MapManageRequest>, ApiError>,
 ) -> Result<Json<MapManageResponse>, ApiError> {
-    if map::Entity::find_by_id(map_id)
-        .filter(map::Column::Author.eq(auth.user_id()))
-        .one(&state.db)
-        .await?
-        .is_none()
-    {
+    let mut conn = state.db.get().await?;
+    let Some(map) = crate::schema::map::dsl::map
+        .select(crate::models::Map::as_select())
+        .find(map_id)
+        .get_result(&mut conn)
+        .await
+        .optional()?
+    else {
         return Err(ApiErrorInner::MapNotFound { map_id }.into());
+    };
+
+    let permissions: Vec<crate::models::MapPermission> =
+        crate::models::MapPermission::belonging_to(&map)
+            .inner_join(crate::schema::ap_user::table)
+            .filter(crate::schema::map_permission::dsl::ap_user_id.eq(auth.user_id()))
+            .select(crate::models::MapPermission::as_select())
+            .get_results(&mut conn)
+            .await?;
+
+    if !permissions
+        .iter()
+        .any(|perm| perm.is_author || perm.may_manage)
+    {
+        return Err(ApiErrorInner::NotYourMap.into());
     }
 
     match &request.command {
         MapManageCommand::SetTags { tags } => {
             // 1. make sure tags exist
             for tag in tags.iter() {
-                if tag::Entity::find_by_id(tag.id)
-                    .filter(tag::Column::TagName.eq(&tag.name))
-                    .one(&state.db)
-                    .await?
+                if crate::schema::tag::dsl::tag
+                    .find(tag.id)
+                    .filter(crate::schema::tag::dsl::tag_name.eq(&tag.name))
+                    .select(crate::models::Tag::as_select())
+                    .get_result(&mut conn)
+                    .await
+                    .optional()?
                     .is_none()
                 {
                     return Err(ApiErrorInner::NoSuchTag {
@@ -490,28 +540,29 @@ pub async fn map_manage(
                 };
             }
 
-            let tx = state.db.begin().await?;
-
             // 2. remove map from `tag`
-            map_tag::Entity::delete_many()
-                .filter(map_tag::Column::ApMapId.eq(map_id))
-                .exec(&state.db)
+            diesel::delete(crate::schema::map_tag::table)
+                .filter(crate::schema::map_tag::dsl::ap_map_id.eq(map.ap_map_id))
+                .execute(&mut conn)
                 .await?;
 
             // 3. re-add map to tag with tags from `tags`
-            map_tag::Entity::insert_many(tags.into_iter().map(|tag| map_tag::ActiveModel {
-                ap_map_id: Set(map_id),
-                tag_id: Set(tag.id),
-                ..Default::default()
-            }))
-            .exec(&state.db)
-            .await?;
-
-            tx.commit().await?;
+            for tag in tags {
+                diesel::insert_into(crate::schema::map_tag::table)
+                    .values(crate::models::MapTag {
+                        ap_map_id: map.ap_map_id,
+                        tag_id: tag.id,
+                    })
+                    .execute(&mut conn)
+                    .await?;
+            }
         }
 
         MapManageCommand::Delete => {
-            map::Entity::delete_by_id(map_id).exec(&state.db).await?;
+            diesel::delete(crate::schema::map::table)
+                .filter(crate::schema::map::dsl::ap_map_id.eq(map.ap_map_id))
+                .execute(&mut conn)
+                .await?;
         }
     }
 
@@ -535,63 +586,71 @@ pub async fn map_search(
     State(state): State<AppState>,
     WithRejection(Json(request), _): WithRejection<Json<MapSearchRequest>, ApiError>,
 ) -> Result<Json<MapSearchResponse>, ApiError> {
-    let mut maps = HashMap::<i32, MapContext>::new();
+    let mut conn = state.db.get().await?;
 
-    let mut tag_infos: Vec<TagInfo> = Vec::new();
+    let mut tag_infos: Vec<crate::models::Tag> = Vec::new();
     for tag in request.tagged_with.iter() {
-        tag_infos.push(tag.clone());
-        let implications = tag_implies::Entity::find()
-            .filter(tag_implies::Column::Implyer.eq(tag.id))
-            .all(&state.db)
+        tag_infos.push(
+            // TODO error on unknown tag
+            crate::schema::tag::dsl::tag
+                .find(tag.id)
+                .filter(crate::schema::tag::dsl::tag_name.eq(&tag.name))
+                .select(crate::models::Tag::as_select())
+                .get_result(&mut conn)
+                .await?,
+        );
+
+        // TODO better schema that avoids n+1?
+        let implications = crate::schema::tag_implies::dsl::tag_implies
+            .select(crate::models::TagImplies::as_select())
+            .filter(crate::schema::tag_implies::dsl::implyer.eq(tag.id))
+            .get_results(&mut conn)
             .await?;
+
         for implication in implications {
-            let Some(implied) = tag::Entity::find_by_id(implication.implied)
-                .one(&state.db)
-                .await?
-            else {
-                return Err(ApiErrorInner::NoSuchTag {
-                    tag: tag.name.clone(),
-                }
-                .into());
-            };
-            tag_infos.push(TagInfo {
-                id: implied.tag_id,
-                name: implied.tag_name,
-            });
+            let tag: crate::models::Tag = crate::schema::tag::dsl::tag
+                .select(crate::models::Tag::as_select())
+                .find(implication.implied)
+                .get_result(&mut conn)
+                .await?;
+            tag_infos.push(tag);
         }
     }
 
+    let mut maps = HashMap::<i32, MapContext>::new();
     for tag in tag_infos {
-        for (map, author, _) in map::Entity::find()
-            .distinct()
-            .find_also_related(ap_user::Entity)
-            .find_also_related(map_tag::Entity)
-            .filter(map_tag::Column::TagId.eq(tag.id))
-            .limit(20)
-            .all(&state.db)
-            .await?
-        {
-            let Some(author) = author else {
-                // hmmmmm
-                return Err(ApiErrorInner::MapNotFound {
-                    map_id: map.ap_map_id,
+        let maps_tagged: Vec<crate::models::Map> = crate::models::MapTag::belonging_to(&tag)
+            .inner_join(crate::schema::map::table)
+            .select(crate::models::Map::as_select())
+            .get_results(&mut conn)
+            .await?;
+
+        for map in maps_tagged {
+            let tags = crate::models::MapTag::belonging_to(&map)
+                .inner_join(crate::schema::tag::table)
+                .select(crate::models::Tag::as_select())
+                .get_results(&mut conn)
+                .await?;
+
+            let users: Vec<(crate::models::MapPermission, crate::models::User)> =
+                crate::models::MapPermission::belonging_to(&map)
+                    .inner_join(crate::schema::ap_user::table)
+                    .select((
+                        crate::models::MapPermission::as_select(),
+                        crate::models::User::as_select(),
+                    ))
+                    .get_results(&mut conn)
+                    .await?;
+
+            let name = nadeo::FormattedString::parse(&map.map_name);
+
+            let Some((_, author)) = users.iter().find(|(perm, _)| perm.is_author) else {
+                return Err(ApiErrorInner::MissingFromMultipart {
+                    error: "TODO actual error",
                 }
                 .into());
             };
 
-            let tags = map_tag::Entity::find()
-                .find_also_related(tag::Entity)
-                .filter(map_tag::Column::ApMapId.eq(map.ap_map_id))
-                .all(&state.db)
-                .await?
-                .into_iter()
-                .flat_map(|(_, tag)| tag)
-                .map(|tag| TagInfo {
-                    id: tag.tag_id,
-                    name: tag.tag_name,
-                }).collect();
-
-            let name = nadeo::FormattedString::parse(&map.map_name);
             maps.insert(
                 map.ap_map_id,
                 MapContext {
@@ -603,8 +662,8 @@ pub async fn map_search(
                     uploaded: crate::format_time(map.uploaded),
                     created: crate::format_time(map.created),
                     author: UserResponse {
-                        display_name: author.nadeo_display_name,
-                        account_id: author.nadeo_account_id,
+                        display_name: author.nadeo_display_name.clone(),
+                        account_id: author.nadeo_account_id.clone(),
                         user_id: author.ap_user_id,
                         club_tag: author
                             .nadeo_club_tag
@@ -612,8 +671,19 @@ pub async fn map_search(
                             .map(nadeo::FormattedString::parse),
                         registered: author.registered.map(crate::format_time),
                     },
-                    tags,
-                    medals: None,
+                    tags: tags
+                        .into_iter()
+                        .map(|tag| TagInfo {
+                            id: tag.tag_id,
+                            name: tag.tag_name,
+                        })
+                        .collect(),
+                    medals: Some(super::Medals {
+                        author: map.author_time as u32,
+                        gold: map.gold_time as u32,
+                        silver: map.silver_time as u32,
+                        bronze: map.bronze_time as u32,
+                    }),
                 },
             );
         }

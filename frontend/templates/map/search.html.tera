@@ -6,7 +6,7 @@
 {%- endblock tabTitle %}
 
 {% block return_path -%}
-  ?return_path=/search
+  ?return_path=/map/search
 {%- endblock return_path %}
 
 {% block head %}

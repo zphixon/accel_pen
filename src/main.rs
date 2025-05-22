@@ -4,8 +4,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use migration::{Migrator, MigratorTrait as _};
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use diesel_async::{
+    pooled_connection::{deadpool::Pool, AsyncDieselConnectionManager},
+    AsyncPgConnection,
+};
 use std::sync::Arc;
 use tera::Tera;
 use tokio::net::TcpListener;
@@ -23,11 +25,11 @@ use tracing_subscriber::EnvFilter;
 
 mod config;
 mod dev;
-#[allow(unused_imports)]
-mod entity;
 mod error;
+mod models;
 mod nadeo;
 mod routes;
+mod schema;
 mod ubi;
 
 use config::CONFIG;
@@ -36,7 +38,7 @@ use ubi::UbiTokens;
 
 #[derive(Clone)]
 pub struct AppState {
-    db: DatabaseConnection,
+    db: Pool<AsyncPgConnection>,
     tera: Arc<std::sync::RwLock<Tera>>,
 }
 
@@ -64,11 +66,10 @@ async fn main() -> anyhow::Result<()> {
     let ubi_auth_task = tokio::spawn(UbiTokens::auth_task());
 
     let server_task = tokio::spawn(async {
-        let mut opt = ConnectOptions::new(CONFIG.db.url.clone());
-        opt.sqlx_logging(false); // >:(
-
-        let db = Database::connect(opt).await?;
-        Migrator::up(&db, None).await?;
+        let db = Pool::builder(AsyncDieselConnectionManager::<AsyncPgConnection>::new(
+            CONFIG.db.url.as_str(),
+        ))
+        .build()?;
 
         let session_store = MemoryStore::default();
         let session_layer = SessionManagerLayer::new(session_store)

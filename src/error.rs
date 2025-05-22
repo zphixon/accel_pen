@@ -15,7 +15,15 @@ pub enum ApiErrorInner {
         #[serde(skip)]
         #[ts(skip)]
         #[from]
-        error: migration::DbErr,
+        error: diesel::result::Error,
+    },
+
+    #[error("DB connection pool error: {error}")]
+    DatabaseConnectionPool {
+        #[serde(skip)]
+        #[ts(skip)]
+        #[from]
+        error: diesel_async::pooled_connection::deadpool::PoolError,
     },
 
     #[error("Invalid query: {error}")]
@@ -207,6 +215,14 @@ pub enum ApiErrorInner {
         error: time::error::Format,
     },
 
+    #[error("Could not parse time value: {error}")]
+    TimeRange {
+        #[ts(skip)]
+        #[serde(skip)]
+        #[from]
+        error: time::error::ComponentRange,
+    },
+
     #[error("Could not parse templates: {error} {source:?}", source = .error.source())]
     Tera {
         #[ts(skip)]
@@ -254,6 +270,7 @@ impl IntoResponse for ApiError {
 
         let status_code = match &*self {
             ApiErrorInner::Database { .. }
+            | ApiErrorInner::DatabaseConnectionPool { .. }
             | ApiErrorInner::UrlParseError { .. }
             | ApiErrorInner::SessionError { .. }
             | ApiErrorInner::AxumError { .. }
@@ -282,6 +299,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::TooManyTags { .. }
             | ApiErrorInner::InvalidThumbnail { .. }
             | ApiErrorInner::NotValidated
+            | ApiErrorInner::TimeRange { .. }
             | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
             ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,
