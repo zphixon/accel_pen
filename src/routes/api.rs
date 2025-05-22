@@ -436,6 +436,8 @@ pub async fn map_upload(
                 is_author: true,
                 is_uploader: true,
                 may_manage: true,
+                may_grant: true,
+                other: None,
             })
             .execute(&mut conn)
             .await?;
@@ -447,6 +449,8 @@ pub async fn map_upload(
                 is_author: true,
                 is_uploader: false,
                 may_manage: true,
+                may_grant: true,
+                other: None,
             })
             .execute(&mut conn)
             .await?;
@@ -457,6 +461,8 @@ pub async fn map_upload(
                 is_author: false,
                 is_uploader: true,
                 may_manage: true,
+                may_grant: false,
+                other: None,
             })
             .execute(&mut conn)
             .await?;

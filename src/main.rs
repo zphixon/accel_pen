@@ -4,11 +4,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use diesel::ConnectionResult;
 use diesel_async::{
     async_connection_wrapper::AsyncConnectionWrapper,
     pooled_connection::{deadpool::Pool, AsyncDieselConnectionManager},
-    AsyncConnection, AsyncPgConnection, RunQueryDsl,
+    AsyncConnection, AsyncPgConnection,
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::sync::Arc;

@@ -35,6 +35,11 @@ a {
   color: rgb(68, 68, 183);
 }
 
+a.userSummary {
+  color: inherit;
+  text-decoration: none;
+}
+
 img.mapThumbnail {
   max-width: 100%;
 }

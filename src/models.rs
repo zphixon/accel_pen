@@ -64,6 +64,8 @@ pub struct MapUser {
     pub is_author: bool,
     pub is_uploader: bool,
     pub may_manage: bool,
+    pub may_grant: bool,
+    pub other: Option<String>,
 }
 
 #[derive(Debug, Queryable, Selectable, Identifiable, Associations)]
