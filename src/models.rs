@@ -54,11 +54,11 @@ pub struct NewUser {
 }
 
 #[derive(Debug, Queryable, Selectable, Identifiable, Associations, Insertable)]
-#[diesel(table_name = map_permission)]
+#[diesel(table_name = map_user)]
 #[diesel(primary_key(ap_map_id, ap_user_id))]
 #[diesel(belongs_to(Map, foreign_key = ap_map_id))]
 #[diesel(belongs_to(User, foreign_key = ap_user_id))]
-pub struct MapPermission {
+pub struct MapUser {
     pub ap_map_id: i32,
     pub ap_user_id: i32,
     pub is_author: bool,
@@ -73,7 +73,7 @@ pub struct MapPermission {
 pub struct Tag {
     pub tag_id: i32,
     pub tag_name: String,
-    pub implication: Option<i32>
+    pub implication: Option<i32>,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Associations, Insertable)]

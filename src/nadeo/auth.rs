@@ -9,7 +9,7 @@ use axum::{
     http::{request::Parts, StatusCode},
 };
 use diesel::prelude::*;
-use diesel_async::{RunQueryDsl};
+use diesel_async::RunQueryDsl;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
 use std::{

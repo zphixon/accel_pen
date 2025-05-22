@@ -429,8 +429,8 @@ pub async fn map_upload(
     }
 
     if ap_author_id == ap_uploader_id {
-        diesel::insert_into(crate::schema::map_permission::table)
-            .values(crate::models::MapPermission {
+        diesel::insert_into(crate::schema::map_user::table)
+            .values(crate::models::MapUser {
                 ap_map_id: new_map.ap_map_id,
                 ap_user_id: ap_author_id,
                 is_author: true,
@@ -440,8 +440,8 @@ pub async fn map_upload(
             .execute(&mut conn)
             .await?;
     } else {
-        diesel::insert_into(crate::schema::map_permission::table)
-            .values(crate::models::MapPermission {
+        diesel::insert_into(crate::schema::map_user::table)
+            .values(crate::models::MapUser {
                 ap_map_id: new_map.ap_map_id,
                 ap_user_id: ap_author_id,
                 is_author: true,
@@ -450,8 +450,8 @@ pub async fn map_upload(
             })
             .execute(&mut conn)
             .await?;
-        diesel::insert_into(crate::schema::map_permission::table)
-            .values(crate::models::MapPermission {
+        diesel::insert_into(crate::schema::map_user::table)
+            .values(crate::models::MapUser {
                 ap_map_id: new_map.ap_map_id,
                 ap_user_id: ap_uploader_id,
                 is_author: false,
@@ -505,18 +505,14 @@ pub async fn map_manage(
         return Err(ApiErrorInner::MapNotFound { map_id }.into());
     };
 
-    let permissions: Vec<crate::models::MapPermission> =
-        crate::models::MapPermission::belonging_to(&map)
-            .inner_join(crate::schema::ap_user::table)
-            .filter(crate::schema::map_permission::dsl::ap_user_id.eq(auth.user_id()))
-            .select(crate::models::MapPermission::as_select())
-            .get_results(&mut conn)
-            .await?;
+    let users: Vec<crate::models::MapUser> = crate::models::MapUser::belonging_to(&map)
+        .inner_join(crate::schema::ap_user::table)
+        .filter(crate::schema::map_user::dsl::ap_user_id.eq(auth.user_id()))
+        .select(crate::models::MapUser::as_select())
+        .get_results(&mut conn)
+        .await?;
 
-    if !permissions
-        .iter()
-        .any(|perm| perm.is_author || perm.may_manage)
-    {
+    if !users.iter().any(|user| user.is_author || user.may_manage) {
         return Err(ApiErrorInner::NotYourMap.into());
     }
 
@@ -632,11 +628,11 @@ pub async fn map_search(
                 .get_results(&mut conn)
                 .await?;
 
-            let users: Vec<(crate::models::MapPermission, crate::models::User)> =
-                crate::models::MapPermission::belonging_to(&map)
+            let users: Vec<(crate::models::MapUser, crate::models::User)> =
+                crate::models::MapUser::belonging_to(&map)
                     .inner_join(crate::schema::ap_user::table)
                     .select((
-                        crate::models::MapPermission::as_select(),
+                        crate::models::MapUser::as_select(),
                         crate::models::User::as_select(),
                     ))
                     .get_results(&mut conn)
@@ -644,7 +640,7 @@ pub async fn map_search(
 
             let name = nadeo::FormattedString::parse(&map.map_name);
 
-            let Some((_, author)) = users.iter().find(|(perm, _)| perm.is_author) else {
+            let Some((_, author)) = users.iter().find(|(user, _)| user.is_author) else {
                 return Err(ApiErrorInner::MissingFromMultipart {
                     error: "TODO actual error",
                 }

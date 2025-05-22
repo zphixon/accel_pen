@@ -4,10 +4,13 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use diesel::ConnectionResult;
 use diesel_async::{
+    async_connection_wrapper::AsyncConnectionWrapper,
     pooled_connection::{deadpool::Pool, AsyncDieselConnectionManager},
-    AsyncPgConnection,
+    AsyncConnection, AsyncPgConnection, RunQueryDsl,
 };
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::sync::Arc;
 use tera::Tera;
 use tokio::net::TcpListener;
@@ -66,6 +69,18 @@ async fn main() -> anyhow::Result<()> {
     let ubi_auth_task = tokio::spawn(UbiTokens::auth_task());
 
     let server_task = tokio::spawn(async {
+        {
+            let conn = AsyncPgConnection::establish(CONFIG.db.url.as_str()).await?;
+            const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+            let mut conn: AsyncConnectionWrapper<AsyncPgConnection> =
+                AsyncConnectionWrapper::from(conn);
+            tokio::task::spawn_blocking(move || {
+                conn.run_pending_migrations(MIGRATIONS).unwrap();
+            })
+            .await
+            .unwrap();
+        }
+
         let db = Pool::builder(AsyncDieselConnectionManager::<AsyncPgConnection>::new(
             CONFIG.db.url.as_str(),
         ))

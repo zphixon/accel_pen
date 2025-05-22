@@ -85,25 +85,24 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
             }
         };
 
-        let my_maps: Vec<crate::models::Map> =
-            match crate::models::MapPermission::belonging_to(&user)
-                .inner_join(crate::schema::map::table)
-                .select(crate::models::Map::as_select())
-                .limit(20)
-                .get_results(&mut conn)
-                .await
-            {
-                Ok(my_maps) => my_maps,
-                Err(err) => {
-                    return render_error(
-                        &state,
-                        context,
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Reading my maps",
-                        err,
-                    )
-                }
-            };
+        let my_maps: Vec<crate::models::Map> = match crate::models::MapUser::belonging_to(&user)
+            .inner_join(crate::schema::map::table)
+            .select(crate::models::Map::as_select())
+            .limit(20)
+            .get_results(&mut conn)
+            .await
+        {
+            Ok(my_maps) => my_maps,
+            Err(err) => {
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Reading my maps",
+                    err,
+                )
+            }
+        };
 
         let mut maps_context = Vec::new();
         for map in my_maps {
@@ -151,10 +150,10 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
 
     let mut recent_maps = Vec::new();
     for recent in recent_rows {
-        let author: crate::models::User = match crate::models::MapPermission::belonging_to(&recent)
+        let author: crate::models::User = match crate::models::MapUser::belonging_to(&recent)
             .inner_join(crate::schema::ap_user::table)
             .select(crate::models::User::as_select())
-            .filter(crate::schema::map_permission::dsl::is_author.eq(true))
+            .filter(crate::schema::map_user::dsl::is_author.eq(true))
             .get_result(&mut conn)
             .await
             .optional()
@@ -245,10 +244,10 @@ async fn populate_context_with_map_data(
         })
         .collect();
 
-    let author: crate::models::User = match crate::models::MapPermission::belonging_to(&map)
+    let author: crate::models::User = match crate::models::MapUser::belonging_to(&map)
         .inner_join(crate::schema::ap_user::table)
         .select(crate::models::User::as_select())
-        .filter(crate::schema::map_permission::dsl::is_author.eq(true))
+        .filter(crate::schema::map_user::dsl::is_author.eq(true))
         .get_result(&mut conn)
         .await
         .optional()
@@ -511,7 +510,7 @@ pub async fn user_page(
         }
     };
 
-    let user_maps = match crate::models::MapPermission::belonging_to(&user)
+    let user_maps = match crate::models::MapUser::belonging_to(&user)
         .inner_join(crate::schema::map::table)
         .select(crate::models::Map::as_select())
         .get_results(&mut conn)

@@ -101,7 +101,8 @@ fn main() {
                 sql,
                 "UPDATE tag SET implication = {} WHERE tag_id = {};",
                 implication, implied.id
-            ).unwrap();
+            )
+            .unwrap();
         }
     }
 
