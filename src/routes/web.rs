@@ -86,7 +86,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
             }
         };
 
-        let my_maps: Vec<crate::models::Map> = match crate::models::MapUser::belonging_to(&user)
+        let my_maps: Vec<crate::models::Map> = match crate::models::MapPermission::belonging_to(&user)
             .inner_join(crate::schema::map::table)
             .select(crate::models::Map::as_select())
             .limit(20)
@@ -151,10 +151,10 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
 
     let mut recent_maps = Vec::new();
     for recent in recent_rows {
-        let author: crate::models::User = match crate::models::MapUser::belonging_to(&recent)
+        let author: crate::models::User = match crate::models::MapPermission::belonging_to(&recent)
             .inner_join(crate::schema::ap_user::table)
             .select(crate::models::User::as_select())
-            .filter(crate::schema::map_user::dsl::is_author.eq(true))
+            .filter(crate::schema::map_permission::dsl::is_author.eq(true))
             .get_result(&mut conn)
             .await
             .optional()
@@ -245,11 +245,11 @@ async fn populate_context_with_map_data(
         })
         .collect();
 
-    let users: Vec<(crate::models::MapUser, crate::models::User)> =
-        match crate::models::MapUser::belonging_to(&map)
+    let users: Vec<(crate::models::MapPermission, crate::models::User)> =
+        match crate::models::MapPermission::belonging_to(&map)
             .inner_join(crate::schema::ap_user::table)
             .select((
-                crate::models::MapUser::as_select(),
+                crate::models::MapPermission::as_select(),
                 crate::models::User::as_select(),
             ))
             .get_results(&mut conn)
@@ -441,12 +441,12 @@ pub async fn map_manage_page(
         }
     };
 
-    let users: Vec<(crate::models::User, crate::models::MapUser)> =
-        match crate::models::MapUser::belonging_to(&map)
+    let users: Vec<(crate::models::User, crate::models::MapPermission)> =
+        match crate::models::MapPermission::belonging_to(&map)
             .inner_join(crate::schema::ap_user::table)
             .select((
                 crate::models::User::as_select(),
-                crate::models::MapUser::as_select(),
+                crate::models::MapPermission::as_select(),
             ))
             .get_results(&mut conn)
             .await
@@ -603,10 +603,10 @@ pub async fn user_page(
         }
     };
 
-    let authored_maps: Vec<crate::models::Map> = match crate::models::MapUser::belonging_to(&user)
+    let authored_maps: Vec<crate::models::Map> = match crate::models::MapPermission::belonging_to(&user)
         .inner_join(crate::schema::map::table)
         .select(crate::models::Map::as_select())
-        .filter(crate::schema::map_user::dsl::is_author.eq(true))
+        .filter(crate::schema::map_permission::dsl::is_author.eq(true))
         .get_results(&mut conn)
         .await
     {
@@ -653,13 +653,13 @@ pub async fn user_page(
 
     if Some(user_response.user_id) == auth.map(|auth| auth.user_id()) {
         let managed_maps: Vec<crate::models::Map> =
-            match crate::models::MapUser::belonging_to(&user)
+            match crate::models::MapPermission::belonging_to(&user)
                 .inner_join(crate::schema::map::table)
                 .select(crate::models::Map::as_select())
                 .filter(
-                    crate::schema::map_user::dsl::may_manage
+                    crate::schema::map_permission::dsl::may_manage
                         .eq(true)
-                        .and(crate::schema::map_user::dsl::is_author.eq(false)),
+                        .and(crate::schema::map_permission::dsl::is_author.eq(false)),
                 )
                 .get_results(&mut conn)
                 .await
@@ -678,10 +678,10 @@ pub async fn user_page(
 
         let mut map_contexts = Vec::<MapContext>::new();
         for map in managed_maps {
-            let author: crate::models::User = match crate::models::MapUser::belonging_to(&map)
+            let author: crate::models::User = match crate::models::MapPermission::belonging_to(&map)
                 .inner_join(crate::schema::ap_user::table)
                 .select(crate::models::User::as_select())
-                .filter(crate::schema::map_user::dsl::is_author.eq(true))
+                .filter(crate::schema::map_permission::dsl::is_author.eq(true))
                 .get_result(&mut conn)
                 .await
                 .optional()
@@ -742,11 +742,11 @@ pub async fn user_page(
     
         let mut managed_by_others = Vec::new();
         for map in authored_maps.iter() {
-            let users: Vec<(crate::models::MapUser, crate::models::User)> =
-                match crate::models::MapUser::belonging_to(map)
+            let users: Vec<(crate::models::MapPermission, crate::models::User)> =
+                match crate::models::MapPermission::belonging_to(map)
                     .inner_join(crate::schema::ap_user::table)
                     .select((
-                        crate::models::MapUser::as_select(),
+                        crate::models::MapPermission::as_select(),
                         crate::models::User::as_select(),
                     ))
                     .get_results(&mut conn)

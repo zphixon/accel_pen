@@ -21,7 +21,7 @@ CREATE TABLE map (
     bronze_time INTEGER NOT NULL
 );
 
-CREATE TABLE map_user (
+CREATE TABLE map_permission (
     ap_map_id INTEGER NOT NULL,
     ap_user_id INTEGER NOT NULL,
     is_author BOOLEAN NOT NULL,
@@ -32,11 +32,11 @@ CREATE TABLE map_user (
 
     PRIMARY KEY (ap_map_id, ap_user_id),
 
-    CONSTRAINT map_user_ap_map_id_fk
+    CONSTRAINT map_permission_ap_map_id_fk
         FOREIGN KEY (ap_map_id) REFERENCES map (ap_map_id)
         ON UPDATE CASCADE ON DELETE CASCADE,
 
-    CONSTRAINT map_user_ap_user_id_fk
+    CONSTRAINT map_permission_ap_user_id_fk
         FOREIGN KEY (ap_user_id) REFERENCES ap_user (ap_user_id)
         ON UPDATE CASCADE ON DELETE CASCADE
 );

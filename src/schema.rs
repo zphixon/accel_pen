@@ -35,6 +35,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    map_permission (ap_map_id, ap_user_id) {
+        ap_map_id -> Int4,
+        ap_user_id -> Int4,
+        is_author -> Bool,
+        is_uploader -> Bool,
+        may_manage -> Bool,
+        may_grant -> Bool,
+        other -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     map_tag (ap_map_id, tag_id) {
         ap_map_id -> Int4,
         tag_id -> Int4,
@@ -46,18 +58,6 @@ diesel::table! {
         ap_map_id -> Int4,
         thumbnail -> Bytea,
         thumbnail_small -> Bytea,
-    }
-}
-
-diesel::table! {
-    map_user (ap_map_id, ap_user_id) {
-        ap_map_id -> Int4,
-        ap_user_id -> Int4,
-        is_author -> Bool,
-        is_uploader -> Bool,
-        may_manage -> Bool,
-        may_grant -> Bool,
-        other -> Nullable<Text>,
     }
 }
 
@@ -80,19 +80,19 @@ diesel::table! {
 }
 
 diesel::joinable!(map_data -> map (ap_map_id));
+diesel::joinable!(map_permission -> ap_user (ap_user_id));
+diesel::joinable!(map_permission -> map (ap_map_id));
 diesel::joinable!(map_tag -> map (ap_map_id));
 diesel::joinable!(map_tag -> tag (tag_id));
 diesel::joinable!(map_thumbnail -> map (ap_map_id));
-diesel::joinable!(map_user -> ap_user (ap_user_id));
-diesel::joinable!(map_user -> map (ap_map_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     ap_user,
     map,
     map_data,
+    map_permission,
     map_tag,
     map_thumbnail,
-    map_user,
     tag,
     tag_implies,
 );

@@ -429,8 +429,8 @@ pub async fn map_upload(
     }
 
     if ap_author_id == ap_uploader_id {
-        diesel::insert_into(crate::schema::map_user::table)
-            .values(crate::models::MapUser {
+        diesel::insert_into(crate::schema::map_permission::table)
+            .values(crate::models::MapPermission {
                 ap_map_id: new_map.ap_map_id,
                 ap_user_id: ap_author_id,
                 is_author: true,
@@ -442,8 +442,8 @@ pub async fn map_upload(
             .execute(&mut conn)
             .await?;
     } else {
-        diesel::insert_into(crate::schema::map_user::table)
-            .values(crate::models::MapUser {
+        diesel::insert_into(crate::schema::map_permission::table)
+            .values(crate::models::MapPermission {
                 ap_map_id: new_map.ap_map_id,
                 ap_user_id: ap_author_id,
                 is_author: true,
@@ -454,8 +454,8 @@ pub async fn map_upload(
             })
             .execute(&mut conn)
             .await?;
-        diesel::insert_into(crate::schema::map_user::table)
-            .values(crate::models::MapUser {
+        diesel::insert_into(crate::schema::map_permission::table)
+            .values(crate::models::MapPermission {
                 ap_map_id: new_map.ap_map_id,
                 ap_user_id: ap_uploader_id,
                 is_author: false,
@@ -511,10 +511,10 @@ pub async fn map_manage(
         return Err(ApiErrorInner::MapNotFound { map_id }.into());
     };
 
-    let users: Vec<crate::models::MapUser> = crate::models::MapUser::belonging_to(&map)
+    let users: Vec<crate::models::MapPermission> = crate::models::MapPermission::belonging_to(&map)
         .inner_join(crate::schema::ap_user::table)
-        .filter(crate::schema::map_user::dsl::ap_user_id.eq(auth.user_id()))
-        .select(crate::models::MapUser::as_select())
+        .filter(crate::schema::map_permission::dsl::ap_user_id.eq(auth.user_id()))
+        .select(crate::models::MapPermission::as_select())
         .get_results(&mut conn)
         .await?;
 
@@ -634,11 +634,11 @@ pub async fn map_search(
                 .get_results(&mut conn)
                 .await?;
 
-            let users: Vec<(crate::models::MapUser, crate::models::User)> =
-                crate::models::MapUser::belonging_to(&map)
+            let users: Vec<(crate::models::MapPermission, crate::models::User)> =
+                crate::models::MapPermission::belonging_to(&map)
                     .inner_join(crate::schema::ap_user::table)
                     .select((
-                        crate::models::MapUser::as_select(),
+                        crate::models::MapPermission::as_select(),
                         crate::models::User::as_select(),
                     ))
                     .get_results(&mut conn)
