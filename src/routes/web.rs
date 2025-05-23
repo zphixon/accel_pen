@@ -86,24 +86,25 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
             }
         };
 
-        let my_maps: Vec<crate::models::Map> = match crate::models::MapPermission::belonging_to(&user)
-            .inner_join(crate::schema::map::table)
-            .select(crate::models::Map::as_select())
-            .limit(20)
-            .get_results(&mut conn)
-            .await
-        {
-            Ok(my_maps) => my_maps,
-            Err(err) => {
-                return render_error(
-                    &state,
-                    context,
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Reading my maps",
-                    err,
-                )
-            }
-        };
+        let my_maps: Vec<crate::models::Map> =
+            match crate::models::MapPermission::belonging_to(&user)
+                .inner_join(crate::schema::map::table)
+                .select(crate::models::Map::as_select())
+                .limit(20)
+                .get_results(&mut conn)
+                .await
+            {
+                Ok(my_maps) => my_maps,
+                Err(err) => {
+                    return render_error(
+                        &state,
+                        context,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Reading my maps",
+                        err,
+                    )
+                }
+            };
 
         let mut maps_context = Vec::new();
         for map in my_maps {
@@ -225,19 +226,21 @@ async fn populate_context_with_map_data(
 ) -> Result<Option<MapContext>, ApiError> {
     let mut conn = state.db.get().await?;
 
-    let map: crate::models::Map = crate::schema::map::dsl::map
+    let Some(map) = crate::schema::map::dsl::map
         .select(crate::models::Map::as_select())
         .find(map_id)
         .get_result(&mut conn)
         .await
-        .unwrap();
+        .optional()?
+    else {
+        return Err(ApiErrorInner::MapNotFound { map_id }.into());
+    };
 
     let tags = crate::models::MapTag::belonging_to(&map)
         .inner_join(crate::schema::tag::table)
         .select(crate::models::Tag::as_select())
         .get_results(&mut conn)
-        .await
-        .unwrap()
+        .await?
         .into_iter()
         .map(|tag| TagInfo {
             id: tag.tag_id,
@@ -603,24 +606,25 @@ pub async fn user_page(
         }
     };
 
-    let authored_maps: Vec<crate::models::Map> = match crate::models::MapPermission::belonging_to(&user)
-        .inner_join(crate::schema::map::table)
-        .select(crate::models::Map::as_select())
-        .filter(crate::schema::map_permission::dsl::is_author.eq(true))
-        .get_results(&mut conn)
-        .await
-    {
-        Ok(maps) => maps,
-        Err(error) => {
-            return render_error(
-                &state,
-                context,
-                StatusCode::INTERNAL_SERVER_ERROR,
-                error,
-                "Getting user's maps",
-            )
-        }
-    };
+    let authored_maps: Vec<crate::models::Map> =
+        match crate::models::MapPermission::belonging_to(&user)
+            .inner_join(crate::schema::map::table)
+            .select(crate::models::Map::as_select())
+            .filter(crate::schema::map_permission::dsl::is_author.eq(true))
+            .get_results(&mut conn)
+            .await
+        {
+            Ok(maps) => maps,
+            Err(error) => {
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    error,
+                    "Getting user's maps",
+                )
+            }
+        };
 
     let user_response = UserResponse {
         display_name: user.nadeo_display_name.clone(),
@@ -739,7 +743,7 @@ pub async fn user_page(
             map: MapContext,
             user: UserResponse,
         }
-    
+
         let mut managed_by_others = Vec::new();
         for map in authored_maps.iter() {
             let users: Vec<(crate::models::MapPermission, crate::models::User)> =
@@ -764,7 +768,7 @@ pub async fn user_page(
                         );
                     }
                 };
-    
+
             if let Some((_, other_user)) = users
                 .iter()
                 .find(|(perms, user)| user.ap_user_id != user_response.user_id && perms.may_manage)
