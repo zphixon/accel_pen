@@ -68,6 +68,13 @@ pub struct MapPermission {
     pub other: Option<String>,
 }
 
+#[derive(AsChangeset)]
+#[diesel(table_name = map_permission)]
+pub struct UpdateMapPermission {
+    pub may_manage: bool,
+    pub may_grant: bool,
+}
+
 #[derive(Debug, Queryable, Selectable, Identifiable, Associations)]
 #[diesel(table_name = tag)]
 #[diesel(primary_key(tag_id))]

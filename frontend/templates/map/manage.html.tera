@@ -18,6 +18,8 @@
     <h2>Manage <a href="/map/{{ map.id }}">{{ macros::nadeo_string(text=map.name) }}</a></h2>
     <script type="application/json" id="mapData">{{ map | json_encode() }}</script>
     <script type="application/json" id="tagData">{{ tags | json_encode() }}</script>
+    <script type="application/json" id="permData">{{ permission | json_encode() }}</script>
+    <script type="application/json" id="userData">{{ user | json_encode() }}</script>
     <div id="mapManage"></div>
     <script type="module" src="/static/js/renderMapManage.js"></script>
   {% else %}

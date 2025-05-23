@@ -153,7 +153,7 @@ pub enum ApiErrorInner {
     AlreadyUploaded { map_id: i32 },
 
     #[error("This map was created by a user already on Accel Pen")]
-    NotYourMap,
+    NotYourMapUpload,
 
     #[error("Invalid map thumbnail: {error}")]
     InvalidThumbnail {
@@ -238,6 +238,30 @@ pub enum ApiErrorInner {
         #[from]
         error: serde_json::Error,
     },
+
+    #[error("Last modified time too large")]
+    LastModifiedTimeTooLarge,
+
+    #[error("Invalid map: {error}")]
+    InvalidMap { error: &'static str },
+
+    #[error("Missing author for map {map_id}")]
+    MissingAuthor { map_id: i32 },
+
+    #[error("Missing uploader for map {map_id}")]
+    MissingUploader { map_id: i32 },
+
+    #[error("You have not been granted permissions to manage this map")]
+    NotYourMapManage,
+
+    #[error("You do not have permissions to grant other users permissions on this map")]
+    NotYourMapGrant,
+
+    #[error("A map author must be allowed to manage/grant permissions")]
+    CannotUsurpAuthor,
+
+    #[error("Cannot modify your own permissions")]
+    CannotModifySelfPermissions,
 }
 
 impl From<(axum::http::StatusCode, &'static str)> for ApiErrorInner {
@@ -278,6 +302,8 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::UnexpectedResponse { .. }
             | ApiErrorInner::Tera { .. }
             | ApiErrorInner::StdIo { .. }
+            | ApiErrorInner::MissingAuthor { .. }
+            | ApiErrorInner::MissingUploader { .. }
             | ApiErrorInner::Time { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             ApiErrorInner::ApiFailed { error } => error.status().unwrap_or(StatusCode::BAD_GATEWAY),
@@ -292,7 +318,7 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::NotAMap
             | ApiErrorInner::NotBase64 { .. }
             | ApiErrorInner::NotUtf8 { .. }
-            | ApiErrorInner::NotYourMap
+            | ApiErrorInner::NotYourMapUpload
             | ApiErrorInner::AlreadyUploaded { .. }
             | ApiErrorInner::Json { .. }
             | ApiErrorInner::NoSuchTag { .. }
@@ -300,9 +326,15 @@ impl IntoResponse for ApiError {
             | ApiErrorInner::InvalidThumbnail { .. }
             | ApiErrorInner::NotValidated
             | ApiErrorInner::TimeRange { .. }
+            | ApiErrorInner::LastModifiedTimeTooLarge
+            | ApiErrorInner::InvalidMap { .. }
+            | ApiErrorInner::CannotUsurpAuthor
             | ApiErrorInner::NotUuid { .. } => StatusCode::BAD_REQUEST,
 
-            ApiErrorInner::InvalidOauth { .. } => StatusCode::UNAUTHORIZED,
+            ApiErrorInner::InvalidOauth { .. }
+            | ApiErrorInner::NotYourMapManage
+            | ApiErrorInner::NotYourMapGrant
+            | ApiErrorInner::CannotModifySelfPermissions => StatusCode::UNAUTHORIZED,
 
             ApiErrorInner::MapNotFound { .. } | ApiErrorInner::NotFound { error: _ } => {
                 StatusCode::NOT_FOUND

@@ -51,3 +51,13 @@ pub fn format_time(time: time::OffsetDateTime) -> String {
     time.format(&time::format_description::well_known::Iso8601::DATE_TIME_OFFSET)
         .unwrap()
 }
+
+#[derive(Serialize, Deserialize, TS)]
+#[serde(tag = "type")]
+#[ts(export)]
+pub struct Permission {
+    pub user_id: i32,
+    pub display_name: String,
+    pub may_manage: bool,
+    pub may_grant: bool,
+}

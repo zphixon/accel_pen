@@ -1,9 +1,10 @@
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { useOnClickOutside } from "usehooks-ts";
+import { UserPermission } from "./components/PermissionEdit";
 import * as api from "./api";
 import * as types from "./bindings/index";
-import React, { useRef, useState } from "react";
+import React, { StrictMode, useRef, useState } from "react";
 import TagSelect from "./components/TagSelect";
 
 let maxTags = 7;
@@ -11,6 +12,8 @@ let maxTags = 7;
 interface MapManageProps {
   tagInfo: types.TagInfo[],
   mapData: types.MapContext,
+  permData: types.Permission[],
+  userData: types.UserResponse,
 }
 function MapManage({ tagInfo, mapData }: MapManageProps) {
   let [showDelete, setShowDelete] = useState(false);
@@ -36,6 +39,24 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
     }).then(setSetTagsResponse);
   }
 
+  let [permsResponse, setPermsResponse] = useState<types.MapManageResponse | types.TsApiError | undefined>(undefined);
+  let [permsNoSelf, setPermsNoSelf] = useState(permData.filter(perm => perm.user_id != userData.user_id));
+  let selfPerm = permData.find(perm => perm.user_id == userData.user_id)!;
+  function onUpdatePerm(newPerm: types.Permission) {
+    let newPermsNoSelf = permsNoSelf.filter(perm => perm.user_id != newPerm.user_id);
+    newPermsNoSelf = [...newPermsNoSelf, newPerm];
+    setPermsNoSelf(newPermsNoSelf);
+  }
+  function requestPermUpdate() {
+    api.manageMap(mapData.id, {
+      type: "MapManageRequest",
+      command: {
+        type: "SetPermissions",
+        permissions: permsNoSelf,
+      },
+    }).then(setPermsResponse)
+  }
+
   let manageResponse = <></>;
   if (deleteResponse?.type == "TsApiError") {
     manageResponse = <>Couldn't delete map: {deleteResponse.message}</>;
@@ -43,12 +64,18 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
     return <>Map deleted</>;
   }
   if (setTagsResponse?.type == "TsApiError") {
-    manageResponse = <>Couldn't set tags: {setTagsResponse.message}</>;
+    manageResponse = <>{manageResponse} Couldn't set tags: {setTagsResponse.message}</>;
   } else if (setTagsResponse?.type == "MapManageResponse") {
-    manageResponse = <>Set tags successfully</>;
+    manageResponse = <>{manageResponse} Set tags successfully</>;
+  }
+  if (permsResponse?.type == "TsApiError") {
+    manageResponse = <>{manageResponse} Couldn't set permissions: {permsResponse.message}</>;
+  } else if (permsResponse?.type == "MapManageResponse") {
+    manageResponse = <>{manageResponse} Set permissions successfully</>;
   }
 
   return <>
+    <h3>Update tags</h3>
     <TagSelect
       tagInfo={tagInfo}
       selectedTags={selectedTags}
@@ -59,14 +86,27 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
     <p>
       <button disabled={!maySetTags} onClick={_ => doSetTags()}>Update tags</button>
     </p>
+
+    <h3>Edit permissions</h3>
     <p>
+      <UserPermission perm={selfPerm} isUser={true} />
+      {permsNoSelf.map(perm => <UserPermission key={perm.user_id} perm={perm} onUpdatePerm={onUpdatePerm} />)}
+      <br/>
+      <button onClick={_ => requestPermUpdate()}>Update permissions</button>
+    </p>
+
+    <h3>Delete map</h3>
+    <p>
+      This action is not reversable.
       <button onClick={_ => setShowDelete(true)}>Delete map</button>
     </p>
+
     <p>{manageResponse}</p>
+
     {showDelete && <div className="bgBlur"></div>}
     {showDelete && createPortal(<div className="deleteMapConfirmation" ref={ref}>
       <div className="confirmMessage">
-        Are you sure you want to delete this map? This is action is not reversable.
+        Are you sure you want to delete this map? <b><i>This is action is not reversable.</i></b>
       </div>
       &nbsp;
       <div className="confirmButtons">
@@ -84,6 +124,16 @@ let tagInfo: types.TagInfo[] = JSON.parse(tagInfoNode.innerText);
 let mapDataNode = document.getElementById("mapData")!;
 let mapData: types.MapContext = JSON.parse(mapDataNode.innerText);
 
+let permDataNode = document.getElementById("permData")!;
+let permData: types.Permission[] = JSON.parse(permDataNode.innerText);
+
+let userDataNode = document.getElementById("userData")!;
+let userData: types.UserResponse = JSON.parse(userDataNode.innerText);
+
 let mapManageNode = document.getElementById("mapManage")!;
 let mapManageRoot = createRoot(mapManageNode);
-mapManageRoot.render(<MapManage tagInfo={tagInfo} mapData={mapData} />);
+mapManageRoot.render(
+  <StrictMode>
+    <MapManage tagInfo={tagInfo} mapData={mapData} permData={permData} userData={userData} />
+  </StrictMode>
+);

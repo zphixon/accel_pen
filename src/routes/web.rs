@@ -1,4 +1,4 @@
-use super::{MapContext, Medals, TagInfo, UserResponse};
+use super::{MapContext, Medals, Permission, TagInfo, UserResponse};
 use crate::{
     config,
     error::{ApiError, ApiErrorInner, Context},
@@ -265,10 +265,7 @@ async fn populate_context_with_map_data(
         };
 
     let Some((author_perms, author)) = users.iter().find(|(user, _)| user.is_author) else {
-        return Err(ApiErrorInner::MissingFromMultipart {
-            error: "gheawjhoewjifoewaojfie",
-        }
-        .into());
+        return Err(ApiErrorInner::MissingAuthor { map_id }.into());
     };
 
     let name = nadeo::FormattedString::parse(&map.map_name);
@@ -302,10 +299,7 @@ async fn populate_context_with_map_data(
 
     if !author_perms.is_uploader && author.registered.is_none() {
         let Some((_, uploader)) = users.iter().find(|(user, _)| user.is_uploader) else {
-            return Err(ApiErrorInner::MissingFromMultipart {
-                error: "Missing uploader jafiowejoifeawiofjio",
-            }
-            .into());
+            return Err(ApiErrorInner::MissingUploader { map_id }.into());
         };
 
         context.insert(
@@ -479,6 +473,17 @@ pub async fn map_manage_page(
             "You are not allowed to manage this map",
         );
     }
+
+    let mut perms = Vec::new();
+    for (user, perm) in users.iter() {
+        perms.push(Permission {
+            display_name: user.nadeo_display_name.clone(),
+            user_id: user.ap_user_id,
+            may_manage: perm.may_manage,
+            may_grant: perm.may_grant,
+        });
+    }
+    context.insert("permission", &perms);
 
     if let Err(error) = populate_context_with_map_data(&state, map_id, &mut context).await {
         return render_error(

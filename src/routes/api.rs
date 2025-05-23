@@ -1,4 +1,4 @@
-use super::{MapContext, TagInfo};
+use super::{MapContext, Permission, TagInfo};
 use crate::{
     config::CONFIG,
     error::{ApiError, ApiErrorInner, Context as _},
@@ -226,10 +226,7 @@ pub async fn map_upload(
         serde_json::from_slice::<MapUploadMeta>(&map_meta).context("Parsing map meta as JSON")?;
 
     if map_meta.last_modified > i32::MAX as f64 {
-        return Err(ApiErrorInner::MissingFromMultipart {
-            error: "Last modified time within the next few hundred years",
-        }
-        .into());
+        return Err(ApiErrorInner::LastModifiedTimeTooLarge.into());
     }
 
     let mut conn = state.db.get().await?;
@@ -265,7 +262,7 @@ pub async fn map_upload(
     };
 
     let Some(map_info) = map.map_info.as_ref() else {
-        return Err(ApiErrorInner::MissingFromMultipart {
+        return Err(ApiErrorInner::InvalidMap {
             error: "Map info from map",
         }
         .into());
@@ -275,11 +272,17 @@ pub async fn map_upload(
         nadeo::login_to_account_id(map_info.author).context("Parsing map author")?;
 
     let Some(map_name) = map.map_name else {
-        return Err(ApiErrorInner::MissingFromMultipart { error: "Map name" }.into());
+        return Err(ApiErrorInner::InvalidMap {
+            error: "Missing map name",
+        }
+        .into());
     };
 
     let Some(thumbnail_data) = map.thumbnail_data else {
-        return Err(ApiErrorInner::MissingFromMultipart { error: "Thumbnail" }.into());
+        return Err(ApiErrorInner::InvalidMap {
+            error: "Missing thumbnail",
+        }
+        .into());
     };
 
     if map.header_map_kind == Some(gbx_rs::MapKind::InProgress) {
@@ -311,7 +314,7 @@ pub async fn map_upload(
             .optional()?;
 
         if maybe_user.and_then(|user| user.registered).is_some() {
-            return Err(ApiErrorInner::NotYourMap.into());
+            return Err(ApiErrorInner::NotYourMapUpload.into());
         }
 
         let user = NadeoUser::get_from_account_id(&*auth, &author_account_id)
@@ -479,6 +482,7 @@ pub async fn map_upload(
 #[ts(export)]
 pub enum MapManageCommand {
     SetTags { tags: Vec<TagInfo> },
+    SetPermissions { permissions: Vec<Permission> },
     Delete,
 }
 
@@ -511,15 +515,15 @@ pub async fn map_manage(
         return Err(ApiErrorInner::MapNotFound { map_id }.into());
     };
 
-    let users: Vec<crate::models::MapPermission> = crate::models::MapPermission::belonging_to(&map)
+    let user: crate::models::MapPermission = crate::models::MapPermission::belonging_to(&map)
         .inner_join(crate::schema::ap_user::table)
         .filter(crate::schema::map_permission::dsl::ap_user_id.eq(auth.user_id()))
         .select(crate::models::MapPermission::as_select())
-        .get_results(&mut conn)
+        .get_result(&mut conn)
         .await?;
 
-    if !users.iter().any(|user| user.is_author || user.may_manage) {
-        return Err(ApiErrorInner::NotYourMap.into());
+    if !user.is_author || !user.may_manage {
+        return Err(ApiErrorInner::NotYourMapManage.into());
     }
 
     match &request.command {
@@ -565,6 +569,31 @@ pub async fn map_manage(
                 .filter(crate::schema::map::dsl::ap_map_id.eq(map.ap_map_id))
                 .execute(&mut conn)
                 .await?;
+        }
+
+        MapManageCommand::SetPermissions { permissions } => {
+            if !user.may_grant {
+                return Err(ApiErrorInner::NotYourMapGrant.into());
+            }
+
+            for perm in permissions {
+                if perm.user_id == auth.user_id() {
+                    return Err(ApiErrorInner::CannotUsurpAuthor.into());
+                }
+
+                diesel::update(crate::schema::map_permission::table)
+                    .filter(
+                        crate::schema::map_permission::dsl::ap_user_id
+                            .eq(perm.user_id)
+                            .and(crate::schema::map_permission::dsl::ap_map_id.eq(map_id)),
+                    )
+                    .set(crate::models::UpdateMapPermission {
+                        may_manage: perm.may_manage,
+                        may_grant: perm.may_grant,
+                    })
+                    .execute(&mut conn)
+                    .await?;
+            }
         }
     }
 
@@ -647,8 +676,8 @@ pub async fn map_search(
             let name = nadeo::FormattedString::parse(&map.map_name);
 
             let Some((_, author)) = users.iter().find(|(user, _)| user.is_author) else {
-                return Err(ApiErrorInner::MissingFromMultipart {
-                    error: "TODO actual error",
+                return Err(ApiErrorInner::MissingAuthor {
+                    map_id: map.ap_map_id,
                 }
                 .into());
             };
