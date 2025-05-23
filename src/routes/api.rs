@@ -313,30 +313,39 @@ pub async fn map_upload(
             .await
             .optional()?;
 
-        if maybe_user.and_then(|user| user.registered).is_some() {
+        if maybe_user
+            .as_ref()
+            .and_then(|user| user.registered)
+            .is_some()
+        {
             return Err(ApiErrorInner::NotYourMapUpload.into());
         }
 
-        let user = NadeoUser::get_from_account_id(&*auth, &author_account_id)
-            .await
-            .context("Getting new author account info for upload")?;
-        let club_tag = NadeoClubTag::get(&user.account_id)
-            .await
-            .context("Get new author club tag for upload")?;
+        if let Some(maybe_user) = maybe_user {
+            maybe_user.ap_user_id
+        } else {
+            let user = NadeoUser::get_from_account_id(&*auth, &author_account_id)
+                .await
+                .context("Getting new author account info for upload")?;
+            let club_tag = NadeoClubTag::get(&user.account_id)
+                .await
+                .context("Get new author club tag for upload")?;
 
-        let new_user: crate::models::User = diesel::insert_into(crate::schema::ap_user::table)
-            .values(crate::models::NewUser {
-                nadeo_display_name: user.display_name.clone(),
-                nadeo_login: crate::nadeo::account_id_to_login(&user.account_id)?,
-                nadeo_account_id: user.account_id.clone(),
-                nadeo_club_tag: club_tag.clone(),
-                registered: None,
-            })
-            .returning(crate::models::User::as_returning())
-            .get_result(&mut conn)
-            .await?;
+            let new_user: crate::models::User = diesel::insert_into(crate::schema::ap_user::table)
+                .values(crate::models::NewUser {
+                    nadeo_display_name: user.display_name.clone(),
+                    nadeo_login: crate::nadeo::account_id_to_login(&user.account_id)?,
+                    nadeo_account_id: user.account_id.clone(),
+                    nadeo_club_tag: club_tag.clone(),
+                    registered: None,
+                })
+                .returning(crate::models::User::as_returning())
+                .get_result(&mut conn)
+                .await
+                .context("Inserting un-registered user")?;
 
-        new_user.ap_user_id
+            new_user.ap_user_id
+        }
     };
 
     let thumbnail = image::ImageReader::new(std::io::Cursor::new(thumbnail_data))
@@ -478,11 +487,27 @@ pub async fn map_upload(
 }
 
 #[derive(Deserialize, TS)]
+#[ts(export)]
+pub enum PermissionUpdateType {
+    Modify,
+    Remove,
+    Add,
+}
+
+#[derive(Deserialize, TS)]
+#[serde(tag = "type")]
+#[ts(export)]
+pub struct PermissionUpdate {
+    permission: Permission,
+    update_type: PermissionUpdateType,
+}
+
+#[derive(Deserialize, TS)]
 #[serde(tag = "type")]
 #[ts(export)]
 pub enum MapManageCommand {
     SetTags { tags: Vec<TagInfo> },
-    SetPermissions { permissions: Vec<Permission> },
+    SetPermissions { permissions: Vec<PermissionUpdate> },
     Delete,
 }
 
@@ -515,14 +540,31 @@ pub async fn map_manage(
         return Err(ApiErrorInner::MapNotFound { map_id }.into());
     };
 
-    let user: crate::models::MapPermission = crate::models::MapPermission::belonging_to(&map)
-        .inner_join(crate::schema::ap_user::table)
-        .filter(crate::schema::map_permission::dsl::ap_user_id.eq(auth.user_id()))
-        .select(crate::models::MapPermission::as_select())
-        .get_result(&mut conn)
-        .await?;
+    let users: Vec<(crate::models::MapPermission, crate::models::User)> =
+        crate::models::MapPermission::belonging_to(&map)
+            .inner_join(crate::schema::ap_user::table)
+            .select((
+                crate::models::MapPermission::as_select(),
+                crate::models::User::as_select(),
+            ))
+            .get_results(&mut conn)
+            .await?;
 
-    if !user.is_author || !user.may_manage {
+    let Some((_, author)) = users.iter().find(|(user, _)| user.is_author) else {
+        return Err(ApiErrorInner::MissingAuthor {
+            map_id: map.ap_map_id,
+        }
+        .into());
+    };
+
+    let Some((auth_perms, auth_user)) = users
+        .iter()
+        .find(|(user, _)| user.ap_user_id == auth.user_id())
+    else {
+        return Err(ApiErrorInner::NotYourMapManage.into());
+    };
+
+    if !(auth_perms.is_author || auth_perms.may_manage) {
         return Err(ApiErrorInner::NotYourMapManage.into());
     }
 
@@ -572,27 +614,36 @@ pub async fn map_manage(
         }
 
         MapManageCommand::SetPermissions { permissions } => {
-            if !user.may_grant {
+            if !auth_perms.may_grant {
                 return Err(ApiErrorInner::NotYourMapGrant.into());
             }
 
-            for perm in permissions {
-                if perm.user_id == auth.user_id() {
-                    return Err(ApiErrorInner::CannotUsurpAuthor.into());
-                }
+            for update in permissions {
+                match update {
+                    PermissionUpdate {
+                        update_type: PermissionUpdateType::Modify,
+                        permission: perm,
+                    } => {
+                        if perm.user_id == author.ap_user_id {
+                            return Err(ApiErrorInner::CannotUsurpAuthor.into());
+                        }
 
-                diesel::update(crate::schema::map_permission::table)
-                    .filter(
-                        crate::schema::map_permission::dsl::ap_user_id
-                            .eq(perm.user_id)
-                            .and(crate::schema::map_permission::dsl::ap_map_id.eq(map_id)),
-                    )
-                    .set(crate::models::UpdateMapPermission {
-                        may_manage: perm.may_manage,
-                        may_grant: perm.may_grant,
-                    })
-                    .execute(&mut conn)
-                    .await?;
+                        diesel::update(crate::schema::map_permission::table)
+                            .filter(
+                                crate::schema::map_permission::dsl::ap_user_id
+                                    .eq(perm.user_id)
+                                    .and(crate::schema::map_permission::dsl::ap_map_id.eq(map_id)),
+                            )
+                            .set(crate::models::UpdateMapPermission {
+                                may_manage: perm.may_manage,
+                                may_grant: perm.may_grant,
+                            })
+                            .execute(&mut conn)
+                            .await?;
+                    }
+
+                    _ => {}
+                }
             }
         }
     }

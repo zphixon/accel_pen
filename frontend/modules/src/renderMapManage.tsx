@@ -52,7 +52,11 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
       type: "MapManageRequest",
       command: {
         type: "SetPermissions",
-        permissions: permsNoSelf,
+        permissions: permsNoSelf.map(perm => ({
+          type: "PermissionUpdate",
+          update_type: "Modify",
+          permission: perm,
+        })),
       },
     }).then(setPermsResponse)
   }
@@ -64,14 +68,14 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
     return <>Map deleted</>;
   }
   if (setTagsResponse?.type == "TsApiError") {
-    manageResponse = <>{manageResponse} Couldn't set tags: {setTagsResponse.message}</>;
+    manageResponse = <>Couldn't set tags: {setTagsResponse.message}</>;
   } else if (setTagsResponse?.type == "MapManageResponse") {
-    manageResponse = <>{manageResponse} Set tags successfully</>;
+    manageResponse = <>Set tags successfully</>;
   }
   if (permsResponse?.type == "TsApiError") {
-    manageResponse = <>{manageResponse} Couldn't set permissions: {permsResponse.message}</>;
+    manageResponse = <>Couldn't set permissions: {permsResponse.message}</>;
   } else if (permsResponse?.type == "MapManageResponse") {
-    manageResponse = <>{manageResponse} Set permissions successfully</>;
+    manageResponse = <>Set permissions successfully</>;
   }
 
   return <>
