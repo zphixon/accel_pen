@@ -300,7 +300,7 @@ async fn populate_context_with_map_data(
         }),
     };
 
-    if !author_perms.is_uploader {
+    if !author_perms.is_uploader && author.registered.is_none() {
         let Some((_, uploader)) = users.iter().find(|(user, _)| user.is_uploader) else {
             return Err(ApiErrorInner::MissingFromMultipart {
                 error: "Missing uploader jafiowejoifeawiofjio",
