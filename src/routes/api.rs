@@ -629,62 +629,73 @@ pub async fn map_manage(
                 return Err(ApiErrorInner::NotYourMapGrant.into());
             }
 
-            for update in permissions {
-                let PermissionUpdate {
-                    permission: perm,
-                    update_type,
-                } = update;
+            conn.transaction(|conn| {
+                async move {
+                    for update in permissions {
+                        let PermissionUpdate {
+                            permission: perm,
+                            update_type,
+                        } = update;
 
-                if perm.user_id == author.ap_user_id {
-                    return Err(ApiErrorInner::CannotUsurpAuthor.into());
+                        if perm.user_id == author.ap_user_id {
+                            return Err(ApiErrorInner::CannotUsurpAuthor.into());
+                        }
+
+                        match update_type {
+                            PermissionUpdateType::Modify => {
+                                diesel::update(crate::schema::map_permission::table)
+                                    .filter(
+                                        crate::schema::map_permission::dsl::ap_user_id
+                                            .eq(perm.user_id)
+                                            .and(
+                                                crate::schema::map_permission::dsl::ap_map_id
+                                                    .eq(map_id),
+                                            ),
+                                    )
+                                    .set(crate::models::UpdateMapPermission {
+                                        may_manage: perm.may_manage,
+                                        may_grant: perm.may_grant,
+                                    })
+                                    .execute(conn)
+                                    .await?;
+                            }
+
+                            PermissionUpdateType::Remove => {
+                                diesel::delete(crate::schema::map_permission::table)
+                                    .filter(
+                                        crate::schema::map_permission::dsl::ap_user_id
+                                            .eq(perm.user_id)
+                                            .and(
+                                                crate::schema::map_permission::dsl::ap_map_id
+                                                    .eq(map.ap_map_id),
+                                            ),
+                                    )
+                                    .execute(conn)
+                                    .await?;
+                            }
+
+                            PermissionUpdateType::Add => {
+                                diesel::insert_into(crate::schema::map_permission::table)
+                                    .values(crate::models::MapPermission {
+                                        ap_map_id: map.ap_map_id,
+                                        ap_user_id: perm.user_id,
+                                        is_author: false,
+                                        is_uploader: false,
+                                        may_manage: perm.may_manage,
+                                        may_grant: perm.may_grant,
+                                        other: None,
+                                    })
+                                    .execute(conn)
+                                    .await?;
+                            }
+                        }
+                    }
+
+                    Ok::<_, ApiError>(())
                 }
-
-                match update_type {
-                    PermissionUpdateType::Modify => {
-                        diesel::update(crate::schema::map_permission::table)
-                            .filter(
-                                crate::schema::map_permission::dsl::ap_user_id
-                                    .eq(perm.user_id)
-                                    .and(crate::schema::map_permission::dsl::ap_map_id.eq(map_id)),
-                            )
-                            .set(crate::models::UpdateMapPermission {
-                                may_manage: perm.may_manage,
-                                may_grant: perm.may_grant,
-                            })
-                            .execute(&mut conn)
-                            .await?;
-                    }
-
-                    PermissionUpdateType::Remove => {
-                        diesel::delete(crate::schema::map_permission::table)
-                            .filter(
-                                crate::schema::map_permission::dsl::ap_user_id
-                                    .eq(perm.user_id)
-                                    .and(
-                                        crate::schema::map_permission::dsl::ap_map_id
-                                            .eq(map.ap_map_id),
-                                    ),
-                            )
-                            .execute(&mut conn)
-                            .await?;
-                    }
-
-                    PermissionUpdateType::Add => {
-                        diesel::insert_into(crate::schema::map_permission::table)
-                            .values(crate::models::MapPermission {
-                                ap_map_id: map.ap_map_id,
-                                ap_user_id: perm.user_id,
-                                is_author: false,
-                                is_uploader: false,
-                                may_manage: perm.may_manage,
-                                may_grant: perm.may_grant,
-                                other: None,
-                            })
-                            .execute(&mut conn)
-                            .await?;
-                    }
-                }
-            }
+                .scope_boxed()
+            })
+            .await?;
         }
     }
 
