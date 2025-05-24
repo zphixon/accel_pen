@@ -18,7 +18,7 @@ use axum::{
 };
 use axum_extra::extract::WithRejection;
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{scoped_futures::ScopedFutureExt, AsyncConnection, RunQueryDsl};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tower_sessions::Session;
@@ -379,106 +379,117 @@ pub async fn map_upload(
 
     let map_buffer = map_data.to_vec();
 
-    let new_map = match diesel::insert_into(crate::schema::map::table)
-        .values(crate::models::NewMap {
-            gbx_mapuid: map_info.id.to_string(),
-            map_name: map_name.to_string(),
-            uploaded: time::OffsetDateTime::now_utc(),
-            created: time::OffsetDateTime::from_unix_timestamp(map_meta.last_modified as i64)?,
-            author_time,
-            gold_time,
-            silver_time,
-            bronze_time,
-        })
-        .returning(crate::models::Map::as_returning())
-        .get_result(&mut conn)
-        .await
-    {
-        Ok(new_map) => new_map,
-        Err(err) => {
-            if let Some(exists) = crate::schema::map::dsl::map
-                .select(crate::models::Map::as_select())
-                .filter(crate::schema::map::dsl::gbx_mapuid.eq(map_info.id))
-                .get_result(&mut conn)
-                .await
-                .optional()?
-            {
-                return Err(ApiErrorInner::AlreadyUploaded {
-                    map_id: exists.ap_map_id,
+    let new_map = conn
+        .transaction(|conn| {
+            async move {
+                let new_map = match diesel::insert_into(crate::schema::map::table)
+                    .values(crate::models::NewMap {
+                        gbx_mapuid: map_info.id.to_string(),
+                        map_name: map_name.to_string(),
+                        uploaded: time::OffsetDateTime::now_utc(),
+                        created: time::OffsetDateTime::from_unix_timestamp(
+                            map_meta.last_modified as i64,
+                        )?,
+                        author_time,
+                        gold_time,
+                        silver_time,
+                        bronze_time,
+                    })
+                    .returning(crate::models::Map::as_returning())
+                    .get_result(conn)
+                    .await
+                {
+                    Ok(new_map) => new_map,
+                    Err(err) => {
+                        if let Some(exists) = crate::schema::map::dsl::map
+                            .select(crate::models::Map::as_select())
+                            .filter(crate::schema::map::dsl::gbx_mapuid.eq(map_info.id))
+                            .get_result(conn)
+                            .await
+                            .optional()?
+                        {
+                            return Err(ApiErrorInner::AlreadyUploaded {
+                                map_id: exists.ap_map_id,
+                            }
+                            .into());
+                        } else {
+                            return Err(err.into());
+                        }
+                    }
+                };
+
+                diesel::insert_into(crate::schema::map_data::table)
+                    .values(crate::models::MapData {
+                        ap_map_id: new_map.ap_map_id,
+                        gbx_data: map_buffer,
+                    })
+                    .execute(conn)
+                    .await?;
+
+                diesel::insert_into(crate::schema::map_thumbnail::table)
+                    .values(crate::models::MapThumbnail {
+                        ap_map_id: new_map.ap_map_id,
+                        thumbnail: thumbnail_data,
+                        thumbnail_small: small_thumbnail_data,
+                    })
+                    .execute(conn)
+                    .await?;
+
+                for tag in map_tags {
+                    diesel::insert_into(crate::schema::map_tag::table)
+                        .values(crate::models::MapTag {
+                            ap_map_id: new_map.ap_map_id,
+                            tag_id: tag,
+                        })
+                        .execute(conn)
+                        .await?;
                 }
-                .into());
-            } else {
-                return Err(err.into());
+
+                if ap_author_id == ap_uploader_id {
+                    diesel::insert_into(crate::schema::map_permission::table)
+                        .values(crate::models::MapPermission {
+                            ap_map_id: new_map.ap_map_id,
+                            ap_user_id: ap_author_id,
+                            is_author: true,
+                            is_uploader: true,
+                            may_manage: true,
+                            may_grant: true,
+                            other: None,
+                        })
+                        .execute(conn)
+                        .await?;
+                } else {
+                    diesel::insert_into(crate::schema::map_permission::table)
+                        .values(crate::models::MapPermission {
+                            ap_map_id: new_map.ap_map_id,
+                            ap_user_id: ap_author_id,
+                            is_author: true,
+                            is_uploader: false,
+                            may_manage: true,
+                            may_grant: true,
+                            other: None,
+                        })
+                        .execute(conn)
+                        .await?;
+                    diesel::insert_into(crate::schema::map_permission::table)
+                        .values(crate::models::MapPermission {
+                            ap_map_id: new_map.ap_map_id,
+                            ap_user_id: ap_uploader_id,
+                            is_author: false,
+                            is_uploader: true,
+                            may_manage: true,
+                            may_grant: false,
+                            other: None,
+                        })
+                        .execute(conn)
+                        .await?;
+                }
+
+                Ok::<_, ApiError>(new_map)
             }
-        }
-    };
-
-    diesel::insert_into(crate::schema::map_data::table)
-        .values(crate::models::MapData {
-            ap_map_id: new_map.ap_map_id,
-            gbx_data: map_buffer,
+            .scope_boxed()
         })
-        .execute(&mut conn)
         .await?;
-
-    diesel::insert_into(crate::schema::map_thumbnail::table)
-        .values(crate::models::MapThumbnail {
-            ap_map_id: new_map.ap_map_id,
-            thumbnail: thumbnail_data,
-            thumbnail_small: small_thumbnail_data,
-        })
-        .execute(&mut conn)
-        .await?;
-
-    for tag in map_tags {
-        diesel::insert_into(crate::schema::map_tag::table)
-            .values(crate::models::MapTag {
-                ap_map_id: new_map.ap_map_id,
-                tag_id: tag,
-            })
-            .execute(&mut conn)
-            .await?;
-    }
-
-    if ap_author_id == ap_uploader_id {
-        diesel::insert_into(crate::schema::map_permission::table)
-            .values(crate::models::MapPermission {
-                ap_map_id: new_map.ap_map_id,
-                ap_user_id: ap_author_id,
-                is_author: true,
-                is_uploader: true,
-                may_manage: true,
-                may_grant: true,
-                other: None,
-            })
-            .execute(&mut conn)
-            .await?;
-    } else {
-        diesel::insert_into(crate::schema::map_permission::table)
-            .values(crate::models::MapPermission {
-                ap_map_id: new_map.ap_map_id,
-                ap_user_id: ap_author_id,
-                is_author: true,
-                is_uploader: false,
-                may_manage: true,
-                may_grant: true,
-                other: None,
-            })
-            .execute(&mut conn)
-            .await?;
-        diesel::insert_into(crate::schema::map_permission::table)
-            .values(crate::models::MapPermission {
-                ap_map_id: new_map.ap_map_id,
-                ap_user_id: ap_uploader_id,
-                is_author: false,
-                is_uploader: true,
-                may_manage: true,
-                may_grant: false,
-                other: None,
-            })
-            .execute(&mut conn)
-            .await?;
-    }
 
     Ok(Json(MapUploadResponse {
         map_id: new_map.ap_map_id,
@@ -825,17 +836,19 @@ pub async fn user_search(
         .get_results(&mut conn)
         .await?;
 
-    Ok(Json(results
-        .into_iter()
-        .map(|row| UserResponse {
-            display_name: row.nadeo_display_name.clone(),
-            account_id: row.nadeo_account_id.clone(),
-            user_id: row.ap_user_id,
-            club_tag: row
-                .nadeo_club_tag
-                .as_deref()
-                .map(nadeo::FormattedString::parse),
-            registered: row.registered.map(crate::format_time),
-        })
-        .collect()))
+    Ok(Json(
+        results
+            .into_iter()
+            .map(|row| UserResponse {
+                display_name: row.nadeo_display_name.clone(),
+                account_id: row.nadeo_account_id.clone(),
+                user_id: row.ap_user_id,
+                club_tag: row
+                    .nadeo_club_tag
+                    .as_deref()
+                    .map(nadeo::FormattedString::parse),
+                registered: row.registered.map(crate::format_time),
+            })
+            .collect(),
+    ))
 }

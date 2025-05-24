@@ -377,7 +377,10 @@ pub async fn map_page(
                 }
             };
 
-        if auth_perms.iter().any(|perm| perm.is_author || perm.may_manage) {
+        if auth_perms
+            .iter()
+            .any(|perm| perm.is_author || perm.may_manage)
+        {
             context.insert("may_manage", &true);
         }
     }
