@@ -557,7 +557,7 @@ pub async fn map_manage(
         .into());
     };
 
-    let Some((auth_perms, auth_user)) = users
+    let Some((auth_perms, _)) = users
         .iter()
         .find(|(user, _)| user.ap_user_id == auth.user_id())
     else {
@@ -619,15 +619,17 @@ pub async fn map_manage(
             }
 
             for update in permissions {
-                match update {
-                    PermissionUpdate {
-                        update_type: PermissionUpdateType::Modify,
-                        permission: perm,
-                    } => {
-                        if perm.user_id == author.ap_user_id {
-                            return Err(ApiErrorInner::CannotUsurpAuthor.into());
-                        }
+                let PermissionUpdate {
+                    permission: perm,
+                    update_type,
+                } = update;
 
+                if perm.user_id == author.ap_user_id {
+                    return Err(ApiErrorInner::CannotUsurpAuthor.into());
+                }
+
+                match update_type {
+                    PermissionUpdateType::Modify => {
                         diesel::update(crate::schema::map_permission::table)
                             .filter(
                                 crate::schema::map_permission::dsl::ap_user_id
@@ -642,7 +644,34 @@ pub async fn map_manage(
                             .await?;
                     }
 
-                    _ => {}
+                    PermissionUpdateType::Remove => {
+                        diesel::delete(crate::schema::map_permission::table)
+                            .filter(
+                                crate::schema::map_permission::dsl::ap_user_id
+                                    .eq(perm.user_id)
+                                    .and(
+                                        crate::schema::map_permission::dsl::ap_map_id
+                                            .eq(map.ap_map_id),
+                                    ),
+                            )
+                            .execute(&mut conn)
+                            .await?;
+                    }
+
+                    PermissionUpdateType::Add => {
+                        diesel::insert_into(crate::schema::map_permission::table)
+                            .values(crate::models::MapPermission {
+                                ap_map_id: map.ap_map_id,
+                                ap_user_id: perm.user_id,
+                                is_author: false,
+                                is_uploader: false,
+                                may_manage: perm.may_manage,
+                                may_grant: perm.may_grant,
+                                other: None,
+                            })
+                            .execute(&mut conn)
+                            .await?;
+                    }
                 }
             }
         }
@@ -774,4 +803,39 @@ pub async fn map_search(
     Ok(Json(MapSearchResponse {
         maps: maps.into_values().collect(),
     }))
+}
+
+#[derive(Deserialize)]
+pub struct UserSearchRequest {
+    name_like: String,
+}
+
+pub async fn user_search(
+    State(state): State<AppState>,
+    WithRejection(Query(request), _): WithRejection<Query<UserSearchRequest>, ApiError>,
+) -> Result<Json<Vec<UserResponse>>, ApiError> {
+    let mut conn = state.db.get().await?;
+
+    let with_wildcards = format!("%{}%", request.name_like);
+
+    let results = crate::schema::ap_user::dsl::ap_user
+        .select(crate::models::User::as_select())
+        .filter(crate::schema::ap_user::dsl::nadeo_display_name.ilike(&with_wildcards))
+        .limit(10)
+        .get_results(&mut conn)
+        .await?;
+
+    Ok(Json(results
+        .into_iter()
+        .map(|row| UserResponse {
+            display_name: row.nadeo_display_name.clone(),
+            account_id: row.nadeo_account_id.clone(),
+            user_id: row.ap_user_id,
+            club_tag: row
+                .nadeo_club_tag
+                .as_deref()
+                .map(nadeo::FormattedString::parse),
+            registered: row.registered.map(crate::format_time),
+        })
+        .collect()))
 }

@@ -26,6 +26,8 @@
       <div class="mapAuthor">
         {% if user and user.user_id == map.author.user_id %}
           <div>by you - <a href="/map/{{ map.id }}/manage">Manage map</a></div>
+        {% elif may_manage %}
+          <div>by {{ macros::user_summary(user=map.author) }} - <a href="/map/{{ map.id }}/manage">Manage map</a></div>
         {% else %}
           <div>by {{ macros::user_summary(user=map.author) }}</div>
         {% endif %}

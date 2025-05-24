@@ -5,8 +5,10 @@ interface UserPermissionProps {
   perm: types.Permission,
   isUser?: boolean,
   onUpdatePerm?: (perm: types.Permission) => void,
+  onRemove?: (perm: types.Permission) => void,
+  onAdd?: (perm: types.Permission) => void,
 }
-export function UserPermission({ perm, onUpdatePerm, isUser = false }: UserPermissionProps) {
+export function UserPermission({ perm, onUpdatePerm, onRemove, isUser = false }: UserPermissionProps) {
   function id(id: string): string {
     return id + perm.user_id;
   }
@@ -52,6 +54,8 @@ export function UserPermission({ perm, onUpdatePerm, isUser = false }: UserPermi
         />
         <label htmlFor={id("mayGrant")}>May grant permissions</label>
       </span>
+
+      <button onClick={_ => {if (onRemove) onRemove(perm)}} disabled={isUser}>Remove</button>
     </span>
   </>;
 }

@@ -6,6 +6,7 @@ import * as api from "./api";
 import * as types from "./bindings/index";
 import React, { StrictMode, useRef, useState } from "react";
 import TagSelect from "./components/TagSelect";
+import { UserSearch } from "./components/UserSearch";
 
 let maxTags = 7;
 
@@ -39,6 +40,7 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
     }).then(setSetTagsResponse);
   }
 
+  let [addUser, setAddUser] = useState<types.UserResponse | undefined>(undefined);
   let [permsResponse, setPermsResponse] = useState<types.MapManageResponse | types.TsApiError | undefined>(undefined);
   let [permsNoSelf, setPermsNoSelf] = useState(permData.filter(perm => perm.user_id != userData.user_id));
   let selfPerm = permData.find(perm => perm.user_id == userData.user_id)!;
@@ -58,6 +60,41 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
           permission: perm,
         })),
       },
+    }).then(setPermsResponse)
+  }
+  function requestAddUser() {
+    if (addUser) {
+      api.manageMap(mapData.id, {
+        type: "MapManageRequest",
+        command: {
+          type: "SetPermissions",
+          permissions: [{
+            type: "PermissionUpdate",
+            update_type: "Add",
+            permission: {
+              type: "Permission",
+              display_name: addUser.display_name,
+              // these are hardcoded false in the backend anyway
+              may_grant: false,
+              may_manage: false,
+              user_id: addUser.user_id,
+            }
+          }]
+        }
+      }).then(setPermsResponse)
+    }
+  }
+  function requestRemovePerm(perm: types.Permission) {
+    api.manageMap(mapData.id, { 
+      type: "MapManageRequest",
+      command: {
+        type: "SetPermissions",
+        permissions: [{
+          type: "PermissionUpdate",
+          update_type: "Remove",
+          permission: perm,
+        }]
+      }
     }).then(setPermsResponse)
   }
 
@@ -94,7 +131,12 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
     <h3>Edit permissions</h3>
     <p>
       <UserPermission perm={selfPerm} isUser={true} />
-      {permsNoSelf.map(perm => <UserPermission key={perm.user_id} perm={perm} onUpdatePerm={onUpdatePerm} />)}
+      {permsNoSelf.map(perm => <UserPermission key={perm.user_id} perm={perm} onUpdatePerm={onUpdatePerm} onRemove={requestRemovePerm} />)}
+      <br/>
+      <div className="userSearch">
+        <button onClick={_ => requestAddUser()}>Add</button>
+        <UserSearch selection={addUser} setSelection={setAddUser} />
+      </div>
       <br/>
       <button onClick={_ => requestPermUpdate()}>Update permissions</button>
     </p>

@@ -101,3 +101,9 @@ export async function mapSearch(request: types.MapSearchRequest): Promise<types.
     }
   );
 }
+
+export async function userSearchByName(name: string): Promise<types.UserResponse[] | types.TsApiError> {
+  return await apiCall<types.UserResponse[]>(
+    "/user/search?name_like=" + encodeURIComponent(name),
+  );
+}

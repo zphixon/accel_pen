@@ -89,6 +89,7 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
         let my_maps: Vec<crate::models::Map> =
             match crate::models::MapPermission::belonging_to(&user)
                 .inner_join(crate::schema::map::table)
+                .filter(crate::schema::map_permission::dsl::is_author.eq(true))
                 .select(crate::models::Map::as_select())
                 .limit(20)
                 .get_results(&mut conn)
@@ -162,13 +163,14 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
         {
             Ok(Some(user)) => user,
             Ok(None) => {
+                // hmm
                 return render_error(
                     &state,
                     context,
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Missing author",
                     "Missing author for map",
-                )
+                );
             }
             Err(err) => {
                 // TODO less repetition
@@ -340,6 +342,45 @@ pub async fn map_page(
             )
         }
     };
+
+    if let Some(auth) = auth.as_ref() {
+        let mut conn = match state.db.get().await {
+            Ok(conn) => conn,
+            Err(err) => {
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Getting database connection",
+                    err,
+                );
+            }
+        };
+
+        let auth_perms: Vec<crate::models::MapPermission> =
+            match crate::schema::map_permission::dsl::map_permission
+                // composite key order hmmmmmmm
+                .find((map_id, auth.user_id()))
+                .select(crate::models::MapPermission::as_select())
+                .get_results(&mut conn)
+                .await
+            {
+                Ok(auth_perms) => auth_perms,
+                Err(err) => {
+                    return render_error(
+                        &state,
+                        context,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Getting user permissions on map",
+                        err,
+                    );
+                }
+            };
+
+        if auth_perms.iter().any(|perm| perm.is_author || perm.may_manage) {
+            context.insert("may_manage", &true);
+        }
+    }
 
     match state
         .tera
