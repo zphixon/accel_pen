@@ -29,18 +29,6 @@
 
 {% block content %}
   {%- if page_user -%}
-    {% if managed_by_others %}
-      <h3>Managed by other users</h3>
-      <p>
-        <a href="/api/v1/map/claim">Click here to claim ownership of your maps</a>
-      </p>
-      {% for managed in managed_by_others %}
-        <div class="mapTiles">
-          {{ macros::map_tile(map=managed.map, author="author_arg", author_arg=managed.user) }}
-        </div>
-      {% endfor %}
-    {% endif %}
-
     {%- if user and page_user.user_id == user.user_id -%}
       <h3>Maps by you</h3>
     {%- else -%}
@@ -58,6 +46,22 @@
     {% if managed_maps %}
       <h3>Maps managed by you</h3>
       {{ macros::map_tiles(maps=managed_maps) }}
+    {% endif %}
+
+    {% if managed_by_others %}
+      <h3>Managed by other users</h3>
+      {% if not reclaimed_maps %}
+        <p>
+          <a href="/map/reclaim">Click here to reclaim ownership of your maps</a>
+        </p>
+      {% endif %}
+      {% for managed in managed_by_others %}
+        <p>
+          <a href="/map/{{ managed.map.id }}">
+            {{ macros::nadeo_string(text=managed.map.name) }}
+          </a>
+        </p>
+      {% endfor %}
     {% endif %}
   {%- else -%}
     No such user

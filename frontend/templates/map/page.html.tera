@@ -32,11 +32,7 @@
           <div>by {{ macros::user_summary(user=map.author) }}</div>
         {% endif %}
         {% if uploader %}
-          {% if user and uploader.user_id == user.user_id %}
-            <div>uploaded by you - <a href="/map/{{ map.id }}/manage">Manage map</a></div>
-          {% else %}
-            <div>uploaded by {{ macros::user_summary(user=uploader) }}</div>
-          {% endif %}
+          <div>uploaded by {{ macros::user_summary(user=uploader) }}</div>
         {% endif %}
       </div>
     </div>

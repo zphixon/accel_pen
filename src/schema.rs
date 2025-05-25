@@ -9,6 +9,7 @@ diesel::table! {
         nadeo_club_tag -> Nullable<Text>,
         site_admin -> Bool,
         registered -> Nullable<Timestamptz>,
+        reclaimed -> Bool,
     }
 }
 

@@ -41,6 +41,7 @@ pub struct User {
     pub nadeo_club_tag: Option<String>,
     pub site_admin: bool,
     pub registered: Option<time::OffsetDateTime>,
+    pub reclaimed: bool,
 }
 
 #[derive(Insertable)]

@@ -104,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
             .nest_service("/static", ServeDir::new("frontend/static"))
             .route("/map/upload", get(routes::web::map_upload))
             .route("/map/search", get(routes::web::map_search))
+            .route("/map/reclaim", get(routes::web::map_reclaim))
             .route("/map/{map_id}", get(routes::web::map_page))
             .route("/map/{map_id}/manage", get(routes::web::map_manage_page))
             .route("/user/{user_id}", get(routes::web::user_page))
@@ -130,6 +131,10 @@ async fn main() -> anyhow::Result<()> {
             .route(
                 &CONFIG.route_api_v1("/user/search"),
                 get(routes::api::user_search),
+            )
+            .route(
+                &CONFIG.route_api_v1("/user/reclaimed"),
+                post(routes::api::reclaimed)
             )
             .route(&CONFIG.oauth_start_route(), get(routes::api::oauth_start))
             .route(&CONFIG.oauth_finish_route(), get(routes::api::oauth_finish))

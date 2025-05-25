@@ -37,7 +37,7 @@
   <img class="{{ class_list | join(sep=' ') }}" src="/api/v1/map/{{ map.id }}/{{ resource }}" />
 {%- endmacro map_thumbnail %}
 
-{% macro map_tile(map, author="map_author", author_arg="") %}
+{% macro map_tile(map, author="map_author", author_arg="", link="") %}
   {%- set map_author = map.author -%}
   {%- if author == "map_author" -%}
   {%- elif author == "author_arg" -%}
@@ -46,7 +46,7 @@
     {%- set map_author = [] -%}
   {%- endif -%}
   <div class="mapTile">
-    <a href="/map/{{ map.id }}">{{ self::map_thumbnail(map=map, small=true) }}</a>
+    <a href="/map/{{ map.id }}{{ link }}">{{ self::map_thumbnail(map=map, small=true) }}</a>
     <div class="mapTileData">
       {{ self::nadeo_string(text=map.name) }}
       {%- if map_author -%}

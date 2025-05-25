@@ -5,7 +5,8 @@ CREATE TABLE ap_user (
     nadeo_login TEXT UNIQUE NOT NULL,
     nadeo_club_tag TEXT,
     site_admin BOOLEAN NOT NULL DEFAULT FALSE,
-    registered TIMESTAMP WITH TIME ZONE
+    registered TIMESTAMP WITH TIME ZONE,
+    reclaimed BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE map (

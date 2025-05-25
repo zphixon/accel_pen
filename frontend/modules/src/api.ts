@@ -22,13 +22,13 @@ export function webUrl(): URL {
   }
 }
 
-interface ApiCallOptions {
+export interface ApiCallOptions {
   params?: URLSearchParams,
   body?: any,
   method?: string,
   contentType?: string,
 }
-async function apiCall<T>(path: string, { params, body, method, contentType }: ApiCallOptions = {}): Promise<T | types.TsApiError> {
+export async function apiCall<T>(path: string, { params, body, method, contentType }: ApiCallOptions = {}): Promise<T | types.TsApiError> {
   let error: types.TsApiError = {
     type: 'TsApiError',
     error: { type: 'ApiFailed' },

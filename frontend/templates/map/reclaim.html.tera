@@ -1,0 +1,21 @@
+{% extends "layout.html.tera" %}
+{% import "macros.tera" as macros %}
+
+{% block head %}
+  <link rel="stylesheet" href="/static/mapReclaim.css">
+{% endblock head %}
+
+{% block tabTitle -%}
+  {{ super() }} - Claim my maps
+{%- endblock tabTitle %}
+
+{% block title %}
+  {{ super() }} - Claim my maps
+{% endblock title %}
+
+{% block content %}
+  <script type="application/json" id="mapsUsers">{{ maps_users | json_encode() }}</script>
+  <script type="application/json" id="userData">{{ user | json_encode() }}</script>
+  <div id="mapReclaim"></div>
+  <script type="module" src="/static/js/renderMapReclaim.js"></script>
+{% endblock content %}

@@ -68,30 +68,15 @@ pub async fn index(State(state): State<AppState>, auth: Option<NadeoAuthSession>
     };
 
     if let Some(auth) = auth {
-        let user: crate::models::User = match crate::schema::ap_user::dsl::ap_user
-            .find(auth.user_id())
-            .select(crate::models::User::as_select())
-            .get_result(&mut conn)
-            .await
-        {
-            Ok(user) => user,
-            Err(err) => {
-                return render_error(
-                    &state,
-                    context,
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Reading user self",
-                    err,
-                )
-            }
-        };
-
         let my_maps: Vec<crate::models::Map> =
-            match crate::models::MapPermission::belonging_to(&user)
+            match crate::schema::map_permission::dsl::map_permission
                 .inner_join(crate::schema::map::table)
-                .filter(crate::schema::map_permission::dsl::is_author.eq(true))
+                .filter(
+                    crate::schema::map_permission::dsl::is_author
+                        .eq(true)
+                        .and(crate::schema::map_permission::dsl::ap_user_id.eq(auth.user_id())),
+                )
                 .select(crate::models::Map::as_select())
-                .limit(20)
                 .get_results(&mut conn)
                 .await
             {
@@ -653,6 +638,8 @@ pub async fn user_page(
         }
     };
 
+    context.insert("reclaimed_maps", &user.reclaimed);
+
     let authored_maps: Vec<crate::models::Map> =
         match crate::models::MapPermission::belonging_to(&user)
             .inner_join(crate::schema::map::table)
@@ -858,6 +845,144 @@ pub async fn user_page(
         .unwrap()
         .render("user.html.tera", &context)
         .context("Rendering user template")
+    {
+        Ok(page) => Html(page).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
+    }
+}
+
+#[derive(Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(tag = "type")]
+struct MapUsers {
+    map: MapContext,
+    users: Vec<UserResponse>,
+}
+
+pub async fn map_reclaim(
+    State(state): State<AppState>,
+    auth: Option<NadeoAuthSession>,
+) -> Response {
+    let mut context = config::context_with_auth_session(auth.as_ref());
+    let Some(auth) = auth else {
+        return render_error(
+            &state,
+            context,
+            StatusCode::UNAUTHORIZED,
+            "Not allowed",
+            "Must be logged in to manage maps",
+        );
+    };
+
+    let mut conn = match state.db.get().await {
+        Ok(conn) => conn,
+        Err(err) => {
+            return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Getting database connection",
+                err,
+            );
+        }
+    };
+
+    let my_maps: Vec<crate::models::Map> = match crate::schema::map_permission::dsl::map_permission
+        .inner_join(crate::schema::map::table)
+        .filter(
+            crate::schema::map_permission::dsl::is_author
+                .eq(true)
+                .and(crate::schema::map_permission::dsl::ap_user_id.eq(auth.user_id())),
+        )
+        .select(crate::models::Map::as_select())
+        .get_results(&mut conn)
+        .await
+    {
+        Ok(my_maps) => my_maps,
+        Err(err) => {
+            return render_error(
+                &state,
+                context,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Reading my maps",
+                err,
+            )
+        }
+    };
+
+    let mut maps_users = Vec::new();
+    for map in my_maps {
+        let users: Vec<crate::models::User> = match crate::models::MapPermission::belonging_to(&map)
+            .inner_join(crate::schema::ap_user::table)
+            .select(crate::models::User::as_select())
+            .filter(
+                crate::schema::map_permission::dsl::is_author
+                    .eq(false)
+                    .and(crate::schema::map_permission::dsl::may_manage.eq(true)),
+            )
+            .get_results(&mut conn)
+            .await
+        {
+            Ok(users) => users,
+            Err(err) => {
+                return render_error(
+                    &state,
+                    context,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Reading users on my maps",
+                    err,
+                )
+            }
+        };
+
+        if users.len() == 0 {
+            continue;
+        }
+
+        let name = nadeo::FormattedString::parse(&map.map_name);
+        maps_users.push(MapUsers {
+            map: MapContext {
+                id: map.ap_map_id,
+                gbx_uid: map.gbx_mapuid,
+                plain_name: name.strip_formatting(),
+                name,
+                votes: map.votes,
+                uploaded: crate::format_time(map.uploaded),
+                created: crate::format_time(map.created),
+                author: UserResponse {
+                    display_name: auth.display_name().to_owned(),
+                    account_id: auth.account_id().to_owned(),
+                    user_id: auth.user_id(),
+                    club_tag: auth.club_tag().map(nadeo::FormattedString::parse),
+                    registered: Some(super::format_time(auth.registered())),
+                },
+                medals: None,
+                tags: vec![],
+            },
+            users: users
+                .into_iter()
+                .map(|user| UserResponse {
+                    display_name: user.nadeo_display_name,
+                    account_id: user.nadeo_account_id,
+                    user_id: user.ap_user_id,
+                    club_tag: user
+                        .nadeo_club_tag
+                        .as_deref()
+                        .map(nadeo::FormattedString::parse),
+                    registered: user.registered.map(super::format_time),
+                })
+                .collect(),
+        })
+    }
+
+    context.insert("maps_users", &maps_users);
+
+    match state
+        .tera
+        .read()
+        .unwrap()
+        .render("map/reclaim.html.tera", &context)
+        .context("Rendering map/reclaim template")
     {
         Ok(page) => Html(page).into_response(),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),

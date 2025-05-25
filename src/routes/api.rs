@@ -863,3 +863,23 @@ pub async fn user_search(
             .collect(),
     ))
 }
+
+#[derive(Serialize, TS)]
+#[serde(tag = "type")]
+#[ts(export)]
+pub struct MapReclaimResponse {}
+
+pub async fn reclaimed(
+    State(state): State<AppState>,
+    auth: NadeoAuthSession,
+) -> Result<Json<MapReclaimResponse>, ApiError> {
+    let mut conn = state.db.get().await?;
+
+    diesel::update(crate::schema::ap_user::table)
+        .filter(crate::schema::ap_user::dsl::ap_user_id.eq(auth.user_id()))
+        .set(crate::schema::ap_user::dsl::reclaimed.eq(true))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(Json(MapReclaimResponse {}))
+}
