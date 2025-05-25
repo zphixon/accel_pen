@@ -300,23 +300,21 @@ async fn populate_context_with_map_data(
     };
 
     if !author_perms.is_uploader && author.registered.is_none() {
-        let Some((_, uploader)) = users.iter().find(|(user, _)| user.is_uploader) else {
-            return Err(ApiErrorInner::MissingUploader { map_id }.into());
-        };
-
-        context.insert(
-            "uploader",
-            &UserResponse {
-                display_name: uploader.nadeo_display_name.clone(),
-                account_id: uploader.nadeo_account_id.clone(),
-                user_id: uploader.ap_user_id,
-                club_tag: uploader
-                    .nadeo_club_tag
-                    .as_deref()
-                    .map(nadeo::FormattedString::parse),
-                registered: uploader.registered.map(super::format_time),
-            },
-        );
+        if let Some((_, uploader)) = users.iter().find(|(user, _)| user.is_uploader) {
+            context.insert(
+                "uploader",
+                &UserResponse {
+                    display_name: uploader.nadeo_display_name.clone(),
+                    account_id: uploader.nadeo_account_id.clone(),
+                    user_id: uploader.ap_user_id,
+                    club_tag: uploader
+                        .nadeo_club_tag
+                        .as_deref()
+                        .map(nadeo::FormattedString::parse),
+                    registered: uploader.registered.map(super::format_time),
+                },
+            );
+        }
     }
 
     context.insert("map", &map_context);
