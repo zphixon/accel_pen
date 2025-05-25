@@ -140,12 +140,15 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
 
   let editControllers = [];
   for (let perm of permsNoSelf) {
+    let isAuthor = perm.perm.user_id == mapData.author.user_id;
     editControllers.push(
       <UserPermission
         key={"" + perm.perm.user_id + Math.random()}
         perm={perm.perm}
         update={perm.update}
         onUpdatePerm={prepareEditUser}
+        disabled={isAuthor}
+        disabledText={isAuthor ? "(author)" : undefined}
       />
     );
   }
@@ -186,7 +189,7 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
 
     <h3>Edit permissions</h3>
     <p>
-      <UserPermission perm={selfPerm} isUser={true} />
+      <UserPermission perm={selfPerm} disabled={true} />
       {editControllers}
     </p>
     <div className="userSearch">

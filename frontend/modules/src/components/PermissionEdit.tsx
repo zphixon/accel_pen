@@ -3,11 +3,12 @@ import * as types from "../bindings/index";
 
 interface UserPermissionProps {
   perm: types.Permission,
-  isUser?: boolean,
+  disabled?: boolean,
+  disabledText?: string,
   update?: types.PermissionUpdateType,
   onUpdatePerm?: (perm: types.PermissionUpdate) => void,
 }
-export function UserPermission({ perm, onUpdatePerm, isUser = false, update }: UserPermissionProps) {
+export function UserPermission({ perm, onUpdatePerm, disabled = false, disabledText = "(you)", update }: UserPermissionProps) {
   function id(id: string): string {
     return id + perm.user_id;
   }
@@ -45,13 +46,13 @@ export function UserPermission({ perm, onUpdatePerm, isUser = false, update }: U
     <span className={classes.join(" ")}>
       <span>
         <a href={"/user/" + perm.user_id}>{perm.display_name}</a>
-        {isUser ? "(you)" : ""}
+        {disabled ? disabledText : ""}
       </span>
 
       <span>
         <input
           type="checkbox"
-          disabled={isUser}
+          disabled={disabled}
           id={id("mayManage")}
           checked={perm.may_manage}
           onChange={e => onUpdate({ ...perm, may_manage: e.target.checked })}
@@ -62,7 +63,7 @@ export function UserPermission({ perm, onUpdatePerm, isUser = false, update }: U
       <span>
         <input
           type="checkbox"
-          disabled={isUser}
+          disabled={disabled}
           id={id("mayGrant")}
           checked={perm.may_grant}
           onChange={e => onUpdate({ ...perm, may_grant: e.target.checked })}
@@ -70,7 +71,7 @@ export function UserPermission({ perm, onUpdatePerm, isUser = false, update }: U
         <label htmlFor={id("mayGrant")}>May grant permissions</label>
       </span>
 
-      <button onClick={_ => onClickRemove()} disabled={isUser}>Remove</button>
+      <button onClick={_ => onClickRemove()} disabled={disabled}>Remove</button>
     </span>
   </>;
 }
