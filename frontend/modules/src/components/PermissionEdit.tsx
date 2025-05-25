@@ -4,30 +4,45 @@ import * as types from "../bindings/index";
 interface UserPermissionProps {
   perm: types.Permission,
   isUser?: boolean,
-  onUpdatePerm?: (perm: types.Permission) => void,
-  onRemove?: (perm: types.Permission) => void,
-  onAdd?: (perm: types.Permission) => void,
+  update?: types.PermissionUpdateType,
+  onUpdatePerm?: (perm: types.PermissionUpdate) => void,
 }
-export function UserPermission({ perm, onUpdatePerm, onRemove, isUser = false }: UserPermissionProps) {
+export function UserPermission({ perm, onUpdatePerm, isUser = false, update }: UserPermissionProps) {
   function id(id: string): string {
     return id + perm.user_id;
   }
 
-  let [mayManage, setMayManage] = useState(perm.may_manage);
-  let [mayGrant, setMayGrant] = useState(perm.may_grant);
-
-  useEffect(() => {
+  function onUpdate(update: types.Permission) {
     if (onUpdatePerm) {
       onUpdatePerm({
-        ...perm,
-        may_manage: mayManage,
-        may_grant: mayGrant,
+        type: "PermissionUpdate",
+        update_type: "Modify",
+        permission: update,
       });
     }
-  }, [mayManage, mayGrant]);
+  }
+
+  function onClickRemove() {
+    if (onUpdatePerm) {
+      onUpdatePerm({
+        type: "PermissionUpdate",
+        update_type: "Remove",
+        permission: perm,
+      });
+    }
+  }
+
+  let classes = ["permissionEdit"];
+  if (update == "Modify") {
+    classes.push("permissionEditModify");
+  } else if (update == "Remove") {
+    classes.push("permissionEditRemove");
+  } else if (update == "Add") {
+    classes.push("permissionEditAdd");
+  }
 
   return <>
-    <span className="permissionEdit">
+    <span className={classes.join(" ")}>
       <span>
         <a href={"/user/" + perm.user_id}>{perm.display_name}</a>
         {isUser ? "(you)" : ""}
@@ -38,8 +53,8 @@ export function UserPermission({ perm, onUpdatePerm, onRemove, isUser = false }:
           type="checkbox"
           disabled={isUser}
           id={id("mayManage")}
-          checked={mayManage}
-          onChange={e => setMayManage(e.target.checked)}
+          checked={perm.may_manage}
+          onChange={e => onUpdate({ ...perm, may_manage: e.target.checked })}
         />
         <label htmlFor={id("mayManage")}>May manage map</label>
       </span>
@@ -49,13 +64,13 @@ export function UserPermission({ perm, onUpdatePerm, onRemove, isUser = false }:
           type="checkbox"
           disabled={isUser}
           id={id("mayGrant")}
-          checked={mayGrant}
-          onChange={e => setMayGrant(e.target.checked)}
+          checked={perm.may_grant}
+          onChange={e => onUpdate({ ...perm, may_grant: e.target.checked })}
         />
         <label htmlFor={id("mayGrant")}>May grant permissions</label>
       </span>
 
-      <button onClick={_ => {if (onRemove) onRemove(perm)}} disabled={isUser}>Remove</button>
+      <button onClick={_ => onClickRemove()} disabled={isUser}>Remove</button>
     </span>
   </>;
 }

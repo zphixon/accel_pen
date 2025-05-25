@@ -42,3 +42,15 @@
 .userSearchSelect {
     flex-grow: 1;
 }
+
+.permissionEditModify {
+    background-color: rgb(255, 255, 181);
+}
+
+.permissionEditRemove {
+    background-color: rgb(255, 149, 149);
+}
+
+.permissionEditAdd {
+    background-color: rgb(210, 255, 210);
+}

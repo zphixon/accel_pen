@@ -24,95 +24,151 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
   let ref = useRef<HTMLDivElement>(null);
   useOnClickOutside(ref as React.RefObject<HTMLDivElement>, _ => setShowDelete(false));
 
-  let [deleteResponse, setDeleteResponse] = useState<types.MapManageResponse | types.TsApiError | undefined>(undefined);
+  let [apiError, setApiError] = useState<types.TsApiError | undefined>(undefined);
+
+  let [deleted, setDeleted] = useState(false);
+  if (deleted) {
+    return <>Map deleted</>;
+  }
+
   function doDeleteMap() {
     api.manageMap(mapData.id, {
       type: "MapManageRequest",
       command: { type: "Delete" },
-    }).then(setDeleteResponse);
+    }).then(response => {
+      if (response.type == "TsApiError") {
+        setApiError(response);
+      } else {
+        setDeleted(true);
+      }
+    });
   }
 
-  let [setTagsResponse, setSetTagsResponse] = useState<types.MapManageResponse | types.TsApiError | undefined>(undefined);
   function doSetTags() {
     api.manageMap(mapData.id, {
       type: "MapManageRequest",
       command: { type: "SetTags", tags: selectedTags },
-    }).then(setSetTagsResponse);
+    }).then(response => {
+      if (response.type == "TsApiError") {
+        setApiError(response);
+      } else {
+        location.reload();
+      }
+    });
   }
 
+  let [permChanges, setPermChanges] = useState<types.PermissionUpdate[]>([]);
+
   let [addUser, setAddUser] = useState<types.UserResponse | undefined>(undefined);
-  let [permsResponse, setPermsResponse] = useState<types.MapManageResponse | types.TsApiError | undefined>(undefined);
-  let [permsNoSelf, setPermsNoSelf] = useState(permData.filter(perm => perm.user_id != userData.user_id));
-  let selfPerm = permData.find(perm => perm.user_id == userData.user_id)!;
-  function onUpdatePerm(newPerm: types.Permission) {
-    let newPermsNoSelf = permsNoSelf.filter(perm => perm.user_id != newPerm.user_id);
-    newPermsNoSelf = [...newPermsNoSelf, newPerm];
-    setPermsNoSelf(newPermsNoSelf);
+  function prepareAddUser() {
+    if (!addUser) {
+      return;
+    }
+
+    let newPermChanges = [...permChanges];
+    let newPermChange: types.PermissionUpdate = {
+      type: "PermissionUpdate",
+      update_type: "Add",
+      permission: {
+        type: "Permission",
+        user_id: addUser.user_id,
+        display_name: addUser.display_name,
+        may_grant: false,
+        may_manage: false,
+      }
+    };
+
+    let existingPermIndex = newPermChanges.findIndex(change => change.permission.user_id == addUser.user_id)
+    if (existingPermIndex >= 0) {
+      newPermChanges[existingPermIndex] = newPermChange;
+    } else {
+      newPermChanges.push(newPermChange);
+    }
+
+    setPermChanges(newPermChanges);
   }
+  function prepareEditUser(update: types.PermissionUpdate) {
+    console.log(update);
+    let newPermChanges = [...permChanges];
+    let editPermIndex = newPermChanges.findIndex(perm => perm.permission.user_id == update.permission.user_id);
+    if (editPermIndex >= 0) {
+      let editPerm = newPermChanges[editPermIndex];
+      editPerm.permission = update.permission;
+      if (editPerm.update_type == "Add" && update.update_type == "Modify") {
+        editPerm.update_type = "Add";
+      } else if (editPerm.update_type == "Add" && update.update_type == "Remove") {
+        newPermChanges.splice(editPermIndex, 1);
+      } else {
+        editPerm.update_type = update.update_type;
+        if (update.update_type == "Remove") {
+          editPerm.permission = { ...editPerm.permission, may_grant: false, may_manage: false };
+        }
+      }
+    } else {
+      newPermChanges.push(update);
+    }
+    setPermChanges(newPermChanges);
+  }
+
+  interface PermSomething {
+    perm: types.Permission,
+    update?: types.PermissionUpdateType,
+  }
+
+  let permsNoSelf: PermSomething[] = permData.filter(perm => perm.user_id != userData.user_id).map(perm => ({ perm }));
+  let selfPerm = permData.find(perm => perm.user_id == userData.user_id)!;
+
+  for (let change of permChanges) {
+    if (change.update_type == "Add") {
+      permsNoSelf.push({
+        perm: change.permission,
+        update: "Add",
+      });
+      continue;
+    }
+    let indexExisting = permsNoSelf.findIndex(perm => perm.perm.user_id == change.permission.user_id);
+    if (indexExisting < 0) {
+      continue;
+    }
+    if (change.update_type == "Modify") {
+      permsNoSelf[indexExisting].perm = change.permission;
+      permsNoSelf[indexExisting].update = "Modify";
+    } else if (change.update_type == "Remove") {
+      permsNoSelf[indexExisting].update = "Remove";
+    }
+  }
+
+  let editControllers = [];
+  for (let perm of permsNoSelf) {
+    editControllers.push(
+      <UserPermission
+        key={"" + perm.perm.user_id + Math.random()}
+        perm={perm.perm}
+        update={perm.update}
+        onUpdatePerm={prepareEditUser}
+      />
+    );
+  }
+
   function requestPermUpdate() {
     api.manageMap(mapData.id, {
       type: "MapManageRequest",
       command: {
         type: "SetPermissions",
-        permissions: permsNoSelf.map(perm => ({
-          type: "PermissionUpdate",
-          update_type: "Modify",
-          permission: perm,
-        })),
-      },
-    }).then(setPermsResponse)
-  }
-  function requestAddUser() {
-    if (addUser) {
-      api.manageMap(mapData.id, {
-        type: "MapManageRequest",
-        command: {
-          type: "SetPermissions",
-          permissions: [{
-            type: "PermissionUpdate",
-            update_type: "Add",
-            permission: {
-              type: "Permission",
-              display_name: addUser.display_name,
-              // these are hardcoded false in the backend anyway
-              may_grant: false,
-              may_manage: false,
-              user_id: addUser.user_id,
-            }
-          }]
-        }
-      }).then(setPermsResponse)
-    }
-  }
-  function requestRemovePerm(perm: types.Permission) {
-    api.manageMap(mapData.id, { 
-      type: "MapManageRequest",
-      command: {
-        type: "SetPermissions",
-        permissions: [{
-          type: "PermissionUpdate",
-          update_type: "Remove",
-          permission: perm,
-        }]
+        permissions: permChanges,
       }
-    }).then(setPermsResponse)
+    }).then(response => {
+      if (response.type == "TsApiError") {
+        setApiError(response);
+      } else {
+        location.reload();
+      }
+    });
   }
 
-  let manageResponse = <></>;
-  if (deleteResponse?.type == "TsApiError") {
-    manageResponse = <>Couldn't delete map: {deleteResponse.message}</>;
-  } else if (deleteResponse?.type == "MapManageResponse") {
-    return <>Map deleted</>;
-  }
-  if (setTagsResponse?.type == "TsApiError") {
-    manageResponse = <>Couldn't set tags: {setTagsResponse.message}</>;
-  } else if (setTagsResponse?.type == "MapManageResponse") {
-    manageResponse = <>Set tags successfully</>;
-  }
-  if (permsResponse?.type == "TsApiError") {
-    manageResponse = <>Couldn't set permissions: {permsResponse.message}</>;
-  } else if (permsResponse?.type == "MapManageResponse") {
-    manageResponse = <>Set permissions successfully</>;
+  let apiErrorRendered = <></>;
+  if (apiError) {
+    apiErrorRendered = <>{apiError.error.type}: {apiError.message}</>
   }
 
   return <>
@@ -131,15 +187,14 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
     <h3>Edit permissions</h3>
     <p>
       <UserPermission perm={selfPerm} isUser={true} />
-      {permsNoSelf.map(perm => <UserPermission key={perm.user_id} perm={perm} onUpdatePerm={onUpdatePerm} onRemove={requestRemovePerm} />)}
-      <br/>
-      <div className="userSearch">
-        <button onClick={_ => requestAddUser()}>Add</button>
-        <UserSearch selection={addUser} setSelection={setAddUser} />
-      </div>
-      <br/>
-      <button onClick={_ => requestPermUpdate()}>Update permissions</button>
+      {editControllers}
     </p>
+    <div className="userSearch">
+      <button onClick={_ => prepareAddUser()}>Add</button>
+      <UserSearch selection={addUser} setSelection={setAddUser} />
+    </div>
+    <br/>
+    <button onClick={_ => requestPermUpdate()}>Update permissions</button>
 
     <h3>Delete map</h3>
     <p>
@@ -147,7 +202,7 @@ function MapManage({ tagInfo, mapData }: MapManageProps) {
       <button onClick={_ => setShowDelete(true)}>Delete map</button>
     </p>
 
-    <p>{manageResponse}</p>
+    <p>{apiErrorRendered}</p>
 
     {showDelete && <div className="bgBlur"></div>}
     {showDelete && createPortal(<div className="deleteMapConfirmation" ref={ref}>
